@@ -31,6 +31,9 @@ import { requireAuth, requireRole } from "./middleware/auth";
 
 export const app = express();
 
+// Trust Railway/Render/Heroku reverse proxy so rate-limiter reads the correct IP
+app.set("trust proxy", 1);
+
 // Security headers (removes X-Powered-By, adds XSS protection, etc.)
 app.use(helmet({ contentSecurityPolicy: false }));
 
