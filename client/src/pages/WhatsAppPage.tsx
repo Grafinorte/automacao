@@ -1999,7 +1999,7 @@ export function WhatsAppPage() {
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
         const ext = mimeType.includes("ogg") ? "ogg" : "webm";
         const file = new File([blob], `audio.${ext}`, { type: mimeType });
-        await sendFileToConversation(file);
+        stageFile(file);
       };
       recorder.start();
       mediaRecorderRef.current = recorder;
