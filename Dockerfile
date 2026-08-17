@@ -28,4 +28,4 @@ RUN mkdir -p /data
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "cd server && npx prisma db push && node dist/index.js"]
+CMD ["sh", "-c", "cd server && npx prisma db push && npx tsx prisma/seed.ts && node dist/index.js"]
