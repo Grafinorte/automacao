@@ -1,0 +1,41 @@
+Como vai funcionar nas próximas versões
+Quando for desenvolver a v2
+1. Mudar versão no package.json raiz:
+
+
+"version": "2.0.0"
+2. Se mudar o banco (ex: nova tabela, nova coluna):
+
+
+# Na máquina local, depois de editar o schema.prisma:
+cd server
+npx prisma migrate dev --name descricao_da_mudanca
+# Exemplo: npx prisma migrate dev --name add_financeiro
+Isso cria um arquivo em server/prisma/migrations/ que registra exatamente o que mudar — e que pode ser desfeito.
+
+3. Para subir no servidor:
+
+
+bash scripts/deploy.sh grafinorte@sistema.grafinorte.com.br
+O script vai automaticamente:
+
+✅ Fazer backup antes de qualquer coisa
+✅ Salvar a versão atual como dist-previous
+✅ Buildar a v2 sem derrubar o app ainda
+✅ Aplicar as migrations do banco
+✅ Fazer reload graceful (segundos de downtime)
+4. Se algo der errado:
+
+
+bash scripts/rollback.sh grafinorte@sistema.grafinorte.com.br
+Opção 1 → reverte o código para a versão anterior em segundos, sem mexer no banco
+
+Opção 2 → restaura o backup completo (código + banco) de qualquer data
+
+Resumo de proteções
+Risco	Proteção
+Bug no código novo	dist-previous — rollback em segundos
+Migration que quebra dados	Backup automático pré-deploy + restore por data
+Build que falha no meio	Build roda separado; só reinicia se terminar
+Servidor cai no boot	PM2 sobe o app automaticamente
+Disco cheio de backups	Rotação automática de 30 dias

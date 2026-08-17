@@ -1,0 +1,70 @@
+{
+  "users": [
+    {
+      "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+      "username": "admin",
+      "displayName": "Administrador",
+      "role": "admin",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-07-24T12:55:59.883Z",
+      "passwordSalt": "42f06385694c6501ab3717a32b703147",
+      "passwordHash": "fc2847e212399d27d0eb473d43e63d61615a38701ecd07d68149e4ad6e2ae17cd40936b33c2b4413b652d4b8bb3d84ff103cd4afdb95ff452940436b519fd04f"
+    },
+    {
+      "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+      "username": "luan",
+      "displayName": "Luan Cristian",
+      "role": "design",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-07-24T13:31:22.472Z",
+      "passwordSalt": "fb055d18b1cfcc04ed55ef6695f8d02b",
+      "passwordHash": "3976eeae468fd6a0e9ddc07d73101fd866cdf9f4755a8cce58ce70d8edeb1496ce963a59a078b764e367d1d910f2b5d1d7e2567c17d539ceb5b2c7d9c375e24e"
+    },
+    {
+      "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+      "username": "eduardo",
+      "displayName": "Eduardo",
+      "role": "design",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-07-24T14:07:29.404Z",
+      "passwordSalt": "fe3451bbfab1a3a4a058610b82c55e7f",
+      "passwordHash": "05e73cde64ece1c94f1b439399ae6ce55599f14ac4ef8b9f69410df3048f73a132c42aa8198743a9ae7e8653922305c39bb2fa73528ac140dc8a92784ee45325"
+    },
+    {
+      "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+      "username": "clodoaldo",
+      "displayName": "Clodoaldo",
+      "role": "pcp",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-07-24T16:53:49.358Z",
+      "passwordSalt": "21b900008c585a909913c44bb0ae0d99",
+      "passwordHash": "7ddd37711887e96a20b5ce3fb51a8c7182f9f04eb6e41bb56a14674fbb428e37f9496123fd64536eef4469ef25f01877ad4f5b1b86767ae816ac3366fd0e42c8"
+    },
+    {
+      "id": "4a8d034d-a2d9-42aa-9b0e-8935757e7856",
+      "username": "bruno",
+      "displayName": "Bruno",
+      "role": "visualizador",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-07-24T18:23:43.340Z",
+      "passwordSalt": "bce24685af7292f6c6a187e850129913",
+      "passwordHash": "9a704ff0dd8df58e323b2292cf9c520e3b39f96b1ed88aa2623251f1f9d57b0e39f14d3ce181e506c36f5252eb25764d95b12bb5a5c0ac4cc50378a9942766e1"
+    },
+    {
+      "id": "589c32e2-44df-4474-84c7-76264a947c55",
+      "username": "thiago",
+      "displayName": "Thiago",
+      "role": "gerente",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-07-24T18:47:27.870Z",
+      "passwordSalt": "4d8f5f410f9ddcd17c77027c8af6bc10",
+      "passwordHash": "1d62dd8f9023308cac53da957f175b6832a4e54f36bcb353a66f5771fbbf02262a6edeb24d15ef3a0ff1ee7cfafbab0fe3782ab4895994966d6e31782a84d2df"
+    }
+  ]
+}

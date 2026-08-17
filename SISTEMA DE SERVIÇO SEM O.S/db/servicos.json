@@ -1,0 +1,5122 @@
+{
+  "services": [
+    {
+      "id": "SRV-20260723-174254-WG2",
+      "folder": "serviços/0023",
+      "name": "FACA MIROR LABS",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "WILIAN",
+      "source": "E-mail",
+      "notes": "CAIXA BONÉ\n200X200X110MM",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-24",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 23,
+      "createdBy": null,
+      "logs": [
+        {
+          "id": "120162b9-cf05-4325-a6ac-7a00c8d18b42",
+          "timestamp": "2026-07-24T14:34:31.971Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260723-174254-WG2",
+            "serviceNumber": 23,
+            "name": "FACA MIROR LABS"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "aa5b513c-6f52-441b-ab3a-50c69b6c609f",
+          "timestamp": "2026-07-24T14:34:52.852Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-174254-WG2",
+            "serviceNumber": 23,
+            "name": "FACA MIROR LABS"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Eduardo"
+          }
+        },
+        {
+          "id": "99e276fe-8dec-4fbc-b589-f78fe1a389f2",
+          "timestamp": "2026-07-24T19:22:42.002Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA MIROR LABS\".",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-174254-WG2",
+            "serviceNumber": 23,
+            "name": "FACA MIROR LABS"
+          },
+          "details": {
+            "name": "faca-2026-07-24T19-22-41-982Z-bd4d.pdf",
+            "originalName": "CAIXA BONE 200X200X110MM___FICHA TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "legacy-SRV-20260723-174254-WG2",
+            "itemName": "FACA MIROR LABS",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "91309864-6b2b-4553-b2c8-f77842fa653d",
+          "timestamp": "2026-07-24T19:22:42.348Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-174254-WG2",
+            "serviceNumber": 23,
+            "name": "FACA MIROR LABS"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "FACA MIROR LABS",
+                "name": "faca-2026-07-24T19-22-41-982Z-bd4d.pdf"
+              }
+            ],
+            "completionMessage": "Concluido",
+            "completedItems": [
+              "FACA MIROR LABS"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "updatedAt": "2026-07-24T19:22:42.348Z",
+      "seller": "WILIAN",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-174254-WG2",
+          "name": "FACA MIROR LABS",
+          "rollSizes": [],
+          "notes": "CAIXA BONÉ\n200X200X110MM",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-24T19-22-41-982Z-bd4d.pdf",
+              "originalName": "CAIXA BONE 200X200X110MM___FICHA TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 295652,
+              "kind": "faca",
+              "savedAt": "2026-07-24T19:22:42.002Z",
+              "folder": "serviços/0023",
+              "url": "/servi%C3%A7os/0023/faca-2026-07-24T19-22-41-982Z-bd4d.pdf",
+              "uploadedBy": {
+                "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+                "username": "eduardo",
+                "displayName": "Eduardo",
+                "role": "design"
+              },
+              "itemId": "legacy-SRV-20260723-174254-WG2",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "WILIAN",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": "Concluido"
+    },
+    {
+      "id": "SRV-20260723-174054-PX3",
+      "folder": "serviços/0022",
+      "name": "FACA CHOCOLATE BARRA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "FACA CHOCOLATE GRAMADENSE\n80X170X8MM",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-24",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 22,
+      "createdBy": null,
+      "logs": [
+        {
+          "id": "5a61f7f6-8a29-43fc-9576-58fa9236c518",
+          "timestamp": "2026-07-24T14:34:31.220Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "8de87f1e-6e65-4698-8346-50539f355b56",
+          "timestamp": "2026-07-24T16:55:17.533Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "from": 3,
+            "to": 2
+          }
+        },
+        {
+          "id": "3c66d1c4-a926-4e90-b371-64e77ebb8666",
+          "timestamp": "2026-07-24T16:57:32.932Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "from": 2,
+            "to": 1
+          }
+        },
+        {
+          "id": "d79454f1-5444-493a-bdf4-bbb3ee3718d7",
+          "timestamp": "2026-07-24T16:58:24.003Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "from": 1,
+            "to": 2
+          }
+        },
+        {
+          "id": "60c58b91-0e72-4d79-a5d0-638400186898",
+          "timestamp": "2026-07-24T16:58:25.741Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "from": 2,
+            "to": 3
+          }
+        },
+        {
+          "id": "f5698560-b3be-46a3-9604-1d4b6d36f4aa",
+          "timestamp": "2026-07-24T19:53:38.788Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Eduardo"
+          }
+        },
+        {
+          "id": "6a554461-777d-416b-b2e4-8a676d846ebe",
+          "timestamp": "2026-07-24T20:49:47.552Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA CHOCOLATE BARRA\".",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "name": "faca-2026-07-24T20-49-47-529Z-efce.pdf",
+            "originalName": "CAIXA BARRA CHOCOLATE 80X170X8MM___FICHA TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "legacy-SRV-20260723-174054-PX3",
+            "itemName": "FACA CHOCOLATE BARRA",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "b2a8df26-5a69-4ee2-b99f-9a9c022932bf",
+          "timestamp": "2026-07-24T20:49:47.858Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-174054-PX3",
+            "serviceNumber": 22,
+            "name": "FACA CHOCOLATE BARRA"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "FACA CHOCOLATE BARRA",
+                "name": "faca-2026-07-24T20-49-47-529Z-efce.pdf"
+              }
+            ],
+            "completionMessage": "Concluido",
+            "completedItems": [
+              "FACA CHOCOLATE BARRA"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "updatedAt": "2026-07-24T20:49:47.858Z",
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-174054-PX3",
+          "name": "FACA CHOCOLATE BARRA",
+          "rollSizes": [],
+          "notes": "FACA CHOCOLATE GRAMADENSE\n80X170X8MM",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-24T20-49-47-529Z-efce.pdf",
+              "originalName": "CAIXA BARRA CHOCOLATE 80X170X8MM___FICHA TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 745661,
+              "kind": "faca",
+              "savedAt": "2026-07-24T20:49:47.552Z",
+              "folder": "serviços/0022",
+              "url": "/servi%C3%A7os/0022/faca-2026-07-24T20-49-47-529Z-efce.pdf",
+              "uploadedBy": {
+                "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+                "username": "eduardo",
+                "displayName": "Eduardo",
+                "role": "design"
+              },
+              "itemId": "legacy-SRV-20260723-174054-PX3",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": {
+        "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+        "username": "eduardo",
+        "displayName": "Eduardo",
+        "role": "design"
+      },
+      "completionMessage": "Concluido"
+    },
+    {
+      "id": "SRV-20260723-145942-QD3",
+      "folder": "serviços/0021",
+      "name": "FACA DRAGEAS",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "IMPISA",
+      "source": "Presencial",
+      "notes": "FACA CHOCOLATE GRAMADENSE\n130X35X90MM",
+      "developer": "",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-23",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 21,
+      "createdBy": null,
+      "logs": [],
+      "seller": "IMPISA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-145942-QD3",
+          "name": "FACA DRAGEAS",
+          "rollSizes": [],
+          "notes": "FACA CHOCOLATE GRAMADENSE\n130X35X90MM",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-23T20-36-26-165Z.pdf",
+              "originalName": "CAIXA_DRAGEAS_130X35X90MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-23T20:36:26.186Z",
+              "folder": "serviços/0021",
+              "url": "/servi%C3%A7os/0021/faca-2026-07-23T20-36-26-165Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "IMPISA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260723-132607-JT7",
+      "folder": "serviços/0020",
+      "name": "TAG MADERO",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "GESSICA",
+      "source": "E-mail",
+      "notes": "",
+      "developer": "",
+      "deletedReason": "add com o sistema mais completo",
+      "deletedAt": "2026-07-24",
+      "completedAt": "",
+      "attachments": [],
+      "status": "deleted",
+      "queuePosition": null,
+      "serviceNumber": 20,
+      "createdBy": null,
+      "logs": [
+        {
+          "id": "26e1202b-77d7-4391-925e-768d535d02e5",
+          "timestamp": "2026-07-24T14:34:29.324Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "b7fda12c-a162-405b-b1be-4b6260272483",
+          "timestamp": "2026-07-24T16:55:17.533Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": 2,
+            "to": 1
+          }
+        },
+        {
+          "id": "3c757b8d-37e3-4be4-aa09-f3b7d4c67def",
+          "timestamp": "2026-07-24T16:57:32.932Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": 1,
+            "to": 2
+          }
+        },
+        {
+          "id": "5a1e529f-775b-401f-bbee-3582936f1b58",
+          "timestamp": "2026-07-24T16:58:24.003Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": 2,
+            "to": 3
+          }
+        },
+        {
+          "id": "cd5f11a1-a471-4332-acc9-e3245938809a",
+          "timestamp": "2026-07-24T16:58:25.741Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": 3,
+            "to": 2
+          }
+        },
+        {
+          "id": "39585ec4-cc39-4581-a344-beb2228f1bd3",
+          "timestamp": "2026-07-24T18:40:29.353Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "74ca84c4-1f47-4c87-8f67-02b80f84efb3",
+          "timestamp": "2026-07-24T18:40:33.105Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "38a091fc-5de5-4153-9a3c-14ff75365bda",
+          "timestamp": "2026-07-24T18:43:59.996Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "b36f828a-0da6-4b9a-8a11-3d67a505f8c3",
+          "timestamp": "2026-07-24T18:50:54.915Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "b0dded9a-92c3-494c-adf6-a09c0dd8dcb6",
+          "timestamp": "2026-07-24T19:30:34.755Z",
+          "action": "service_deleted",
+          "summary": "Excluiu o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260723-132607-JT7",
+            "serviceNumber": 20,
+            "name": "TAG MADERO"
+          },
+          "details": {
+            "from": "open",
+            "to": "deleted",
+            "reason": "add com o sistema mais completo"
+          }
+        }
+      ],
+      "updatedAt": "2026-07-24T19:30:34.755Z",
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-132607-JT7",
+          "name": "TAG MADERO",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260723-132552-KVI",
+      "folder": "serviços/0019",
+      "name": "CAIXA PARA EMPADA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "GESSICA",
+      "source": "E-mail",
+      "notes": "",
+      "developer": "",
+      "deletedReason": "add com o sistema mais completo",
+      "deletedAt": "2026-07-24",
+      "completedAt": "",
+      "attachments": [],
+      "status": "deleted",
+      "queuePosition": null,
+      "serviceNumber": 19,
+      "createdBy": null,
+      "logs": [
+        {
+          "id": "baded193-273d-40c6-acb1-009639136136",
+          "timestamp": "2026-07-24T16:55:17.533Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-132552-KVI",
+            "serviceNumber": 19,
+            "name": "CAIXA PARA EMPADA"
+          },
+          "details": {
+            "from": 1,
+            "to": 3
+          }
+        },
+        {
+          "id": "f55ce70f-0917-49cf-8964-06d5210d5e74",
+          "timestamp": "2026-07-24T16:58:24.003Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260723-132552-KVI",
+            "serviceNumber": 19,
+            "name": "CAIXA PARA EMPADA"
+          },
+          "details": {
+            "from": 3,
+            "to": 1
+          }
+        },
+        {
+          "id": "fe7af25d-216b-4efa-8357-5dcd3c382131",
+          "timestamp": "2026-07-24T18:36:48.169Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-132552-KVI",
+            "serviceNumber": 19,
+            "name": "CAIXA PARA EMPADA"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "87fe073a-bae6-4502-bc85-3f9003babe36",
+          "timestamp": "2026-07-24T18:36:52.080Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260723-132552-KVI",
+            "serviceNumber": 19,
+            "name": "CAIXA PARA EMPADA"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "54e26f2e-3096-42ff-832f-be18c831ae3c",
+          "timestamp": "2026-07-24T19:30:45.832Z",
+          "action": "service_deleted",
+          "summary": "Excluiu o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260723-132552-KVI",
+            "serviceNumber": 19,
+            "name": "CAIXA PARA EMPADA"
+          },
+          "details": {
+            "from": "open",
+            "to": "deleted",
+            "reason": "add com o sistema mais completo"
+          }
+        }
+      ],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-132552-KVI",
+          "name": "CAIXA PARA EMPADA",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": "",
+      "updatedAt": "2026-07-24T19:30:45.832Z"
+    },
+    {
+      "id": "SRV-20260723-101624-PBO",
+      "folder": "serviços/0018",
+      "name": "FACA CAIXA BOMBOM",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "NATHAN",
+      "source": "E-mail",
+      "notes": "30cmx30cmx10cm",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-23",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 18,
+      "createdBy": null,
+      "logs": [],
+      "seller": "NATHAN",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-101624-PBO",
+          "name": "FACA CAIXA BOMBOM",
+          "rollSizes": [],
+          "notes": "30cmx30cmx10cm",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-23T13-54-48-066Z.pdf",
+              "originalName": "CAIXA_BOMBOM_300_300_100MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-23T13:54:48.080Z",
+              "folder": "serviços/0018",
+              "url": "/servi%C3%A7os/0018/faca-2026-07-23T13-54-48-066Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "NATHAN",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260723-101230-NJ7",
+      "folder": "serviços/0017",
+      "name": "FACA CAIXA BOMVOM",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "NATHAN",
+      "source": "E-mail",
+      "notes": "30cmx30cmx10cm",
+      "developer": "",
+      "deletedReason": ".",
+      "deletedAt": "2026-07-23",
+      "completedAt": "",
+      "attachments": [],
+      "status": "deleted",
+      "queuePosition": null,
+      "serviceNumber": 17,
+      "createdBy": null,
+      "logs": [],
+      "seller": "NATHAN",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-101230-NJ7",
+          "name": "FACA CAIXA BOMVOM",
+          "rollSizes": [],
+          "notes": "30cmx30cmx10cm",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "NATHAN",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260723-091406-IC4",
+      "folder": "serviços/0016",
+      "name": "FACA CAIXA PASTEL",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "createdAt": "2026-07-23",
+      "requester": "GEORGIANIA",
+      "source": "E-mail",
+      "notes": "",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-23",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 16,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GEORGIANIA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260723-091406-IC4",
+          "name": "FACA CAIXA PASTEL",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-23T13-08-50-831Z.pdf",
+              "originalName": "CAIXA_PASTEL_ALMOFADA_250_140_40MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-23T13:08:50.852Z",
+              "folder": "serviços/0016",
+              "url": "/servi%C3%A7os/0016/faca-2026-07-23T13-08-50-831Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GEORGIANIA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260721-161951-IUG",
+      "folder": "serviços/0015",
+      "name": "FACA IMPISA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-21",
+      "createdAt": "2026-07-21",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "CAIXA ALFAJOR 2  95X210X140MM \nCHOCOLATE GRAMADENSE",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-23",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 15,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260721-161951-IUG",
+          "name": "FACA IMPISA",
+          "rollSizes": [],
+          "notes": "CAIXA ALFAJOR 2  95X210X140MM \nCHOCOLATE GRAMADENSE",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-23T17-48-31-965Z.pdf",
+              "originalName": "CAIXA_ALFAJOR_95X210X140MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-23T17:48:31.982Z",
+              "folder": "serviços/0015",
+              "url": "/servi%C3%A7os/0015/faca-2026-07-23T17-48-31-965Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260721-142311-117",
+      "folder": "serviços/0014",
+      "name": "FACA CAIXA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-21",
+      "createdAt": "2026-07-21",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "CAIXA TRUFAS GRAMADENSE (IMPISA) 130X235X45MM",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-21",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 14,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260721-142311-117",
+          "name": "FACA CAIXA",
+          "rollSizes": [],
+          "notes": "CAIXA TRUFAS GRAMADENSE (IMPISA) 130X235X45MM",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-21T19-18-14-557Z.pdf",
+              "originalName": "CAIXA_TRUFAS_135X235X45MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-21T19:18:14.576Z",
+              "folder": "serviços/0014",
+              "url": "/servi%C3%A7os/0014/faca-2026-07-21T19-18-14-557Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260721-134635-33M",
+      "folder": "serviços/0013",
+      "name": "CAIXA CHOCOLATE",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-21",
+      "createdAt": "2026-07-21",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "CAIXA CHOCOLATE ALFAJOR GRAMADENSE (IMPISA)\n140X210X30MM",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-21",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 13,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260721-134635-33M",
+          "name": "CAIXA CHOCOLATE",
+          "rollSizes": [],
+          "notes": "CAIXA CHOCOLATE ALFAJOR GRAMADENSE (IMPISA)\n140X210X30MM",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-21T17-23-53-336Z.pdf",
+              "originalName": "CAIXA_ALFAJOR_140X210X30MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-21T17:23:53.355Z",
+              "folder": "serviços/0013",
+              "url": "/servi%C3%A7os/0013/faca-2026-07-21T17-23-53-336Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260721-133415-5W3",
+      "folder": "serviços/0012",
+      "name": "FACA CAIXA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-21",
+      "createdAt": "2026-07-21",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "FACA CAIXA CHOCLOLATE GRAMADENSE (IMPISA)\n120X25X155MM",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-21",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 12,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260721-133415-5W3",
+          "name": "FACA CAIXA",
+          "rollSizes": [],
+          "notes": "FACA CAIXA CHOCLOLATE GRAMADENSE (IMPISA)\n120X25X155MM",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-21T16-41-31-126Z.pdf",
+              "originalName": "CAIXA_CHOCOLATE_120X155X25MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-21T16:41:31.140Z",
+              "folder": "serviços/0012",
+              "url": "/servi%C3%A7os/0012/faca-2026-07-21T16-41-31-126Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260721-104525-4C6",
+      "folder": "serviços/0011",
+      "name": "FACA SACOLA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-21",
+      "createdAt": "2026-07-21",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "IMPISA",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-21",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 11,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260721-104525-4C6",
+          "name": "FACA SACOLA",
+          "rollSizes": [],
+          "notes": "IMPISA",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-21T13-46-47-271Z.pdf",
+              "originalName": "CAIXA_140X120X310MM_CONFRARIA_DO_DOCE___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-21T13:46:47.285Z",
+              "folder": "serviços/0011",
+              "url": "/servi%C3%A7os/0011/faca-2026-07-21T13-46-47-271Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260720-175938-X56",
+      "folder": "serviços/0010",
+      "name": "FACA SACOLA BANCA 43",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-20",
+      "createdAt": "2026-07-20",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "IMPISA",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-21",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 10,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260720-175938-X56",
+          "name": "FACA SACOLA BANCA 43",
+          "rollSizes": [],
+          "notes": "IMPISA",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-21T13-46-07-242Z.pdf",
+              "originalName": "SACOLA_BANCA_43_390X180X80___BOBINA_1020___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-21T13:46:07.259Z",
+              "folder": "serviços/0010",
+              "url": "/servi%C3%A7os/0010/faca-2026-07-21T13-46-07-242Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260720-153045-3CF",
+      "folder": "serviços/0009",
+      "name": "FACA MARMITA P M G",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-20",
+      "createdAt": "2026-07-20",
+      "requester": "GESSICA",
+      "source": "E-mail",
+      "notes": "Cliente quer uma modificação na faca, aumentando a altura  de 4cm para 5cm e mantendo o formato retangular, dos 3 tamanhos P,M e G.",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-20",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 9,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260720-153045-3CF",
+          "name": "FACA MARMITA P M G",
+          "rollSizes": [],
+          "notes": "Cliente quer uma modificação na faca, aumentando a altura  de 4cm para 5cm e mantendo o formato retangular, dos 3 tamanhos P,M e G.",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-20T19-49-06-676Z.pdf",
+              "originalName": "CAIXA_MARMITA_G_300X160X50MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-20T19:49:06.693Z",
+              "folder": "serviços/0009",
+              "url": "/servi%C3%A7os/0009/faca-2026-07-20T19-49-06-676Z.pdf"
+            },
+            {
+              "name": "faca-2026-07-20T19-49-50-064Z.pdf",
+              "originalName": "CAIXA_MARMITA_M_200X120X50MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-20T19:49:50.078Z",
+              "folder": "serviços/0009",
+              "url": "/servi%C3%A7os/0009/faca-2026-07-20T19-49-50-064Z.pdf"
+            },
+            {
+              "name": "faca-2026-07-20T19-50-41-824Z.pdf",
+              "originalName": "CAIXA_MARMITA_P_165X115X50MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-20T19:50:41.843Z",
+              "folder": "serviços/0009",
+              "url": "/servi%C3%A7os/0009/faca-2026-07-20T19-50-41-824Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260720-150712-2JW",
+      "folder": "serviços/0008",
+      "name": "CAIXA IMPISA INTERCITY",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-20",
+      "createdAt": "2026-07-20",
+      "requester": "GESSICA",
+      "source": "Presencial",
+      "notes": "",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-20",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 8,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260720-150712-2JW",
+          "name": "CAIXA IMPISA INTERCITY",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-20T18-29-16-025Z.pdf",
+              "originalName": "CAIXA_PAPEL_INTERCITY___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-20T18:29:16.044Z",
+              "folder": "serviços/0008",
+              "url": "/servi%C3%A7os/0008/faca-2026-07-20T18-29-16-025Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260720-141556-1Z2",
+      "folder": "serviços/0007",
+      "name": "CINTA PARA BALDES 3 4 5 LITROS",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-20",
+      "createdAt": "2026-07-20",
+      "requester": "GESSICA",
+      "source": "E-mail",
+      "notes": "Somente na Ricoh",
+      "developer": "",
+      "deletedReason": "duplicado",
+      "deletedAt": "2026-07-20",
+      "completedAt": "",
+      "attachments": [],
+      "status": "deleted",
+      "queuePosition": null,
+      "serviceNumber": 7,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260720-141556-1Z2",
+          "name": "CINTA PARA BALDES 3 4 5 LITROS",
+          "rollSizes": [],
+          "notes": "Somente na Ricoh",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260720-130403-YFM",
+      "folder": "serviços/0006",
+      "name": "CINTA BALDES 3,4,5LT",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-20",
+      "createdAt": "2026-07-20",
+      "requester": "GESSICA",
+      "source": "E-mail",
+      "notes": "",
+      "developer": "Luan",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-23",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 6,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GESSICA",
+      "items": [
+        {
+          "id": "legacy-SRV-20260720-130403-YFM",
+          "name": "CINTA BALDES 3,4,5LT",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-23T16-50-29-495Z.pdf",
+              "originalName": "BALTE_4000ML___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-23T16:50:29.512Z",
+              "folder": "serviços/0006",
+              "url": "/servi%C3%A7os/0006/faca-2026-07-23T16-50-29-495Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GESSICA",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260717-175207-PHL",
+      "folder": "serviços/0005",
+      "name": "TAMPA RESPIRO POTE 1,5L",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-17",
+      "createdAt": "2026-07-17",
+      "requester": "GRACIELE",
+      "source": "Telefone",
+      "notes": "",
+      "developer": "Luan",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-20",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 5,
+      "createdBy": null,
+      "logs": [],
+      "seller": "GRACIELE",
+      "items": [
+        {
+          "id": "legacy-SRV-20260717-175207-PHL",
+          "name": "TAMPA RESPIRO POTE 1,5L",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-20T14-22-57-847Z.pdf",
+              "originalName": "TAMPA_RECORTE_1_5lts___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-20T14:22:57.870Z",
+              "folder": "serviços/0005",
+              "url": "/servi%C3%A7os/0005/faca-2026-07-20T14-22-57-847Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "GRACIELE",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260717-151156-MJY",
+      "folder": "serviços/0004",
+      "name": "DISPLAY TROTS",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-16",
+      "createdAt": "2026-07-17",
+      "requester": "THIAGO",
+      "source": "WhatsApp",
+      "notes": "",
+      "developer": "Luan",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-17",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 4,
+      "createdBy": null,
+      "logs": [],
+      "seller": "THIAGO",
+      "items": [
+        {
+          "id": "legacy-SRV-20260717-151156-MJY",
+          "name": "DISPLAY TROTS",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-17T18-12-15-752Z.pdf",
+              "originalName": "DISPLAY_TROTS_PARTE_1___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-17T18:12:15.770Z",
+              "folder": "serviços/0004",
+              "url": "/servi%C3%A7os/0004/faca-2026-07-17T18-12-15-752Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "THIAGO",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260717-143157-XOR",
+      "folder": "serviços/0003",
+      "name": "ENVELOPE FIGURINHAS",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-17",
+      "createdAt": "2026-07-17",
+      "requester": "NATHAN",
+      "source": "E-mail",
+      "notes": "",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-20",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 3,
+      "createdBy": null,
+      "logs": [],
+      "seller": "NATHAN",
+      "items": [
+        {
+          "id": "legacy-SRV-20260717-143157-XOR",
+          "name": "ENVELOPE FIGURINHAS",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-17T17-32-26-670Z.pdf",
+              "originalName": "ENVELOPE_FIGURINHAS_70X85MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-17T17:32:26.691Z",
+              "folder": "serviços/0003",
+              "url": "/servi%C3%A7os/0003/faca-2026-07-17T17-32-26-670Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "NATHAN",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "SRV-20260717-142034-TTE",
+      "folder": "serviços/0002",
+      "name": "JACARE VERMELHO - CAIXA DE PIZZA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-17",
+      "createdAt": "2026-07-17",
+      "requester": "BRUNO",
+      "source": "E-mail",
+      "notes": "",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-20",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 2,
+      "createdBy": null,
+      "logs": [],
+      "seller": "BRUNO",
+      "items": [
+        {
+          "id": "legacy-SRV-20260717-142034-TTE",
+          "name": "JACARE VERMELHO - CAIXA DE PIZZA",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-17T17-30-17-783Z.pdf",
+              "originalName": "CAIXA_PIZZA_JACARE_VERMELHO___ATUALIZADO_2___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-17T17:30:17.804Z",
+              "folder": "serviços/0002",
+              "url": "/servi%C3%A7os/0002/faca-2026-07-17T17-30-17-783Z.pdf"
+            },
+            {
+              "name": "faca-2026-07-17T17-33-12-864Z.pdf",
+              "originalName": "ENVELOPE_FIGURINHAS_70X85MM___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "kind": "faca",
+              "savedAt": "2026-07-17T17:33:12.880Z",
+              "folder": "serviços/0002",
+              "url": "/servi%C3%A7os/0002/faca-2026-07-17T17-33-12-864Z.pdf"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "BRUNO",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": ""
+    },
+    {
+      "id": "1784307590086",
+      "name": "CHARLITO - EMBALAGEM DE ANIVERSARIO",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-17",
+      "createdAt": "2026-07-17",
+      "requester": "BRUNO",
+      "source": "E-mail",
+      "notes": "",
+      "developer": "Luan",
+      "deletedReason": "",
+      "deletedAt": "",
+      "status": "done",
+      "completedAt": "2026-07-20",
+      "attachments": [],
+      "queuePosition": null,
+      "serviceNumber": 1,
+      "createdBy": null,
+      "logs": [],
+      "seller": "BRUNO",
+      "items": [
+        {
+          "id": "legacy-1784307590086",
+          "name": "CHARLITO - EMBALAGEM DE ANIVERSARIO",
+          "rollSizes": [],
+          "notes": "",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "requesterAccount": {
+        "id": null,
+        "username": "",
+        "displayName": "BRUNO",
+        "role": ""
+      },
+      "developerAccount": null,
+      "completionMessage": "",
+      "folder": "serviços/0001"
+    },
+    {
+      "id": "SRV-20260724-141408-1FD",
+      "folder": "serviços/0024",
+      "name": "FACA SICREDI",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-24",
+      "seller": "MIGUEL",
+      "items": [
+        {
+          "id": "item-1784913183642-2",
+          "name": "FACA PORTA ANOTAÇÃO",
+          "rollSizes": [
+            "660"
+          ],
+          "notes": "Olá tudo bem?\nSegue para desenvolvimento, (Favor usar faca do modelo da grafinorte como Base de medidas)\nUsar formato 66, material ira rodar na maquina digital",
+          "attachments": [
+            {
+              "name": "servico-2026-07-24T17-15-11-249Z-5342.jpg",
+              "originalName": "image001.jpg",
+              "type": "image/jpeg",
+              "size": 33940,
+              "kind": "item",
+              "savedAt": "2026-07-24T17:15:11.265Z",
+              "folder": "serviços/0024",
+              "url": "/servi%C3%A7os/0024/servico-2026-07-24T17-15-11-249Z-5342.jpg",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1784913183642-2"
+            }
+          ],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-27T11-34-25-797Z-616c.pdf",
+              "originalName": "SUPORTE DE PAPEL___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 735419,
+              "kind": "faca",
+              "savedAt": "2026-07-27T11:34:25.815Z",
+              "folder": "serviços/0024",
+              "url": "/servi%C3%A7os/0024/faca-2026-07-27T11-34-25-797Z-616c.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1784913183642-2",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-24",
+      "createdAtTimestamp": "2026-07-24T17:14:08.931Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-27",
+      "attachments": [
+        {
+          "name": "faca-2026-07-24T17-28-26-341Z-e739.pdf",
+          "originalName": "LACRE.pdf",
+          "type": "application/pdf",
+          "size": 479525,
+          "kind": "faca",
+          "savedAt": "2026-07-24T17:28:26.357Z",
+          "folder": "serviços/0024",
+          "url": "/servi%C3%A7os/0024/faca-2026-07-24T17-28-26-341Z-e739.pdf",
+          "uploadedBy": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          }
+        }
+      ],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 24,
+      "logs": [
+        {
+          "id": "ec2d2bf7-1db6-4944-a2b4-c1b75b3f1f48",
+          "timestamp": "2026-07-24T17:14:08.932Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "fields": {
+              "name": "FACA SICREDI",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-24",
+              "seller": "MIGUEL",
+              "items": [
+                {
+                  "id": "item-1784913183642-2",
+                  "name": "FACA PORTA ANOTAÇÃO",
+                  "rollSizes": [
+                    "660"
+                  ],
+                  "notes": "Olá tudo bem?\nSegue para desenvolvimento, (Favor usar faca do modelo da grafinorte como Base de medidas)\nUsar formato 66, material ira rodar na maquina digital",
+                  "attachments": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "983f0e5b-ccc8-4454-884d-a63ffb32c1b6",
+          "timestamp": "2026-07-24T17:15:11.265Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo ao item \"FACA PORTA ANOTAÇÃO\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "name": "servico-2026-07-24T17-15-11-249Z-5342.jpg",
+            "originalName": "image001.jpg",
+            "kind": "item",
+            "itemId": "item-1784913183642-2",
+            "itemName": "FACA PORTA ANOTAÇÃO"
+          }
+        },
+        {
+          "id": "83311888-6b60-483d-af20-61bb81a6aabf",
+          "timestamp": "2026-07-24T17:28:04.969Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Administrador"
+          }
+        },
+        {
+          "id": "9d94494c-f986-4cfa-a82e-fadb8527ce87",
+          "timestamp": "2026-07-24T17:28:26.357Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo ao serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "name": "faca-2026-07-24T17-28-26-341Z-e739.pdf",
+            "originalName": "LACRE.pdf",
+            "kind": "faca",
+            "itemId": null,
+            "itemName": null
+          }
+        },
+        {
+          "id": "0175a962-c602-48f5-87c3-abf0ec6f20e4",
+          "timestamp": "2026-07-24T17:28:26.527Z",
+          "action": "service_completed",
+          "summary": "Concluiu o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              "faca-2026-07-24T17-28-26-341Z-e739.pdf"
+            ],
+            "completionMessage": "ISSO É UM TESTE"
+          }
+        },
+        {
+          "id": "47c00baf-9a73-47b8-8959-6aaf9a685933",
+          "timestamp": "2026-07-24T17:30:15.739Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "from": "done",
+            "to": "open"
+          }
+        },
+        {
+          "id": "9ec52e18-978a-43fe-85ab-fa2661ed0dc5",
+          "timestamp": "2026-07-27T11:28:01.481Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "be674697-eee9-4e71-9067-40106a3d4de9",
+          "timestamp": "2026-07-27T11:34:25.815Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA PORTA ANOTAÇÃO\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "name": "faca-2026-07-27T11-34-25-797Z-616c.pdf",
+            "originalName": "SUPORTE DE PAPEL___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1784913183642-2",
+            "itemName": "FACA PORTA ANOTAÇÃO",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "585781f4-18fc-4948-90f9-f3c8cb811945",
+          "timestamp": "2026-07-27T11:34:26.085Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-141408-1FD",
+            "serviceNumber": 24,
+            "name": "FACA SICREDI"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "FACA PORTA ANOTAÇÃO",
+                "name": "faca-2026-07-27T11-34-25-797Z-616c.pdf"
+              }
+            ],
+            "completionMessage": "SEGUE EM ANEXO DO SISTEMA",
+            "completedItems": [
+              "FACA PORTA ANOTAÇÃO"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-27T11:34:26.085Z",
+      "completionMessage": "SEGUE EM ANEXO DO SISTEMA"
+    },
+    {
+      "id": "SRV-20260724-143532-EE1",
+      "folder": "serviços/0025",
+      "name": "EMBALAGEM CHARLITO",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-24",
+      "seller": "BRUNO",
+      "items": [
+        {
+          "id": "item-1784914458003-1",
+          "name": "FACA 1",
+          "rollSizes": [
+            "DIGITAL"
+          ],
+          "notes": "seguindo o estilo da embalagem da maça, ajustando para as  medidas acima \n13 cm comprimento x 12 cm lateral x 6,5 cm altura",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-24T18-28-17-240Z-30f6.pdf",
+              "originalName": "FACA_1_130X120X65___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 733462,
+              "kind": "faca",
+              "savedAt": "2026-07-24T18:28:17.260Z",
+              "folder": "serviços/0025",
+              "url": "/servi%C3%A7os/0025/faca-2026-07-24T18-28-17-240Z-30f6.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1784914458003-1",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1784914493603-2",
+          "name": "FACA 1",
+          "rollSizes": [
+            "DIGITAL"
+          ],
+          "notes": "no estilo gaveta com a base sem impressão \n13 cm comprimento x 12 cm lateral x 6,5 cm altura",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": "não coube na maquina digital"
+        },
+        {
+          "id": "item-1784914513963-3",
+          "name": "FACA 3",
+          "rollSizes": [
+            "DIGITAL"
+          ],
+          "notes": "caixa estiilo chunky chunks nas medidas acima\n13 cm comprimento x 12 cm lateral x 6,5 cm altura",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-24T18-28-17-593Z-907b.pdf",
+              "originalName": "FACA_2_130X120X65___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 734640,
+              "kind": "faca",
+              "savedAt": "2026-07-24T18:28:17.610Z",
+              "folder": "serviços/0025",
+              "url": "/servi%C3%A7os/0025/faca-2026-07-24T18-28-17-593Z-907b.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1784914513963-3",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-24",
+      "createdAtTimestamp": "2026-07-24T17:35:32.784Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-24",
+      "completionMessage": "Concluido apenas faca 1 e 3",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 25,
+      "logs": [
+        {
+          "id": "45738f5b-3a6b-4cec-9c8e-2cabee82cb3e",
+          "timestamp": "2026-07-24T17:35:32.784Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-143532-EE1",
+            "serviceNumber": 25,
+            "name": "EMBALAGEM CHARLITO"
+          },
+          "details": {
+            "fields": {
+              "name": "EMBALAGEM CHARLITO",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-24",
+              "seller": "BRUNO",
+              "items": [
+                {
+                  "id": "item-1784914458003-1",
+                  "name": "FACA 1",
+                  "rollSizes": [
+                    "DIGITAL"
+                  ],
+                  "notes": "seguindo o estilo da embalagem da maça, ajustando para as  medidas acima \n13 cm comprimento x 12 cm lateral x 6,5 cm altura",
+                  "attachments": []
+                },
+                {
+                  "id": "item-1784914493603-2",
+                  "name": "FACA 1",
+                  "rollSizes": [
+                    "DIGITAL"
+                  ],
+                  "notes": "no estilo gaveta com a base sem impressão \n13 cm comprimento x 12 cm lateral x 6,5 cm altura",
+                  "attachments": []
+                },
+                {
+                  "id": "item-1784914513963-3",
+                  "name": "FACA 3",
+                  "rollSizes": [
+                    "DIGITAL"
+                  ],
+                  "notes": "caixa estiilo chunky chunks nas medidas acima\n13 cm comprimento x 12 cm lateral x 6,5 cm altura",
+                  "attachments": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "3275d3a7-5d7e-4347-a292-0ce70d72ecd2",
+          "timestamp": "2026-07-24T17:35:48.674Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-143532-EE1",
+            "serviceNumber": 25,
+            "name": "EMBALAGEM CHARLITO"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "2bac1fbe-143a-4132-ae9e-9cd9e552a458",
+          "timestamp": "2026-07-24T18:28:17.260Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA 1\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-143532-EE1",
+            "serviceNumber": 25,
+            "name": "EMBALAGEM CHARLITO"
+          },
+          "details": {
+            "name": "faca-2026-07-24T18-28-17-240Z-30f6.pdf",
+            "originalName": "FACA_1_130X120X65___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1784914458003-1",
+            "itemName": "FACA 1",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "01dabda0-820c-4d9c-8b98-ec7cf9b39377",
+          "timestamp": "2026-07-24T18:28:17.610Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA 3\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-143532-EE1",
+            "serviceNumber": 25,
+            "name": "EMBALAGEM CHARLITO"
+          },
+          "details": {
+            "name": "faca-2026-07-24T18-28-17-593Z-907b.pdf",
+            "originalName": "FACA_2_130X120X65___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1784914513963-3",
+            "itemName": "FACA 3",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "fca41792-b766-444e-adf1-760a65b1191b",
+          "timestamp": "2026-07-24T18:28:17.798Z",
+          "action": "service_completed",
+          "summary": "Concluiu 2 de 3 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-143532-EE1",
+            "serviceNumber": 25,
+            "name": "EMBALAGEM CHARLITO"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "FACA 1",
+                "name": "faca-2026-07-24T18-28-17-240Z-30f6.pdf"
+              },
+              {
+                "itemName": "FACA 3",
+                "name": "faca-2026-07-24T18-28-17-593Z-907b.pdf"
+              }
+            ],
+            "completionMessage": "Concluido apenas faca 1 e 3",
+            "completedItems": [
+              "FACA 1",
+              "FACA 3"
+            ],
+            "notCompletedItems": [
+              {
+                "name": "FACA 1",
+                "reason": "não coube na maquina digital"
+              }
+            ]
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-24T18:28:17.798Z"
+    },
+    {
+      "id": "SRV-20260724-163320-153",
+      "folder": "serviços/0026",
+      "name": "Orçamento Grupo Madero",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-23",
+      "seller": "NATHAN",
+      "items": [
+        {
+          "id": "item-1784921497116-2",
+          "name": "Caixa para empada",
+          "rollSizes": [
+            "DIGITAL"
+          ],
+          "notes": "Quantidade: 286 (favor fazer um orçamento com 286 unid. conforme pediram e fazer para 3 meses sendo 858 unid.)\nMedida: 29cmx35cm\nPapel: tríplex 300g\n\nPor gentileza, providencia a ficha técnica referente a caixa de empada e tag, papel hibulk , ver melhor aproveitamento/formato 660.\nRodar na Ricoh ou possível Komori (caso não caiba).",
+          "attachments": [
+            {
+              "name": "servico-2026-07-24T19-33-20-618Z-a502.pdf",
+              "originalName": "caixaempada- UN.pdf",
+              "type": "application/pdf",
+              "size": 1808586,
+              "kind": "item",
+              "savedAt": "2026-07-24T19:33:20.743Z",
+              "folder": "serviços/0026",
+              "url": "/servi%C3%A7os/0026/servico-2026-07-24T19-33-20-618Z-a502.pdf",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1784921497116-2",
+              "scope": "request"
+            }
+          ],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-24T20-05-49-526Z-fc3f.pdf",
+              "originalName": "CAIXA_EMPADA___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 733812,
+              "kind": "faca",
+              "savedAt": "2026-07-24T20:05:49.545Z",
+              "folder": "serviços/0026",
+              "url": "/servi%C3%A7os/0026/faca-2026-07-24T20-05-49-526Z-fc3f.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1784921497116-2",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1784921572195-3",
+          "name": "TAG",
+          "rollSizes": [
+            "DIGITAL"
+          ],
+          "notes": "Quantidade: 700 (favor fazer um orçamento com 700 unid. conforme pediram e fazer um para 3 meses sendo 2.100 unid.)\nMedida: 6cmx10cm\nPapel:  melhor opção de papel e gramatura para tag, pois isso não especificaram.",
+          "attachments": [
+            {
+              "name": "servico-2026-07-24T19-33-21-074Z-a5bc.pdf",
+              "originalName": "TAG - FD.pdf",
+              "type": "application/pdf",
+              "size": 397761,
+              "kind": "item",
+              "savedAt": "2026-07-24T19:33:21.100Z",
+              "folder": "serviços/0026",
+              "url": "/servi%C3%A7os/0026/servico-2026-07-24T19-33-21-074Z-a5bc.pdf",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1784921572195-3",
+              "scope": "request"
+            }
+          ],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-24T20-05-49-897Z-7d19.pdf",
+              "originalName": "TAG___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 733015,
+              "kind": "faca",
+              "savedAt": "2026-07-24T20:05:49.921Z",
+              "folder": "serviços/0026",
+              "url": "/servi%C3%A7os/0026/faca-2026-07-24T20-05-49-897Z-7d19.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1784921572195-3",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-24",
+      "createdAtTimestamp": "2026-07-24T19:33:20.343Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-24",
+      "completionMessage": "CONCLUIDO",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 26,
+      "logs": [
+        {
+          "id": "f8f43cb1-fb35-40f8-81f7-498d5efe1fce",
+          "timestamp": "2026-07-24T19:33:20.343Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-163320-153",
+            "serviceNumber": 26,
+            "name": "Orçamento Grupo Madero"
+          },
+          "details": {
+            "fields": {
+              "name": "Orçamento Grupo Madero",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-23",
+              "seller": "NATHAN",
+              "items": [
+                {
+                  "id": "item-1784921497116-2",
+                  "name": "Caixa para empada",
+                  "rollSizes": [
+                    "DIGITAL"
+                  ],
+                  "notes": "Quantidade: 286 (favor fazer um orçamento com 286 unid. conforme pediram e fazer para 3 meses sendo 858 unid.)\nMedida: 29cmx35cm\nPapel: tríplex 300g\n\nPor gentileza, providencia a ficha técnica referente a caixa de empada e tag, papel hibulk , ver melhor aproveitamento/formato 660.\nRodar na Ricoh ou possível Komori (caso não caiba).",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                },
+                {
+                  "id": "item-1784921572195-3",
+                  "name": "TAG",
+                  "rollSizes": [
+                    "DIGITAL"
+                  ],
+                  "notes": "Quantidade: 700 (favor fazer um orçamento com 700 unid. conforme pediram e fazer um para 3 meses sendo 2.100 unid.)\nMedida: 6cmx10cm\nPapel:  melhor opção de papel e gramatura para tag, pois isso não especificaram.",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "83957500-9bb5-453f-ae40-a4864cf35fe7",
+          "timestamp": "2026-07-24T19:33:20.743Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo de entrada ao serviço \"Caixa para empada\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-163320-153",
+            "serviceNumber": 26,
+            "name": "Orçamento Grupo Madero"
+          },
+          "details": {
+            "name": "servico-2026-07-24T19-33-20-618Z-a502.pdf",
+            "originalName": "caixaempada- UN.pdf",
+            "kind": "item",
+            "itemId": "item-1784921497116-2",
+            "itemName": "Caixa para empada",
+            "scope": "request"
+          }
+        },
+        {
+          "id": "f93e77aa-7a7e-40f2-80b4-90c0d44a5d38",
+          "timestamp": "2026-07-24T19:33:21.101Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo de entrada ao serviço \"TAG\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260724-163320-153",
+            "serviceNumber": 26,
+            "name": "Orçamento Grupo Madero"
+          },
+          "details": {
+            "name": "servico-2026-07-24T19-33-21-074Z-a5bc.pdf",
+            "originalName": "TAG - FD.pdf",
+            "kind": "item",
+            "itemId": "item-1784921572195-3",
+            "itemName": "TAG",
+            "scope": "request"
+          }
+        },
+        {
+          "id": "7785c29f-926c-46da-a309-3ed5adb5222e",
+          "timestamp": "2026-07-24T19:33:48.717Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-163320-153",
+            "serviceNumber": 26,
+            "name": "Orçamento Grupo Madero"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "4b06794b-3ce9-4c51-ac72-d35a2edb1195",
+          "timestamp": "2026-07-24T20:05:49.546Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"Caixa para empada\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-163320-153",
+            "serviceNumber": 26,
+            "name": "Orçamento Grupo Madero"
+          },
+          "details": {
+            "name": "faca-2026-07-24T20-05-49-526Z-fc3f.pdf",
+            "originalName": "CAIXA_EMPADA___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1784921497116-2",
+            "itemName": "Caixa para empada",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "180cad32-aeda-4d08-b7db-bc4ba2b0f430",
+          "timestamp": "2026-07-24T20:05:49.921Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"TAG\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-163320-153",
+            "serviceNumber": 26,
+            "name": "Orçamento Grupo Madero"
+          },
+          "details": {
+            "name": "faca-2026-07-24T20-05-49-897Z-7d19.pdf",
+            "originalName": "TAG___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1784921572195-3",
+            "itemName": "TAG",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "ce91cc0a-364d-4a5d-9ae8-2014a2d89ac9",
+          "timestamp": "2026-07-24T20:05:50.140Z",
+          "action": "service_completed",
+          "summary": "Concluiu 2 de 2 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260724-163320-153",
+            "serviceNumber": 26,
+            "name": "Orçamento Grupo Madero"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "Caixa para empada",
+                "name": "faca-2026-07-24T20-05-49-526Z-fc3f.pdf"
+              },
+              {
+                "itemName": "TAG",
+                "name": "faca-2026-07-24T20-05-49-897Z-7d19.pdf"
+              }
+            ],
+            "completionMessage": "CONCLUIDO",
+            "completedItems": [
+              "Caixa para empada",
+              "TAG"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-24T20:05:50.140Z"
+    },
+    {
+      "id": "SRV-20260727-111012-D93",
+      "folder": "serviços/0027",
+      "name": "CAIXA DE CHOCOLATE GRAMADENSE BARRA 2",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-27",
+      "seller": "IMPISA",
+      "items": [
+        {
+          "id": "item-1785161384209-1",
+          "name": "FACA CHOCOLATE BARRA 2",
+          "rollSizes": [
+            "770"
+          ],
+          "notes": "FACA IMPISA",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-27T14-10-59-980Z-1fc7.pdf",
+              "originalName": "CAIXA BARRAS 2 125X200X15MM___FICHA TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 737167,
+              "kind": "faca",
+              "savedAt": "2026-07-27T14:11:00.000Z",
+              "folder": "serviços/0027",
+              "url": "/servi%C3%A7os/0027/faca-2026-07-27T14-10-59-980Z-1fc7.pdf",
+              "uploadedBy": {
+                "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+                "username": "eduardo",
+                "displayName": "Eduardo",
+                "role": "design"
+              },
+              "itemId": "item-1785161384209-1",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-27",
+      "createdAtTimestamp": "2026-07-27T14:10:12.368Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Eduardo",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-27",
+      "completionMessage": "Concluido",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 27,
+      "logs": [
+        {
+          "id": "4d5d8dc2-aaff-4bc0-b534-750eba4bb318",
+          "timestamp": "2026-07-27T14:10:12.369Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260727-111012-D93",
+            "serviceNumber": 27,
+            "name": "CAIXA DE CHOCOLATE GRAMADENSE BARRA 2"
+          },
+          "details": {
+            "fields": {
+              "name": "CAIXA DE CHOCOLATE GRAMADENSE BARRA 2",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-27",
+              "seller": "IMPISA",
+              "items": [
+                {
+                  "id": "item-1785161384209-1",
+                  "name": "FACA CHOCOLATE BARRA 2",
+                  "rollSizes": [
+                    "770"
+                  ],
+                  "notes": "FACA IMPISA",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "67448ac2-9085-4db4-8073-4724de25d346",
+          "timestamp": "2026-07-27T14:10:33.384Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260727-111012-D93",
+            "serviceNumber": 27,
+            "name": "CAIXA DE CHOCOLATE GRAMADENSE BARRA 2"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Eduardo"
+          }
+        },
+        {
+          "id": "be6925d0-e7b2-400a-bacb-f90f452bdd5e",
+          "timestamp": "2026-07-27T14:11:00.000Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA CHOCOLATE BARRA 2\".",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260727-111012-D93",
+            "serviceNumber": 27,
+            "name": "CAIXA DE CHOCOLATE GRAMADENSE BARRA 2"
+          },
+          "details": {
+            "name": "faca-2026-07-27T14-10-59-980Z-1fc7.pdf",
+            "originalName": "CAIXA BARRAS 2 125X200X15MM___FICHA TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785161384209-1",
+            "itemName": "FACA CHOCOLATE BARRA 2",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "aed8ff89-4f91-4f05-a20b-2b72d6b1f807",
+          "timestamp": "2026-07-27T14:11:00.195Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+            "username": "eduardo",
+            "displayName": "Eduardo",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260727-111012-D93",
+            "serviceNumber": 27,
+            "name": "CAIXA DE CHOCOLATE GRAMADENSE BARRA 2"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "FACA CHOCOLATE BARRA 2",
+                "name": "faca-2026-07-27T14-10-59-980Z-1fc7.pdf"
+              }
+            ],
+            "completionMessage": "Concluido",
+            "completedItems": [
+              "FACA CHOCOLATE BARRA 2"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "e3c8cab2-45ac-490e-a15c-27f277cb09eb",
+        "username": "eduardo",
+        "displayName": "Eduardo",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-27T14:11:00.195Z"
+    },
+    {
+      "id": "SRV-20260729-093347-49C",
+      "folder": "serviços/0028",
+      "name": "FICHA TECNICA FACA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-29",
+      "seller": "BRUNO",
+      "items": [
+        {
+          "id": "item-1785328394518-1",
+          "name": "O.S 110958",
+          "rollSizes": [
+            "660"
+          ],
+          "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-30T13-36-39-305Z-8f50.pdf",
+              "originalName": "FACA_BASE 28,7X10,7X8,5___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 742920,
+              "kind": "faca",
+              "savedAt": "2026-07-30T13:36:39.325Z",
+              "folder": "serviços/0028",
+              "url": "/servi%C3%A7os/0028/faca-2026-07-30T13-36-39-305Z-8f50.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785328394518-1",
+              "scope": "completion"
+            },
+            {
+              "name": "faca-2026-07-30T13-36-39-673Z-4d0b.pdf",
+              "originalName": "FACA_TAMPA 28,7X10,7X8,5___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 745143,
+              "kind": "faca",
+              "savedAt": "2026-07-30T13:36:39.691Z",
+              "folder": "serviços/0028",
+              "url": "/servi%C3%A7os/0028/faca-2026-07-30T13-36-39-673Z-4d0b.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785328394518-1",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1785328414070-2",
+          "name": "OS 106571",
+          "rollSizes": [
+            "660"
+          ],
+          "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-30T13-36-39-889Z-bd56.pdf",
+              "originalName": "FACA_G_28,5X18X8,5___BASE___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 740798,
+              "kind": "faca",
+              "savedAt": "2026-07-30T13:36:39.908Z",
+              "folder": "serviços/0028",
+              "url": "/servi%C3%A7os/0028/faca-2026-07-30T13-36-39-889Z-bd56.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785328414070-2",
+              "scope": "completion"
+            },
+            {
+              "name": "faca-2026-07-30T13-36-40-251Z-017a.pdf",
+              "originalName": "FACA_G_28,5X18X8,5___TAMPA___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 736674,
+              "kind": "faca",
+              "savedAt": "2026-07-30T13:36:40.267Z",
+              "folder": "serviços/0028",
+              "url": "/servi%C3%A7os/0028/faca-2026-07-30T13-36-40-251Z-017a.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785328414070-2",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-29",
+      "createdAtTimestamp": "2026-07-29T12:33:47.355Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-30",
+      "completionMessage": "CONCLUIDO",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 28,
+      "logs": [
+        {
+          "id": "e4eae819-bc6c-4944-9a5e-b92121d749c1",
+          "timestamp": "2026-07-29T12:33:47.356Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "fields": {
+              "name": "FICHA TECNICA FACA",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-29",
+              "seller": "BRUNO",
+              "items": [
+                {
+                  "id": "item-1785328394518-1",
+                  "name": "O.S",
+                  "rollSizes": [
+                    "660"
+                  ],
+                  "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                },
+                {
+                  "id": "item-1785328414070-2",
+                  "name": "OS 106571",
+                  "rollSizes": [
+                    "660"
+                  ],
+                  "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "b69a5bbe-a715-46e5-a7c4-39e29374f678",
+          "timestamp": "2026-07-30T12:26:48.403Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Administrador"
+          }
+        },
+        {
+          "id": "b9ea731c-d0c2-46ad-809b-390862dc88c6",
+          "timestamp": "2026-07-30T12:29:57.068Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "a92a5801-1257-4fca-a180-aec3b8b6922c",
+          "timestamp": "2026-07-30T12:30:31.164Z",
+          "action": "service_updated",
+          "summary": "Editou os dados do serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "changes": {
+              "items": {
+                "from": [
+                  {
+                    "id": "item-1785328394518-1",
+                    "name": "O.S",
+                    "rollSizes": [
+                      "660"
+                    ],
+                    "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+                    "attachments": [],
+                    "completionAttachments": [],
+                    "completed": false,
+                    "completionNote": ""
+                  },
+                  {
+                    "id": "item-1785328414070-2",
+                    "name": "OS 106571",
+                    "rollSizes": [
+                      "660"
+                    ],
+                    "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+                    "attachments": [],
+                    "completionAttachments": [],
+                    "completed": false,
+                    "completionNote": ""
+                  }
+                ],
+                "to": [
+                  {
+                    "id": "item-1785328394518-1",
+                    "name": "O.S 110958",
+                    "rollSizes": [
+                      "660"
+                    ],
+                    "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+                    "attachments": [],
+                    "completionAttachments": [],
+                    "completed": false,
+                    "completionNote": ""
+                  },
+                  {
+                    "id": "item-1785328414070-2",
+                    "name": "OS 106571",
+                    "rollSizes": [
+                      "660"
+                    ],
+                    "notes": "Vou precisar das fichas técnicas para nova cotação das facas, na época que foi feito orçamento acredito que não havia esse tipo de envio.",
+                    "attachments": [],
+                    "completionAttachments": [],
+                    "completed": false,
+                    "completionNote": ""
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "b0a42081-805d-4cca-afaa-3512d8f43db6",
+          "timestamp": "2026-07-30T12:30:38.596Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "b6f34d7d-cec8-4cdf-968b-87c827e4d930",
+          "timestamp": "2026-07-30T13:36:39.325Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"O.S 110958\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "name": "faca-2026-07-30T13-36-39-305Z-8f50.pdf",
+            "originalName": "FACA_BASE 28,7X10,7X8,5___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785328394518-1",
+            "itemName": "O.S 110958",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "a803ffce-9b44-4971-8a76-8453f429dcec",
+          "timestamp": "2026-07-30T13:36:39.691Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"O.S 110958\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "name": "faca-2026-07-30T13-36-39-673Z-4d0b.pdf",
+            "originalName": "FACA_TAMPA 28,7X10,7X8,5___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785328394518-1",
+            "itemName": "O.S 110958",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "59485841-3fe3-4dca-84fe-3649d619667d",
+          "timestamp": "2026-07-30T13:36:39.909Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"OS 106571\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "name": "faca-2026-07-30T13-36-39-889Z-bd56.pdf",
+            "originalName": "FACA_G_28,5X18X8,5___BASE___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785328414070-2",
+            "itemName": "OS 106571",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "e7c2bce5-140b-4ff5-beaa-9f38f485199f",
+          "timestamp": "2026-07-30T13:36:40.268Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"OS 106571\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "name": "faca-2026-07-30T13-36-40-251Z-017a.pdf",
+            "originalName": "FACA_G_28,5X18X8,5___TAMPA___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785328414070-2",
+            "itemName": "OS 106571",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "8ee84359-6a3e-462f-8f53-3fef44bc320b",
+          "timestamp": "2026-07-30T13:36:40.488Z",
+          "action": "service_completed",
+          "summary": "Concluiu 2 de 2 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-093347-49C",
+            "serviceNumber": 28,
+            "name": "FICHA TECNICA FACA"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "O.S 110958",
+                "name": "faca-2026-07-30T13-36-39-305Z-8f50.pdf"
+              },
+              {
+                "itemName": "O.S 110958",
+                "name": "faca-2026-07-30T13-36-39-673Z-4d0b.pdf"
+              },
+              {
+                "itemName": "OS 106571",
+                "name": "faca-2026-07-30T13-36-39-889Z-bd56.pdf"
+              },
+              {
+                "itemName": "OS 106571",
+                "name": "faca-2026-07-30T13-36-40-251Z-017a.pdf"
+              }
+            ],
+            "completionMessage": "CONCLUIDO",
+            "completedItems": [
+              "O.S 110958",
+              "OS 106571"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-30T13:36:40.488Z"
+    },
+    {
+      "id": "SRV-20260729-144448-D1B",
+      "folder": "serviços/0029",
+      "name": "O Mestre dos Salgados (caixa para salgados)",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-29",
+      "seller": "NATHAN",
+      "items": [
+        {
+          "id": "item-1785347039057-1",
+          "name": "O Mestre dos Salgados (caixa para salgados)",
+          "rollSizes": [
+            "660",
+            "770"
+          ],
+          "notes": "Bom dia Eduardo e Luan!\n\n \n\nPor gentileza, providencia a ficha técnica referente a caixa de salgado, papel hibulk , ver melhor aproveitamento/formato 660 ou 770.\n\nHá a possibilidade de rodar na Ricoh? Caso não ver para Komori (caso não caiba).\n\n \n\nQualquer dúvida vendedor está em cópia.\n\n \n\nDesde já agradeço.\n\nQuantidade: 500\n\nMedida: 15,5 largx29 comp. x10 alt.\n\nPapel: tríplex 250g",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-31T17-03-23-983Z-5ae5.pdf",
+              "originalName": "CAIXA_155X290X10___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 737547,
+              "kind": "faca",
+              "savedAt": "2026-07-31T17:03:24.007Z",
+              "folder": "serviços/0029",
+              "url": "/servi%C3%A7os/0029/faca-2026-07-31T17-03-23-983Z-5ae5.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785347039057-1",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-29",
+      "createdAtTimestamp": "2026-07-29T17:44:48.654Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-31",
+      "completionMessage": "Não foi possivel fazer na digital.",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 29,
+      "logs": [
+        {
+          "id": "6b0ee9a2-a670-43c9-ab9e-3ffc7c5a1e95",
+          "timestamp": "2026-07-29T17:44:48.655Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260729-144448-D1B",
+            "serviceNumber": 29,
+            "name": "O Mestre dos Salgados (caixa para salgados)"
+          },
+          "details": {
+            "fields": {
+              "name": "O Mestre dos Salgados (caixa para salgados)",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-29",
+              "seller": "NATHAN",
+              "items": [
+                {
+                  "id": "item-1785347039057-1",
+                  "name": "O Mestre dos Salgados (caixa para salgados)",
+                  "rollSizes": [
+                    "660",
+                    "770"
+                  ],
+                  "notes": "Bom dia Eduardo e Luan!\n\n \n\nPor gentileza, providencia a ficha técnica referente a caixa de salgado, papel hibulk , ver melhor aproveitamento/formato 660 ou 770.\n\nHá a possibilidade de rodar na Ricoh? Caso não ver para Komori (caso não caiba).\n\n \n\nQualquer dúvida vendedor está em cópia.\n\n \n\nDesde já agradeço.\n\nQuantidade: 500\n\nMedida: 15,5 largx29 comp. x10 alt.\n\nPapel: tríplex 250g",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "f7f1b83a-bcd8-4d44-bfee-2a01b2fa7ba3",
+          "timestamp": "2026-07-30T16:35:46.873Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-144448-D1B",
+            "serviceNumber": 29,
+            "name": "O Mestre dos Salgados (caixa para salgados)"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "bfa7b138-e1d5-46ad-b1a6-546c6f2f7120",
+          "timestamp": "2026-07-30T19:04:17.425Z",
+          "action": "service_reopened",
+          "summary": "Voltou o serviço para abertos.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260729-144448-D1B",
+            "serviceNumber": 29,
+            "name": "O Mestre dos Salgados (caixa para salgados)"
+          },
+          "details": {
+            "from": "development",
+            "to": "open"
+          }
+        },
+        {
+          "id": "8794fa06-5820-41f3-9bd9-b44ed5aee075",
+          "timestamp": "2026-07-31T14:57:07.795Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260729-144448-D1B",
+            "serviceNumber": 29,
+            "name": "O Mestre dos Salgados (caixa para salgados)"
+          },
+          "details": {
+            "from": 2,
+            "to": 1
+          }
+        },
+        {
+          "id": "4fa87ee1-f3d0-4a71-b7d6-2ddd8a626fff",
+          "timestamp": "2026-07-31T17:02:58.360Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-144448-D1B",
+            "serviceNumber": 29,
+            "name": "O Mestre dos Salgados (caixa para salgados)"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "05c06927-7f36-46c7-b10e-a393da284db5",
+          "timestamp": "2026-07-31T17:03:24.007Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"O Mestre dos Salgados (caixa para salgados)\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-144448-D1B",
+            "serviceNumber": 29,
+            "name": "O Mestre dos Salgados (caixa para salgados)"
+          },
+          "details": {
+            "name": "faca-2026-07-31T17-03-23-983Z-5ae5.pdf",
+            "originalName": "CAIXA_155X290X10___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785347039057-1",
+            "itemName": "O Mestre dos Salgados (caixa para salgados)",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "9c98a4c4-b2c2-4c1c-a234-e6778935890f",
+          "timestamp": "2026-07-31T17:03:24.235Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-144448-D1B",
+            "serviceNumber": 29,
+            "name": "O Mestre dos Salgados (caixa para salgados)"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "O Mestre dos Salgados (caixa para salgados)",
+                "name": "faca-2026-07-31T17-03-23-983Z-5ae5.pdf"
+              }
+            ],
+            "completionMessage": "Não foi possivel fazer na digital.",
+            "completedItems": [
+              "O Mestre dos Salgados (caixa para salgados)"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-31T17:03:24.234Z"
+    },
+    {
+      "id": "SRV-20260729-144606-2D3",
+      "folder": "serviços/0030",
+      "name": "ENVELOPE GFS",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-29",
+      "seller": "BRUNO",
+      "items": [
+        {
+          "id": "item-1785347111089-2",
+          "name": "ENVELOPE",
+          "rollSizes": [
+            "DIGITAL"
+          ],
+          "notes": "Bom dia Eduardo e Luan!\n \n\nPor gentileza, providencia a ficha técnica apenas do envelope para caber carta na medida do A4 (sem dobrar) e ver a medida do alto relevo da logo igual a foto abaixo(referência para desenvolver modelo da faca e alto relevo).\n\nObs. como o envelope não terá impressão vamos deixar na SM c/montagem 1 ou 2 (melhor aproveitamento).\n\n\nQualquer dúvida, estou à disposição para maiores esclarecimento e vendedor também.",
+          "attachments": [],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-31T19-47-35-315Z-f0ae.pdf",
+              "originalName": "ENVELOPE_297X210X20___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 733076,
+              "kind": "faca",
+              "savedAt": "2026-07-31T19:47:35.335Z",
+              "folder": "serviços/0030",
+              "url": "/servi%C3%A7os/0030/faca-2026-07-31T19-47-35-315Z-f0ae.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785347111089-2",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-29",
+      "createdAtTimestamp": "2026-07-29T17:46:06.619Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-31",
+      "completionMessage": "CONCLUIDO",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 30,
+      "logs": [
+        {
+          "id": "1bcb8571-0e11-4f72-abec-39ce66e939ab",
+          "timestamp": "2026-07-29T17:46:06.620Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260729-144606-2D3",
+            "serviceNumber": 30,
+            "name": "ENVELOPE GFS"
+          },
+          "details": {
+            "fields": {
+              "name": "ENVELOPE GFS",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-29",
+              "seller": "BRUNO",
+              "items": [
+                {
+                  "id": "item-1785347111089-2",
+                  "name": "ENVELOPE",
+                  "rollSizes": [
+                    "DIGITAL"
+                  ],
+                  "notes": "Bom dia Eduardo e Luan!\n \n\nPor gentileza, providencia a ficha técnica apenas do envelope para caber carta na medida do A4 (sem dobrar) e ver a medida do alto relevo da logo igual a foto abaixo(referência para desenvolver modelo da faca e alto relevo).\n\nObs. como o envelope não terá impressão vamos deixar na SM c/montagem 1 ou 2 (melhor aproveitamento).\n\n\nQualquer dúvida, estou à disposição para maiores esclarecimento e vendedor também.",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "a115e5f9-77c9-443e-abca-5f9c2b95bd37",
+          "timestamp": "2026-07-31T14:57:07.795Z",
+          "action": "queue_reordered",
+          "summary": "Alterou a posição do serviço na fila.",
+          "actor": {
+            "id": "567aba80-9d95-4a24-9e7f-ea421f8c4a9e",
+            "username": "clodoaldo",
+            "displayName": "Clodoaldo",
+            "role": "pcp"
+          },
+          "service": {
+            "id": "SRV-20260729-144606-2D3",
+            "serviceNumber": 30,
+            "name": "ENVELOPE GFS"
+          },
+          "details": {
+            "from": 1,
+            "to": 2
+          }
+        },
+        {
+          "id": "367e3b95-e02b-49d9-b85e-2e56f717b35b",
+          "timestamp": "2026-07-31T19:09:02.214Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-144606-2D3",
+            "serviceNumber": 30,
+            "name": "ENVELOPE GFS"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "deec3f13-d5fb-4820-9436-761270b4b871",
+          "timestamp": "2026-07-31T19:47:35.336Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"ENVELOPE\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-144606-2D3",
+            "serviceNumber": 30,
+            "name": "ENVELOPE GFS"
+          },
+          "details": {
+            "name": "faca-2026-07-31T19-47-35-315Z-f0ae.pdf",
+            "originalName": "ENVELOPE_297X210X20___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785347111089-2",
+            "itemName": "ENVELOPE",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "7f779310-3fba-4603-b193-91a804d1e0fd",
+          "timestamp": "2026-07-31T19:47:35.740Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260729-144606-2D3",
+            "serviceNumber": 30,
+            "name": "ENVELOPE GFS"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "ENVELOPE",
+                "name": "faca-2026-07-31T19-47-35-315Z-f0ae.pdf"
+              }
+            ],
+            "completionMessage": "CONCLUIDO",
+            "completedItems": [
+              "ENVELOPE"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-31T19:47:35.739Z"
+    },
+    {
+      "id": "SRV-20260730-080619-149",
+      "folder": "serviços/0031",
+      "name": "CAIXA-BATERIA",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-30",
+      "seller": "HELVECIO",
+      "items": [
+        {
+          "id": "item-1785409531698-1",
+          "name": "BATERIAS JUPITER",
+          "rollSizes": [
+            "770",
+            "660"
+          ],
+          "notes": "Por gentileza, providencia ficha técnica para caixa de bateria, ver melhor formato/aproveitamento/encaixe.\nDevido quantidade vai rodar na Komori, papel Klabin nesse caso não precisa ser necessariamente no formato 660 ou 770.\naberto 388 x 230 mm, fechado 115 comp. x 108 alt. x 72 prof. mm",
+          "attachments": [
+            {
+              "name": "servico-2026-07-30T11-06-19-343Z-84a0.pdf",
+              "originalName": "AF-CAIXA-BATERIA-5-JLBS.pdf",
+              "type": "application/pdf",
+              "size": 982378,
+              "kind": "item",
+              "savedAt": "2026-07-30T11:06:19.380Z",
+              "folder": "serviços/0031",
+              "url": "/servi%C3%A7os/0031/servico-2026-07-30T11-06-19-343Z-84a0.pdf",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1785409531698-1",
+              "scope": "request"
+            }
+          ],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-30T14-01-31-900Z-1e50.pdf",
+              "originalName": "CAIXA_115X75X108___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 742610,
+              "kind": "faca",
+              "savedAt": "2026-07-30T14:01:31.918Z",
+              "folder": "serviços/0031",
+              "url": "/servi%C3%A7os/0031/faca-2026-07-30T14-01-31-900Z-1e50.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785409531698-1",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-30",
+      "createdAtTimestamp": "2026-07-30T11:06:19.110Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-30",
+      "completionMessage": "CONCLUIDO",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 31,
+      "logs": [
+        {
+          "id": "3f5224db-77e5-4ac4-b575-f5ecc461cc4b",
+          "timestamp": "2026-07-30T11:06:19.110Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260730-080619-149",
+            "serviceNumber": 31,
+            "name": "CAIXA-BATERIA"
+          },
+          "details": {
+            "fields": {
+              "name": "CAIXA-BATERIA",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-30",
+              "seller": "HELVECIO",
+              "items": [
+                {
+                  "id": "item-1785409531698-1",
+                  "name": "BATERIAS JUPITER",
+                  "rollSizes": [
+                    "770",
+                    "660"
+                  ],
+                  "notes": "Por gentileza, providencia ficha técnica para caixa de bateria, ver melhor formato/aproveitamento/encaixe.\nDevido quantidade vai rodar na Komori, papel Klabin nesse caso não precisa ser necessariamente no formato 660 ou 770.\naberto 388 x 230 mm, fechado 115 comp. x 108 alt. x 72 prof. mm",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "2447d98d-e3ea-4fb4-87f4-300ed5e56626",
+          "timestamp": "2026-07-30T11:06:19.381Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo de entrada ao serviço \"BATERIAS JUPITER\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260730-080619-149",
+            "serviceNumber": 31,
+            "name": "CAIXA-BATERIA"
+          },
+          "details": {
+            "name": "servico-2026-07-30T11-06-19-343Z-84a0.pdf",
+            "originalName": "AF-CAIXA-BATERIA-5-JLBS.pdf",
+            "kind": "item",
+            "itemId": "item-1785409531698-1",
+            "itemName": "BATERIAS JUPITER",
+            "scope": "request"
+          }
+        },
+        {
+          "id": "2e493164-dd1d-4058-9d82-0243c71ae6c3",
+          "timestamp": "2026-07-30T14:01:06.983Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260730-080619-149",
+            "serviceNumber": 31,
+            "name": "CAIXA-BATERIA"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "63decb02-c48c-44cb-9d66-5fbe146508e9",
+          "timestamp": "2026-07-30T14:01:31.918Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"BATERIAS JUPITER\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260730-080619-149",
+            "serviceNumber": 31,
+            "name": "CAIXA-BATERIA"
+          },
+          "details": {
+            "name": "faca-2026-07-30T14-01-31-900Z-1e50.pdf",
+            "originalName": "CAIXA_115X75X108___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785409531698-1",
+            "itemName": "BATERIAS JUPITER",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "768fda89-ca0c-408d-a47f-c330141d1a37",
+          "timestamp": "2026-07-30T14:01:32.242Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260730-080619-149",
+            "serviceNumber": 31,
+            "name": "CAIXA-BATERIA"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "BATERIAS JUPITER",
+                "name": "faca-2026-07-30T14-01-31-900Z-1e50.pdf"
+              }
+            ],
+            "completionMessage": "CONCLUIDO",
+            "completedItems": [
+              "BATERIAS JUPITER"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-30T14:01:32.242Z"
+    },
+    {
+      "id": "SRV-20260730-152538-A16",
+      "folder": "serviços/0032",
+      "name": "Dusnei Distribuidora",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-30",
+      "seller": "GEORGIANA",
+      "items": [
+        {
+          "id": "item-1785435871918-1",
+          "name": "FACA GRISP",
+          "rollSizes": [
+            "660",
+            "770"
+          ],
+          "notes": "Por gentileza, providencia ficha técnica para ambas as caixa , ver melhor formato/aproveitamento/encaixe.\nDevido quantidade vai rodar na Komori, papel hibulk formato 660 ou 770.",
+          "attachments": [
+            {
+              "name": "servico-2026-07-30T18-25-39-276Z-84b2.pdf",
+              "originalName": "Faca Grisp (1).pdf",
+              "type": "application/pdf",
+              "size": 1506,
+              "kind": "item",
+              "savedAt": "2026-07-30T18:25:39.285Z",
+              "folder": "serviços/0032",
+              "url": "/servi%C3%A7os/0032/servico-2026-07-30T18-25-39-276Z-84b2.pdf",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1785435871918-1",
+              "scope": "request"
+            }
+          ],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-30T19-32-51-854Z-7b6e.pdf",
+              "originalName": "FACA_GRISP_90X95X70___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 738217,
+              "kind": "faca",
+              "savedAt": "2026-07-30T19:32:51.873Z",
+              "folder": "serviços/0032",
+              "url": "/servi%C3%A7os/0032/faca-2026-07-30T19-32-51-854Z-7b6e.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785435871918-1",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1785435915846-2",
+          "name": "FACA BATATA",
+          "rollSizes": [
+            "660",
+            "770"
+          ],
+          "notes": "Por gentileza, providencia ficha técnica para ambas as caixa , ver melhor formato/aproveitamento/encaixe.\nDevido quantidade vai rodar na Komori, papel hibulk formato 660 ou 770.",
+          "attachments": [
+            {
+              "name": "servico-2026-07-30T18-25-39-467Z-b3a9.pdf",
+              "originalName": "Caixa Batata (2).pdf",
+              "type": "application/pdf",
+              "size": 1434,
+              "kind": "item",
+              "savedAt": "2026-07-30T18:25:39.477Z",
+              "folder": "serviços/0032",
+              "url": "/servi%C3%A7os/0032/servico-2026-07-30T18-25-39-467Z-b3a9.pdf",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1785435915846-2",
+              "scope": "request"
+            }
+          ],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-30T19-32-52-151Z-179e.pdf",
+              "originalName": "FACA_BATATA_90X120X40___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 740328,
+              "kind": "faca",
+              "savedAt": "2026-07-30T19:32:52.168Z",
+              "folder": "serviços/0032",
+              "url": "/servi%C3%A7os/0032/faca-2026-07-30T19-32-52-151Z-179e.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785435915846-2",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-30",
+      "createdAtTimestamp": "2026-07-30T18:25:38.682Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-30",
+      "completionMessage": "CONCLUIDO",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 32,
+      "logs": [
+        {
+          "id": "2478857f-a407-4579-9232-5f9fc4af8dd2",
+          "timestamp": "2026-07-30T18:25:38.682Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260730-152538-A16",
+            "serviceNumber": 32,
+            "name": "Dusnei Distribuidora"
+          },
+          "details": {
+            "fields": {
+              "name": "Dusnei Distribuidora",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-30",
+              "seller": "GEORGIANA",
+              "items": [
+                {
+                  "id": "item-1785435871918-1",
+                  "name": "FACA GRISP",
+                  "rollSizes": [
+                    "660",
+                    "770"
+                  ],
+                  "notes": "Por gentileza, providencia ficha técnica para ambas as caixa , ver melhor formato/aproveitamento/encaixe.\nDevido quantidade vai rodar na Komori, papel hibulk formato 660 ou 770.",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                },
+                {
+                  "id": "item-1785435915846-2",
+                  "name": "FACA BATATA",
+                  "rollSizes": [
+                    "660",
+                    "770"
+                  ],
+                  "notes": "Por gentileza, providencia ficha técnica para ambas as caixa , ver melhor formato/aproveitamento/encaixe.\nDevido quantidade vai rodar na Komori, papel hibulk formato 660 ou 770.",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "921ad341-3159-4c62-9a44-40fbe0e6d9cf",
+          "timestamp": "2026-07-30T18:25:39.285Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo de entrada ao serviço \"FACA GRISP\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260730-152538-A16",
+            "serviceNumber": 32,
+            "name": "Dusnei Distribuidora"
+          },
+          "details": {
+            "name": "servico-2026-07-30T18-25-39-276Z-84b2.pdf",
+            "originalName": "Faca Grisp (1).pdf",
+            "kind": "item",
+            "itemId": "item-1785435871918-1",
+            "itemName": "FACA GRISP",
+            "scope": "request"
+          }
+        },
+        {
+          "id": "9c2aaa70-0eae-4406-8484-d32953206af7",
+          "timestamp": "2026-07-30T18:25:39.477Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo de entrada ao serviço \"FACA BATATA\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260730-152538-A16",
+            "serviceNumber": 32,
+            "name": "Dusnei Distribuidora"
+          },
+          "details": {
+            "name": "servico-2026-07-30T18-25-39-467Z-b3a9.pdf",
+            "originalName": "Caixa Batata (2).pdf",
+            "kind": "item",
+            "itemId": "item-1785435915846-2",
+            "itemName": "FACA BATATA",
+            "scope": "request"
+          }
+        },
+        {
+          "id": "18f2abc9-4a87-4cd4-881a-8c6a4774b6eb",
+          "timestamp": "2026-07-30T19:04:27.898Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260730-152538-A16",
+            "serviceNumber": 32,
+            "name": "Dusnei Distribuidora"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "41999048-f57a-4fb3-a50c-c801d41cd4f5",
+          "timestamp": "2026-07-30T19:32:51.873Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA GRISP\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260730-152538-A16",
+            "serviceNumber": 32,
+            "name": "Dusnei Distribuidora"
+          },
+          "details": {
+            "name": "faca-2026-07-30T19-32-51-854Z-7b6e.pdf",
+            "originalName": "FACA_GRISP_90X95X70___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785435871918-1",
+            "itemName": "FACA GRISP",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "305f68a4-6a3c-40df-af53-29858f5d8c24",
+          "timestamp": "2026-07-30T19:32:52.168Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"FACA BATATA\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260730-152538-A16",
+            "serviceNumber": 32,
+            "name": "Dusnei Distribuidora"
+          },
+          "details": {
+            "name": "faca-2026-07-30T19-32-52-151Z-179e.pdf",
+            "originalName": "FACA_BATATA_90X120X40___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785435915846-2",
+            "itemName": "FACA BATATA",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "9c2ac00e-8faa-444a-99f0-edd75ffc0235",
+          "timestamp": "2026-07-30T19:32:52.355Z",
+          "action": "service_completed",
+          "summary": "Concluiu 2 de 2 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260730-152538-A16",
+            "serviceNumber": 32,
+            "name": "Dusnei Distribuidora"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "FACA GRISP",
+                "name": "faca-2026-07-30T19-32-51-854Z-7b6e.pdf"
+              },
+              {
+                "itemName": "FACA BATATA",
+                "name": "faca-2026-07-30T19-32-52-151Z-179e.pdf"
+              }
+            ],
+            "completionMessage": "CONCLUIDO",
+            "completedItems": [
+              "FACA GRISP",
+              "FACA BATATA"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-30T19:32:52.354Z"
+    },
+    {
+      "id": "SRV-20260731-140617-E81",
+      "folder": "serviços/0033",
+      "name": "Essential Nutrition",
+      "type": "Criação de faca",
+      "orderDate": "2026-07-31",
+      "seller": "BRUNO",
+      "items": [
+        {
+          "id": "item-1785517495596-1",
+          "name": "EMBALAGEM SACO",
+          "rollSizes": [
+            "660",
+            "770",
+            "760",
+            "890",
+            "640"
+          ],
+          "notes": "Por gentileza, providencia ficha técnica para sacola (anexo faca e modelo que o cliente usa), ver melhor formato/aproveitamento/encaixe.\nRodar na Komori, papel hibulk formato 660 ou 770, ninbostar 660 ou 760, couche 660, 640, 760, 890.",
+          "attachments": [
+            {
+              "name": "servico-2026-07-31T17-06-17-714Z-f3c5.jpg",
+              "originalName": "PHOTO-2026-07-31-10-17-31.jpg",
+              "type": "image/jpeg",
+              "size": 59810,
+              "kind": "item",
+              "savedAt": "2026-07-31T17:06:17.723Z",
+              "folder": "serviços/0033",
+              "url": "/servi%C3%A7os/0033/servico-2026-07-31T17-06-17-714Z-f3c5.jpg",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1785517495596-1",
+              "scope": "request"
+            },
+            {
+              "name": "servico-2026-07-31T17-06-17-964Z-1965.pdf",
+              "originalName": "7004.1.sacola_saches_amostra_gratis_03_curvas.pdf",
+              "type": "application/pdf",
+              "size": 1365979,
+              "kind": "item",
+              "savedAt": "2026-07-31T17:06:17.995Z",
+              "folder": "serviços/0033",
+              "url": "/servi%C3%A7os/0033/servico-2026-07-31T17-06-17-964Z-1965.pdf",
+              "uploadedBy": {
+                "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+                "username": "admin",
+                "displayName": "Administrador",
+                "role": "admin"
+              },
+              "itemId": "item-1785517495596-1",
+              "scope": "request"
+            }
+          ],
+          "completionAttachments": [
+            {
+              "name": "faca-2026-07-31T18-10-56-861Z-f1b1.pdf",
+              "originalName": "SACO_160X70X110___FICHA_TECNICA.pdf",
+              "type": "application/pdf",
+              "size": 738531,
+              "kind": "faca",
+              "savedAt": "2026-07-31T18:10:56.904Z",
+              "folder": "serviços/0033",
+              "url": "/servi%C3%A7os/0033/faca-2026-07-31T18-10-56-861Z-f1b1.pdf",
+              "uploadedBy": {
+                "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+                "username": "luan",
+                "displayName": "Luan Cristian",
+                "role": "design"
+              },
+              "itemId": "item-1785517495596-1",
+              "scope": "completion"
+            }
+          ],
+          "completed": true,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-07-31",
+      "createdAtTimestamp": "2026-07-31T17:06:17.352Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "Luan Cristian",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "2026-07-31",
+      "completionMessage": "CONCLUDI",
+      "attachments": [],
+      "status": "done",
+      "queuePosition": null,
+      "serviceNumber": 33,
+      "logs": [
+        {
+          "id": "60c24596-d08d-41af-857f-00cd8f8f6fed",
+          "timestamp": "2026-07-31T17:06:17.352Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260731-140617-E81",
+            "serviceNumber": 33,
+            "name": "Essential Nutrition"
+          },
+          "details": {
+            "fields": {
+              "name": "Essential Nutrition",
+              "type": "Criação de faca",
+              "orderDate": "2026-07-31",
+              "seller": "BRUNO",
+              "items": [
+                {
+                  "id": "item-1785517495596-1",
+                  "name": "EMBALAGEM SACO",
+                  "rollSizes": [
+                    "660",
+                    "770",
+                    "760",
+                    "890",
+                    "640"
+                  ],
+                  "notes": "Por gentileza, providencia ficha técnica para sacola (anexo faca e modelo que o cliente usa), ver melhor formato/aproveitamento/encaixe.\nRodar na Komori, papel hibulk formato 660 ou 770, ninbostar 660 ou 760, couche 660, 640, 760, 890.",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "f21e9289-4bd1-4408-9b36-d593e0fd95ea",
+          "timestamp": "2026-07-31T17:06:17.723Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo de entrada ao serviço \"EMBALAGEM SACO\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260731-140617-E81",
+            "serviceNumber": 33,
+            "name": "Essential Nutrition"
+          },
+          "details": {
+            "name": "servico-2026-07-31T17-06-17-714Z-f3c5.jpg",
+            "originalName": "PHOTO-2026-07-31-10-17-31.jpg",
+            "kind": "item",
+            "itemId": "item-1785517495596-1",
+            "itemName": "EMBALAGEM SACO",
+            "scope": "request"
+          }
+        },
+        {
+          "id": "b9dd2cb4-1c86-4f25-8753-8036aea22f40",
+          "timestamp": "2026-07-31T17:06:17.995Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um anexo de entrada ao serviço \"EMBALAGEM SACO\".",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260731-140617-E81",
+            "serviceNumber": 33,
+            "name": "Essential Nutrition"
+          },
+          "details": {
+            "name": "servico-2026-07-31T17-06-17-964Z-1965.pdf",
+            "originalName": "7004.1.sacola_saches_amostra_gratis_03_curvas.pdf",
+            "kind": "item",
+            "itemId": "item-1785517495596-1",
+            "itemName": "EMBALAGEM SACO",
+            "scope": "request"
+          }
+        },
+        {
+          "id": "0e78ae82-257b-4060-95c4-6d0907ea684d",
+          "timestamp": "2026-07-31T17:31:19.981Z",
+          "action": "development_started",
+          "summary": "Iniciou o desenvolvimento do serviço.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260731-140617-E81",
+            "serviceNumber": 33,
+            "name": "Essential Nutrition"
+          },
+          "details": {
+            "from": "open",
+            "to": "development",
+            "developer": "Luan Cristian"
+          }
+        },
+        {
+          "id": "9cb4d083-2b19-4f6e-b198-95fa7999756c",
+          "timestamp": "2026-07-31T18:10:56.904Z",
+          "action": "attachment_added",
+          "summary": "Adicionou um arquivo à conclusão do serviço \"EMBALAGEM SACO\".",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260731-140617-E81",
+            "serviceNumber": 33,
+            "name": "Essential Nutrition"
+          },
+          "details": {
+            "name": "faca-2026-07-31T18-10-56-861Z-f1b1.pdf",
+            "originalName": "SACO_160X70X110___FICHA_TECNICA.pdf",
+            "kind": "faca",
+            "itemId": "item-1785517495596-1",
+            "itemName": "EMBALAGEM SACO",
+            "scope": "completion"
+          }
+        },
+        {
+          "id": "162a8682-68fe-45b8-ab1b-c64ed2554a95",
+          "timestamp": "2026-07-31T18:10:57.286Z",
+          "action": "service_completed",
+          "summary": "Concluiu 1 de 1 serviços do pedido.",
+          "actor": {
+            "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+            "username": "luan",
+            "displayName": "Luan Cristian",
+            "role": "design"
+          },
+          "service": {
+            "id": "SRV-20260731-140617-E81",
+            "serviceNumber": 33,
+            "name": "Essential Nutrition"
+          },
+          "details": {
+            "from": "development",
+            "to": "done",
+            "attachments": [
+              {
+                "itemName": "EMBALAGEM SACO",
+                "name": "faca-2026-07-31T18-10-56-861Z-f1b1.pdf"
+              }
+            ],
+            "completionMessage": "CONCLUDI",
+            "completedItems": [
+              "EMBALAGEM SACO"
+            ],
+            "notCompletedItems": []
+          }
+        }
+      ],
+      "developerAccount": {
+        "id": "19afc88a-7d44-4f18-b3f9-f495830de56f",
+        "username": "luan",
+        "displayName": "Luan Cristian",
+        "role": "design"
+      },
+      "updatedAt": "2026-07-31T18:10:57.286Z"
+    },
+    {
+      "id": "SRV-20260804-082537-DDE",
+      "folder": "serviços/0034",
+      "name": "Aramon Artigos",
+      "type": "Criação de faca",
+      "orderDate": "2026-08-04",
+      "seller": "NATHAN",
+      "items": [
+        {
+          "id": "item-1785842636354-1",
+          "name": "EMBALAGEM 1",
+          "rollSizes": [
+            "660",
+            "770"
+          ],
+          "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1785842664875-2",
+          "name": "EMBALAGEM 2",
+          "rollSizes": [
+            "660",
+            "770"
+          ],
+          "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1785842685362-3",
+          "name": "EMBALAGEM 3",
+          "rollSizes": [
+            "770",
+            "660"
+          ],
+          "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1785842695819-4",
+          "name": "EMBALAGEM 4",
+          "rollSizes": [
+            "660",
+            "770"
+          ],
+          "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        },
+        {
+          "id": "item-1785842716300-5",
+          "name": "EMABALAGEM 5",
+          "rollSizes": [
+            "660",
+            "770"
+          ],
+          "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-08-04",
+      "createdAtTimestamp": "2026-08-04T11:25:37.008Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "",
+      "completionMessage": "",
+      "attachments": [],
+      "status": "open",
+      "queuePosition": 1,
+      "serviceNumber": 34,
+      "logs": [
+        {
+          "id": "f20f02d4-938e-4809-a946-c5eca32f07b0",
+          "timestamp": "2026-08-04T11:25:37.008Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260804-082537-DDE",
+            "serviceNumber": 34,
+            "name": "Aramon Artigos"
+          },
+          "details": {
+            "fields": {
+              "name": "Aramon Artigos",
+              "type": "Criação de faca",
+              "orderDate": "2026-08-04",
+              "seller": "NATHAN",
+              "items": [
+                {
+                  "id": "item-1785842636354-1",
+                  "name": "EMBALAGEM 1",
+                  "rollSizes": [
+                    "660",
+                    "770"
+                  ],
+                  "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                },
+                {
+                  "id": "item-1785842664875-2",
+                  "name": "EMBALAGEM 2",
+                  "rollSizes": [
+                    "660",
+                    "770"
+                  ],
+                  "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                },
+                {
+                  "id": "item-1785842685362-3",
+                  "name": "EMBALAGEM 3",
+                  "rollSizes": [
+                    "770",
+                    "660"
+                  ],
+                  "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                },
+                {
+                  "id": "item-1785842695819-4",
+                  "name": "EMBALAGEM 4",
+                  "rollSizes": [
+                    "660",
+                    "770"
+                  ],
+                  "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                },
+                {
+                  "id": "item-1785842716300-5",
+                  "name": "EMABALAGEM 5",
+                  "rollSizes": [
+                    "660",
+                    "770"
+                  ],
+                  "notes": "1, 2, 3, 4 e 5 (está marcado na referência de amostra a gramatura para orçar)",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "developerAccount": null
+    },
+    {
+      "id": "SRV-20260804-082726-206",
+      "folder": "serviços/0035",
+      "name": "Leonardo Lopes",
+      "type": "Criação de faca",
+      "orderDate": "2026-08-04",
+      "seller": "PLUSPACK",
+      "items": [
+        {
+          "id": "item-1785842782650-6",
+          "name": "Saco Delivery",
+          "rollSizes": [
+            "660",
+            "760",
+            "890"
+          ],
+          "notes": "Favor desenvolver a faca da solicitação de orçamento abaixo por gentileza.\nSaco Delivery 24 largura x 34 altura x 14,5 base ( Favor desenvolver faca nova )\nImpressão: 4x0",
+          "attachments": [],
+          "completionAttachments": [],
+          "completed": false,
+          "completionNote": ""
+        }
+      ],
+      "createdAt": "2026-08-04",
+      "createdAtTimestamp": "2026-08-04T11:27:26.341Z",
+      "createdBy": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requesterAccount": {
+        "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+        "username": "admin",
+        "displayName": "Administrador",
+        "role": "admin"
+      },
+      "requester": "Administrador",
+      "source": "",
+      "notes": "",
+      "developer": "",
+      "deletedReason": "",
+      "deletedAt": "",
+      "completedAt": "",
+      "completionMessage": "",
+      "attachments": [],
+      "status": "open",
+      "queuePosition": 2,
+      "serviceNumber": 35,
+      "logs": [
+        {
+          "id": "1562e422-4ce1-4474-af5b-269c5183b861",
+          "timestamp": "2026-08-04T11:27:26.341Z",
+          "action": "service_created",
+          "summary": "Criou o serviço.",
+          "actor": {
+            "id": "2a0a425f-7df1-4fa2-a138-4f7b480d225f",
+            "username": "admin",
+            "displayName": "Administrador",
+            "role": "admin"
+          },
+          "service": {
+            "id": "SRV-20260804-082726-206",
+            "serviceNumber": 35,
+            "name": "Leonardo Lopes"
+          },
+          "details": {
+            "fields": {
+              "name": "Leonardo Lopes",
+              "type": "Criação de faca",
+              "orderDate": "2026-08-04",
+              "seller": "PLUSPACK",
+              "items": [
+                {
+                  "id": "item-1785842782650-6",
+                  "name": "Saco Delivery",
+                  "rollSizes": [
+                    "660",
+                    "760",
+                    "890"
+                  ],
+                  "notes": "Favor desenvolver a faca da solicitação de orçamento abaixo por gentileza.\nSaco Delivery 24 largura x 34 altura x 14,5 base ( Favor desenvolver faca nova )\nImpressão: 4x0",
+                  "attachments": [],
+                  "completionAttachments": [],
+                  "completed": false,
+                  "completionNote": ""
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "developerAccount": null
+    }
+  ]
+}

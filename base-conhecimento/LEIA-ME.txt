@@ -1,0 +1,13 @@
+Base de Conhecimento - Grafinorte
+==================================
+
+Coloque aqui os documentos da empresa:
+  - Arquivos PDF (.pdf)
+  - Arquivos de texto (.txt)
+  - Arquivos Markdown (.md)
+  - Planilhas em CSV (.csv)
+
+O assistente de IA lerá todos os arquivos desta pasta
+e responderá perguntas com base no conteúdo deles.
+
+Limite por arquivo: 30.000 caracteres de texto extraído.

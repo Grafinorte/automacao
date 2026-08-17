@@ -1,0 +1,50 @@
+﻿COMO USAR O SISTEMA EM REDE COM JSON
+
+OPÇÃO RECOMENDADA: NODE
+
+1. Instale o Node.js LTS no computador que vai hospedar o sistema:
+   https://nodejs.org
+
+2. Depois de instalar, dê dois cliques em:
+   INICIAR SISTEMA NODE.lnk
+
+   O atalho usa o PowerShell e funciona mesmo quando esta pasta está
+   em um caminho de rede UNC.
+
+3. O sistema vai abrir/rodar em:
+   http://localhost:3000
+
+4. Em outros computadores da rede, abra pelo IP do computador servidor:
+   http://IP-DO-COMPUTADOR:3000
+
+IMPORTANTE:
+- Não abra o index.html direto se quiser salvar para todos.
+- Para salvar no db.json compartilhado, precisa abrir pelo endereço http://... do servidor.
+- Os dados ficam separados dentro da pasta db:
+  - db/servicos.json
+  - db/contas.json
+  - db/configuracoes.json
+  - db/logs.json
+
+ACESSO AO SISTEMA
+- O sistema solicita usuário e senha ao abrir.
+- A sessão permanece ativa por 2 horas.
+- O Admin possui acesso completo.
+- Somente o PCP pode organizar a fila.
+- A função Design pode iniciar, reabrir e concluir serviços e acessar o Gerador de mockup.
+- Ao iniciar o desenvolvimento, o sistema usa automaticamente o nome da conta conectada.
+- Admin, Gerente, Orçamentista e Supervisor podem criar serviços.
+- O vendedor de um novo pedido é preenchido automaticamente com a conta conectada.
+- Um pedido pode conter vários serviços, cada um com vários tamanhos de bobina e observações próprias.
+- A origem da solicitação não faz mais parte do cadastro.
+- Serviços abertos podem ser editados por quem os criou, pelo Gerente, Supervisor ou Admin.
+- PCP, Gerente, Supervisor, Admin ou o criador podem excluir um serviço.
+- Um serviço precisa passar por Desenvolvimento antes de ser concluído.
+- Todos os usuários podem consultar a aba Logs.
+- Cada alteração também fica registrada dentro do próprio serviço.
+- Os usuários e permissões são administrados na aba Administração.
+- As contas ficam em db/contas.json, com as senhas armazenadas somente em hash.
+- Na Administração é possível criar, editar e excluir contas.
+- Para trocar uma senha é obrigatório informar a senha antiga.
+- Funções disponíveis: Admin, PCP, Gerente, Design, Orçamentista e Supervisor.
+- Deixe a janela do servidor aberta enquanto estiver usando o sistema.

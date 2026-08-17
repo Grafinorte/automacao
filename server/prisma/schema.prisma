@@ -1,0 +1,903 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+  ORCAMENTISTA
+  COMERCIAL
+  MARKETING
+  RH
+  ALMOXARIFADO
+  PCP
+  DESIGN
+  GERENTE
+  SUPERVISOR
+  CONSULTA
+}
+
+enum StockMovementType {
+  ENTRADA
+  SAIDA
+  AJUSTE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IssuingCompany {
+  GRAFINORTE
+  TRIBUNA_DO_NORTE
+  TN_ONLINE
+  PLUSPACK
+}
+
+enum MarketingChannel {
+  REDES_SOCIAIS
+  EMAIL
+  IMPRESSO
+  SITE
+  OUTRO
+}
+
+enum CampaignStatus {
+  PLANEJAMENTO
+  EM_ANDAMENTO
+  PAUSADA
+  CONCLUIDA
+}
+
+enum ContentStatus {
+  IDEIA
+  EM_PRODUCAO
+  AGUARDANDO_APROVACAO
+  APROVADO
+  PUBLICADO
+}
+
+enum EmployeeStatus {
+  ATIVO
+  AFASTADO
+  DEMITIDO
+}
+
+enum VacationStatus {
+  PLANEJADA
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(MEMBER)
+  permissions  String?
+  isActive     Boolean  @default(true)
+  avatarUrl          String?
+  smtpEmail          String?
+  smtpAppPassword    String?
+  waPhoneNumberId    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tasksAssigned          Task[]           @relation("AssignedTasks")
+  tasksCreated           Task[]           @relation("CreatedTasks")
+  taskAttachmentsAdded   TaskAttachment[]
+  quotesCreated    Quote[]
+  messagesSent     Message[]       @relation("MessagesSent")
+  messagesReceived Message[]       @relation("MessagesReceived")
+  dealsOwned       Deal[]          @relation("DealOwner")
+  dealsCreated     Deal[]          @relation("DealCreatedBy")
+  dealActivities   DealActivity[]
+  campaignsOwned   Campaign[]      @relation("CampaignOwner")
+  campaignsCreated Campaign[]      @relation("CampaignCreatedBy")
+  contentAssigned  ContentItem[]   @relation("ContentAssignee")
+  contentCreated   ContentItem[]   @relation("ContentCreatedBy")
+  employeesCreated Employee[]      @relation("EmployeeCreatedBy")
+  salaryChangesCreated SalaryChange[] @relation("SalaryChangeCreatedBy")
+  documentsUploaded EmployeeDocument[] @relation("DocumentUploadedBy")
+  stockMovements   StockMovement[]
+  lumaConversations LumaConversation[]
+  productionOrders  ProductionOrder[] @relation("ProductionCreatedBy")
+  notifications     Notification[]
+  boardMemberships     BoardMember[]
+  taskMemberships      TaskMember[]
+  groupChatsCreated    GroupChat[]     @relation("GroupChatsCreated")
+  groupChatMemberships GroupChatMember[]
+  groupMessages        GroupMessage[]  @relation("GroupMessagesSent")
+  servicesCreated      ServiceOrder[]  @relation("ServiceCreatedBy")
+  servicesDeveloped    ServiceOrder[]  @relation("ServiceDeveloper")
+  waConversations      WaConversation[] @relation("WaConversationAssignee")
+  waMessagesSent       WaMessage[]      @relation("WaMessageSentBy")
+
+  @@map("users")
+}
+
+model Board {
+  id          String        @id @default(cuid())
+  name        String        @default("Quadro Geral")
+  description String?
+  isDefault   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  columns Column[]
+  members BoardMember[]
+
+  @@map("boards")
+}
+
+model BoardMember {
+  boardId String
+  userId  String
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([boardId, userId])
+  @@map("board_members")
+}
+
+model TaskMember {
+  taskId String
+  userId String
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@map("task_members")
+}
+
+model Column {
+  id        String   @id @default(cuid())
+  name      String
+  order     Int
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks Task[]
+
+  @@unique([boardId, order])
+  @@map("columns")
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  priority    Priority  @default(MEDIUM)
+  dueDate     DateTime?
+  order       Int
+
+  columnId String
+  column   Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  assigneeId String?
+  assignee   User?   @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  attachments TaskAttachment[]
+  subtasks    TaskSubtask[]
+  members     TaskMember[]
+
+  @@index([columnId, order])
+  @@map("tasks")
+}
+
+model TaskSubtask {
+  id        String   @id @default(cuid())
+  title     String
+  done      Boolean  @default(false)
+  order     Int
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([taskId, order])
+  @@map("task_subtasks")
+}
+
+model TaskAttachment {
+  id           String   @id @default(cuid())
+  fileName     String
+  fileUrl      String
+  uploadedAt   DateTime @default(now())
+
+  taskId       String
+  task         Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+
+  @@map("task_attachments")
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  name           String
+  specifications String
+  unitPrice      Float?
+  active         Boolean  @default(true)
+  order          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  quoteItems QuoteItem[]
+
+  @@map("products")
+}
+
+model Quote {
+  id             String         @id @default(cuid())
+  number         Int            @unique
+  issuingCompany IssuingCompany
+  clientName     String
+  clientContact  String?
+  validUntil     DateTime?
+  notes          String?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items QuoteItem[]
+  deal  Deal?
+
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id             String  @id @default(cuid())
+  productName    String
+  specifications String
+  quantity       Int
+  unitPrice      Float
+  order          Int
+
+  quoteId String
+  quote   Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@map("quote_items")
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  body      String
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  senderId String
+  sender   User   @relation("MessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User   @relation("MessagesReceived", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  attachments MessageAttachment[]
+
+  @@index([senderId, recipientId])
+  @@index([recipientId, readAt])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  fileName  String
+  fileUrl   String
+  createdAt DateTime @default(now())
+
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("message_attachments")
+}
+
+model GroupChat {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+  createdById String
+  createdBy   User     @relation("GroupChatsCreated", fields: [createdById], references: [id])
+  members     GroupChatMember[]
+  messages    GroupMessage[]
+  @@map("group_chats")
+}
+
+model GroupChatMember {
+  groupChatId String
+  userId      String
+  joinedAt    DateTime  @default(now())
+  groupChat   GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([groupChatId, userId])
+  @@map("group_chat_members")
+}
+
+model GroupMessage {
+  id          String    @id @default(cuid())
+  body        String
+  createdAt   DateTime  @default(now())
+  senderId    String
+  sender      User      @relation("GroupMessagesSent", fields: [senderId], references: [id], onDelete: Cascade)
+  groupChatId String
+  groupChat   GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  attachments GroupMessageAttachment[]
+  @@map("group_messages")
+}
+
+model GroupMessageAttachment {
+  id             String       @id @default(cuid())
+  fileName       String
+  fileUrl        String
+  createdAt      DateTime     @default(now())
+  groupMessageId String
+  groupMessage   GroupMessage @relation(fields: [groupMessageId], references: [id], onDelete: Cascade)
+  @@map("group_message_attachments")
+}
+
+model CrmStage {
+  id        String   @id @default(cuid())
+  name      String
+  order     Int
+  isClosed  Boolean  @default(false)
+  isWon     Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deals Deal[]
+
+  @@unique([order])
+  @@map("crm_stages")
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  company   String?
+  email     String?
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deals Deal[]
+
+  @@map("crm_contacts")
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  title             String
+  value             Float     @default(0)
+  expectedCloseDate DateTime?
+  notes             String?
+  order             Int
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  stageId String
+  stage   CrmStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  ownerId String
+  owner   User   @relation("DealOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("DealCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  quoteId String? @unique
+  quote   Quote?  @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+
+  nextFollowUp  DateTime?
+  lossReason    String?
+  company       String    @default("GRAFINORTE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities DealActivity[]
+
+  @@index([stageId, order])
+  @@map("crm_deals")
+}
+
+model DealActivity {
+  id        String   @id @default(cuid())
+  body      String
+  createdAt DateTime @default(now())
+
+  dealId String
+  deal   Deal   @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("crm_deal_activities")
+}
+
+model Campaign {
+  id        String           @id @default(cuid())
+  name      String
+  objective String?
+  channel   MarketingChannel
+  status    CampaignStatus   @default(PLANEJAMENTO)
+  startDate DateTime?
+  endDate   DateTime?
+  budget    Float?
+  notes     String?
+
+  ownerId String
+  owner   User   @relation("CampaignOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contentItems ContentItem[]
+
+  @@map("marketing_campaigns")
+}
+
+model ContentItem {
+  id            String        @id @default(cuid())
+  title         String
+  type          String
+  channel       MarketingChannel
+  status        ContentStatus @default(IDEIA)
+  scheduledDate DateTime?
+  notes         String?
+  order         Int
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  assigneeId String?
+  assignee   User?   @relation("ContentAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("ContentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, order])
+  @@map("marketing_content_items")
+}
+
+model Employee {
+  id              String         @id @default(cuid())
+  name            String
+  cpf             String?        @unique
+  rg              String?
+  birthDate       DateTime?
+  email           String?
+  phone           String?
+  address         String?
+  position        String
+  department      String
+  company         String         @default("GRAFINORTE")
+  admissionDate   DateTime
+  terminationDate DateTime?
+  status          EmployeeStatus @default(ATIVO)
+  salary          Float
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  createdById String
+  createdBy   User   @relation("EmployeeCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  salaryChanges SalaryChange[]
+  vacations     Vacation[]
+  documents     EmployeeDocument[]
+
+  @@map("hr_employees")
+}
+
+model SalaryChange {
+  id            String   @id @default(cuid())
+  amount        Float
+  effectiveDate DateTime
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("SalaryChangeCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@map("hr_salary_changes")
+}
+
+model Vacation {
+  id        String         @id @default(cuid())
+  startDate DateTime
+  endDate   DateTime
+  status    VacationStatus @default(PLANEJADA)
+  notes     String?
+  createdAt DateTime       @default(now())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("hr_vacations")
+}
+
+model StockItem {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  unit        String
+  quantity    Float    @default(0)
+  minQuantity Float    @default(0)
+  location    String?
+  notes       String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  movements StockMovement[]
+
+  @@map("stock_items")
+}
+
+model StockMovement {
+  id        String            @id @default(cuid())
+  type      StockMovementType
+  quantity  Float
+  notes     String?
+  createdAt DateTime          @default(now())
+
+  itemId String
+  item   StockItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("stock_movements")
+}
+
+model LumaConversation {
+  id        String   @id @default(cuid())
+  title     String
+  messages  String
+  source    String   @default("luma")
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, updatedAt])
+  @@map("luma_conversations")
+}
+
+// ─── RKW — Custeio Pleno Gerencial ────────────────────────────────────────────
+
+model RkwParameter {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  value     Float
+  category  String
+  unit      String?
+  updatedAt DateTime @updatedAt
+
+  @@map("rkw_parameters")
+}
+
+model RkwMachineRate {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  sector           String
+  rateApril        Float?
+  rateMay          Float?
+  rateJune         Float?
+  rateConsolidated Float
+  bufferPct        Float    @default(5)
+  rateWithBuffer   Float
+  status           String   @default("ESTAVEL")
+  updatedAt        DateTime @updatedAt
+
+  @@map("rkw_machine_rates")
+}
+
+model RkwFixedCost {
+  id          String   @id @default(cuid())
+  name        String
+  amount      Float
+  category    String
+  rateioPerOs Float?
+  order       Int
+  updatedAt   DateTime @updatedAt
+
+  @@map("rkw_fixed_costs")
+}
+
+model RkwDeviation {
+  id             String   @id @default(cuid())
+  sectorCode     String   @unique
+  sectorName     String
+  deviationApril Float?
+  deviationMay   Float?
+  deviationJune  Float?
+  trend          String
+  priority       String
+  updatedAt      DateTime @updatedAt
+
+  @@map("rkw_deviations")
+}
+
+// ─── Notificações ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+// ─── Produção ─────────────────────────────────────────────────────────────────
+
+enum ProductionStatus {
+  ARTE
+  IMPRESSAO
+  ACABAMENTO
+  ENTREGA
+  CONCLUIDO
+  CANCELADO
+}
+
+enum ProductionPriority {
+  BAIXA
+  NORMAL
+  ALTA
+  URGENTE
+}
+
+model ProductionOrder {
+  id          String             @id @default(cuid())
+  number      Int                @unique
+  title       String
+  clientName  String
+  status      ProductionStatus   @default(ARTE)
+  priority    ProductionPriority @default(NORMAL)
+  dueDate     DateTime?
+  notes       String?
+
+  createdById String
+  createdBy   User   @relation("ProductionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("production_orders")
+}
+
+// ─── Serviços ─────────────────────────────────────────────────────────────────
+
+model ServiceOrder {
+  id                String    @id @default(cuid())
+  serviceNumber     Int       @unique
+  name              String
+  type              String
+  orderDate         String
+  seller            String
+  requester         String
+  status            String    @default("open")
+  queuePosition     Int?
+  completedAt       DateTime?
+  completionMessage String?
+  deletedReason     String?
+  deletedAt         DateTime?
+
+  developerUserId String?
+  developerUser   User?   @relation("ServiceDeveloper", fields: [developerUserId], references: [id], onDelete: SetNull)
+
+  createdByUserId String
+  createdByUser   User   @relation("ServiceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items ServiceOrderItem[]
+  logs  ServiceOrderLog[]
+
+  @@index([status, queuePosition])
+  @@map("service_orders")
+}
+
+model ServiceOrderItem {
+  id                    String @id @default(cuid())
+  name                  String
+  rollSizes             String @default("[]")
+  notes                 String @default("")
+  completed             Boolean @default(false)
+  completionNote        String @default("")
+  attachments           String @default("[]")
+  completionAttachments String @default("[]")
+  itemOrder             Int
+
+  serviceOrderId String
+  serviceOrder   ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+
+  @@index([serviceOrderId, itemOrder])
+  @@map("service_order_items")
+}
+
+model ServiceOrderLog {
+  id      String @id @default(cuid())
+  action  String
+  summary String
+  actor   String
+  details String @default("{}")
+  createdAt DateTime @default(now())
+
+  serviceOrderId String?
+  serviceOrder   ServiceOrder? @relation(fields: [serviceOrderId], references: [id], onDelete: SetNull)
+
+  @@index([serviceOrderId])
+  @@map("service_order_logs")
+}
+
+model ServiceOrderCounter {
+  id   String @id @default("singleton")
+  next Int    @default(1)
+
+  @@map("service_order_counter")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ── WhatsApp Inbox ─────────────────────────────────────────────────────────────
+
+model WaContact {
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  name         String
+  notes        String?
+  crmContactId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  conversations WaConversation[]
+
+  @@map("wa_contacts")
+}
+
+model WaConversation {
+  id              String    @id @default(cuid())
+  contactId       String
+  contact         WaContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status          String    @default("open")
+  unreadCount     Int       @default(0)
+  lastMessageAt   DateTime?
+  lastMessageText String?
+  assignedToId    String?
+  assignedTo      User?     @relation("WaConversationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  phoneNumberId   String?
+  pinned          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  messages WaMessage[]
+  labels   WaConversationLabel[]
+
+  @@index([status, lastMessageAt])
+  @@map("wa_conversations")
+}
+
+model WaMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      String
+  isInternal     Boolean        @default(false)
+  text           String?
+  waMessageId    String?        @unique
+  status         String         @default("sent")
+  sentById       String?
+  sentBy         User?          @relation("WaMessageSentBy", fields: [sentById], references: [id], onDelete: SetNull)
+  mediaType      String?
+  mediaUrl       String?
+  filename       String?
+  replyToId      String?
+  replyTo        WaMessage?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        WaMessage[]    @relation("MessageReplies")
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("wa_messages")
+}
+
+model WaLabel {
+  id            String               @id @default(cuid())
+  name          String               @unique
+  color         String               @default("#22c55e")
+  createdAt     DateTime             @default(now())
+  conversations WaConversationLabel[]
+
+  @@map("wa_labels")
+}
+
+model WaConversationLabel {
+  conversationId String
+  labelId        String
+  conversation   WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  label          WaLabel        @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, labelId])
+  @@map("wa_conversation_labels")
+}
+
+model WaAutomation {
+  id         String   @id @default(cuid())
+  name       String
+  keyword    String
+  matchType  String   @default("contains")
+  response   String
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("wa_automations")
+}
+
+model WaTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  text      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("wa_templates")
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+model EmployeeDocument {
+  id         String   @id @default(cuid())
+  name       String
+  fileUrl    String
+  uploadedAt DateTime @default(now())
+
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   User   @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@map("hr_documents")
+}

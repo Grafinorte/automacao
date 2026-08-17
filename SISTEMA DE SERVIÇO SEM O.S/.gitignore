@@ -1,0 +1,4 @@
+.env
+db.json.tmp
+contas.json.tmp
+db/*.tmp

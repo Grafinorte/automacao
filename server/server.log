@@ -1,0 +1,34 @@
+Grafinorte - Sistema de Tarefas rodando!
+  Local: http://localhost:4000
+  Rede:  http://192.168.3.177:4000   <-- compartilhe este endereço com a equipe
+[knowledge] API key present, length: 108
+[knowledge] docs found: 9 [
+  'CATÁLOGO GERAL PLUSPACK 2026.pdf',
+  'CATÁLOGO GRAFINORTE 2026.pdf',
+  'LEIA-ME.txt',
+  'LINHA AÇAITERIA E GELATOS.pdf',
+  'LINHA DELIVERY PLUSPACK.pdf',
+  'LINHA EMPRESARIAL PLUSPACK.pdf',
+  'LINHA FARMACEUTICA E COSMETICOS.pdf',
+  'LINHA FRANGO FRITO.pdf',
+  'LINHA POSTO DE COVENIENCIA E PANIFICACAO.pdf'
+]
+[knowledge] extracting: CATÁLOGO GERAL PLUSPACK 2026.pdf
+[knowledge] loaded: CATÁLOGO GERAL PLUSPACK 2026.pdf chars: 5468
+[knowledge] extracting: CATÁLOGO GRAFINORTE 2026.pdf
+[knowledge] loaded: CATÁLOGO GRAFINORTE 2026.pdf chars: 5003
+[knowledge] extracting: LEIA-ME.txt
+[knowledge] loaded: LEIA-ME.txt chars: 381
+[knowledge] extracting: LINHA AÇAITERIA E GELATOS.pdf
+[knowledge] loaded: LINHA AÇAITERIA E GELATOS.pdf chars: 3616
+[knowledge] extracting: LINHA DELIVERY PLUSPACK.pdf
+[knowledge] loaded: LINHA DELIVERY PLUSPACK.pdf chars: 4413
+[knowledge] extracting: LINHA EMPRESARIAL PLUSPACK.pdf
+[knowledge] loaded: LINHA EMPRESARIAL PLUSPACK.pdf chars: 5171
+[knowledge] extracting: LINHA FARMACEUTICA E COSMETICOS.pdf
+[knowledge] loaded: LINHA FARMACEUTICA E COSMETICOS.pdf chars: 4649
+[knowledge] extracting: LINHA FRANGO FRITO.pdf
+[knowledge] loaded: LINHA FRANGO FRITO.pdf chars: 4161
+[knowledge] extracting: LINHA POSTO DE COVENIENCIA E PANIFICACAO.pdf
+[knowledge] loaded: LINHA POSTO DE COVENIENCIA E PANIFICACAO.pdf chars: 3898
+[knowledge] total loaded docs: 9 total chars: 36760

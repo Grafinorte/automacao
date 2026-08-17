@@ -1,0 +1,10 @@
+node_modules/
+dist/
+client/dist/
+server/dist/
+server/data/*.db
+server/data/*.db-journal
+server/data/avatars/
+server/src/generated/
+.env
+*.local
