@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync } from "node:fs";
+import { copyFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,6 +7,11 @@ const sourceDir = join(__dirname, "..", "..", "assets");
 const targetDir = join(__dirname, "..", "public", "assets");
 
 mkdirSync(targetDir, { recursive: true });
+
+if (!existsSync(sourceDir)) {
+  console.log("Pasta assets/ não encontrada, usando arquivos existentes em public/assets");
+  process.exit(0);
+}
 
 const files = [
   ["Logo_01.png", "logo-full.png"],
