@@ -1,6 +1,7 @@
 import { app } from "./app";
 import { env } from "./config/env";
 import { getLocalIp } from "./utils/getLocalIp";
+// v2
 
 app.listen(env.port, "0.0.0.0", () => {
   const ip = getLocalIp();
