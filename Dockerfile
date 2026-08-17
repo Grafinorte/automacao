@@ -13,6 +13,7 @@ COPY client/package*.json ./client/
 RUN cd client && npm install
 
 # Copy source
+COPY assets/ ./assets/
 COPY server/ ./server/
 COPY client/ ./client/
 
