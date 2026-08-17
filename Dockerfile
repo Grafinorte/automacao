@@ -17,7 +17,8 @@ COPY server/ ./server/
 COPY client/ ./client/
 
 # Build server (gera prisma client + compila TS)
-RUN cd server && npx prisma generate && npm run build
+# DATABASE_URL ficticio apenas para o prisma generate funcionar no build
+RUN cd server && DATABASE_URL="file:/tmp/build.db" npx prisma generate && npm run build
 
 # Build client
 RUN cd client && npm run build
