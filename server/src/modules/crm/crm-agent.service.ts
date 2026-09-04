@@ -235,7 +235,7 @@ Responda em português, de forma direta e objetiva.
 Formate valores em Real (R$) e datas no formato brasileiro (DD/MM/AAAA).
 Se não encontrar dados, informe claramente.`;
 
-const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash"];
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 async function callGemini(model: string, apiKey: string, contents: GeminiContent[]): Promise<GeminiResponse> {

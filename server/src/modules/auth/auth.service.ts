@@ -22,6 +22,7 @@ export async function login(email: string, password: string) {
       role: user.role,
       permissions: user.permissions,
       avatarUrl: user.avatarUrl,
+      waPhoneNumberId: user.waPhoneNumberId,
     },
   };
 }
@@ -48,5 +49,6 @@ export async function getSessionUser(userId: string) {
     role: user.role,
     permissions: user.permissions,
     avatarUrl: user.avatarUrl,
+    waPhoneNumberId: user.waPhoneNumberId,
   };
 }

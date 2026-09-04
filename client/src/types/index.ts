@@ -1,4 +1,4 @@
-export type Role = "ADMIN" | "MEMBER" | "ORCAMENTISTA" | "COMERCIAL" | "MARKETING" | "RH" | "ALMOXARIFADO" | "PCP" | "DESIGN" | "GERENTE" | "SUPERVISOR" | "CONSULTA";
+export type Role = "ADMIN" | "MEMBER" | "ORCAMENTISTA" | "COMERCIAL" | "MARKETING" | "RH" | "ALMOXARIFADO" | "PCP" | "DESIGN" | "ARTE" | "ARTE_FINAL" | "GERENTE" | "SUPERVISOR" | "CONSULTA";
 export type Priority = "LOW" | "MEDIUM" | "HIGH";
 export type IssuingCompany = "GRAFINORTE" | "TRIBUNA_DO_NORTE" | "TN_ONLINE" | "PLUSPACK";
 
@@ -19,6 +19,8 @@ export const ROLE_LABELS: Record<Role, string> = {
   ALMOXARIFADO: "Almoxarifado",
   PCP: "PCP",
   DESIGN: "Desenvolvedor",
+  ARTE: "Desenvolvimento de Arte",
+  ARTE_FINAL: "Arte Final",
   GERENTE: "Gerente",
   SUPERVISOR: "Supervisor",
   CONSULTA: "Consulta",
@@ -62,12 +64,12 @@ export interface SessionUser {
   role: Role;
   permissions: string | null;
   avatarUrl: string | null;
+  waPhoneNumberId: string | null;
 }
 
 export interface AdminUser extends SessionUser {
   isActive: boolean;
   createdAt: string;
-  waPhoneNumberId: string | null;
 }
 
 export interface TaskUserRef {

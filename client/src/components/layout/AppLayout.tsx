@@ -9,7 +9,7 @@ export function AppLayout() {
       <Header />
       <Sidebar />
       <main className="md:ml-64 pt-14 md:pt-20">
-        <div className="min-h-[calc(100vh-56px)] md:min-h-[calc(100vh-80px)]">
+        <div className="h-[calc(100vh-56px)] md:h-[calc(100vh-80px)] flex flex-col overflow-hidden">
           <Outlet />
         </div>
       </main>

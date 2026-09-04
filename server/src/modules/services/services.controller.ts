@@ -3,7 +3,7 @@ import { prisma } from "../../db/prisma";
 import * as svc from "./services.service";
 
 const WRITE_ROLES = ["ADMIN", "GERENTE", "SUPERVISOR", "ORCAMENTISTA", "COMERCIAL", "MEMBER"];
-const WORKFLOW_ROLES = ["ADMIN", "DESIGN"];
+const WORKFLOW_ROLES = ["ADMIN", "DESIGN", "ARTE", "ARTE_FINAL"];
 const QUEUE_ROLES = ["ADMIN", "PCP"];
 const DELETE_ROLES = ["ADMIN", "PCP", "GERENTE", "SUPERVISOR"];
 
@@ -28,7 +28,7 @@ export async function postService(req: Request, res: Response) {
     return;
   }
 
-  const { name, type, orderDate, seller, requester, items } = req.body ?? {};
+  const { name, type, orderDate, seller, requester, clientPhone, items } = req.body ?? {};
   if (!name || !type || !orderDate) {
     res.status(400).json({ error: "name, type e orderDate são obrigatórios" });
     return;
@@ -43,6 +43,7 @@ export async function postService(req: Request, res: Response) {
     orderDate,
     seller: seller ?? "",
     requester: requester ?? "",
+    clientPhone: clientPhone ?? "",
     items: Array.isArray(items) ? items : [],
     actorId: userId,
     actorName: name_,
@@ -61,11 +62,11 @@ export async function putService(req: Request, res: Response) {
   const canEdit = WRITE_ROLES.includes(role) || existing.createdByUserId === userId;
   if (!canEdit) { res.status(403).json({ error: "Sem permissão para editar" }); return; }
 
-  const { name, type, orderDate, seller, requester, items } = req.body ?? {};
+  const { name, type, orderDate, seller, requester, clientPhone, items } = req.body ?? {};
   const aName = await actorName(userId);
 
   const result = await svc.updateService(req.params.id, {
-    name, type, orderDate, seller, requester, items,
+    name, type, orderDate, seller, requester, clientPhone, items,
     actorId: userId, actorName: aName,
   });
 

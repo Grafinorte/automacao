@@ -4,6 +4,7 @@ const TABS = [
   { to: "/marketing", label: "Dashboard", end: true },
   { to: "/marketing/conteudo", label: "Calendário de conteúdo", end: false },
   { to: "/marketing/campanhas", label: "Campanhas", end: false },
+  { to: "/marketing/instagram", label: "Instagram", end: false },
 ];
 
 function tabClass({ isActive }: { isActive: boolean }) {

@@ -41,6 +41,7 @@ const TYPE_ICON: Record<string, string> = {
   TASK_ASSIGNED: "📋",
   NEW_MESSAGE: "💬",
   PRODUCTION_ADVANCE: "🏭",
+  service_done: "🏁",
 };
 
 function ToastItem({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
@@ -82,6 +83,16 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
       ))}
     </div>
   );
+}
+
+// ── Context ───────────────────────────────────────────────────────────────────
+
+// ── WA message listeners (for WhatsApp page real-time refresh) ────────────────
+type WaMessagePayload = { convId: string; contactName: string; text: string; phoneNumberId?: string };
+const waListeners = new Set<(p: WaMessagePayload) => void>();
+export function subscribeWaMessage(cb: (p: WaMessagePayload) => void) {
+  waListeners.add(cb);
+  return () => { waListeners.delete(cb); };
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -141,6 +152,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                 type: notif.type,
               };
               setToasts((prev) => [...prev.slice(-4), toast]);
+            }
+          } else if (msg.event === "wa_message") {
+            // Notify WhatsApp page (or global notifier) in real-time
+            for (const cb of waListeners) {
+              try { cb(msg.data); } catch {}
             }
           }
         } catch {}

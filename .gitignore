@@ -5,6 +5,8 @@ server/dist/
 server/data/*.db
 server/data/*.db-journal
 server/data/avatars/
+server/data/attachments/
+server/data/media/
 server/src/generated/
 .env
 *.local

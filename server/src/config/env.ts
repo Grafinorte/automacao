@@ -21,4 +21,20 @@ export const env = {
   whatsappAccessToken: process.env.WHATSAPP_ACCESS_TOKEN || "",
   whatsappVerifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "grafinorte_wh_2025",
   whatsappBusinessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || "",
+  metaAppId: process.env.META_APP_ID || "",
+  cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
+  cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
+  cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
+  metaInstagramAccounts: [
+    {
+      id: process.env.META_INSTAGRAM_ID_GRAFINORTE || "",
+      token: process.env.META_INSTAGRAM_TOKEN_GRAFINORTE || "",
+      name: "grafinorte",
+    },
+    {
+      id: process.env.META_INSTAGRAM_ID_PLUSPACK || "",
+      token: process.env.META_INSTAGRAM_TOKEN_PLUSPACK || "",
+      name: "pluspackbr",
+    },
+  ].filter(a => a.id && a.token),
 };

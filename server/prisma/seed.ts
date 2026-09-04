@@ -159,6 +159,20 @@ async function main() {
   } else {
     console.log("Funil de vendas já existe, nada a fazer.");
   }
+
+  // WhatsApp phone numbers
+  const mainPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || "1233353023195021";
+  await prisma.waPhoneNumber.upsert({
+    where: { phoneNumberId: mainPhoneNumberId },
+    update: {},
+    create: { phoneNumberId: mainPhoneNumberId, displayName: "Grafinorte Principal", active: true },
+  });
+  await prisma.waPhoneNumber.upsert({
+    where: { phoneNumberId: "1311728092015168" },
+    update: {},
+    create: { phoneNumberId: "1311728092015168", displayName: "Número Teste", active: true },
+  });
+  console.log("Números WhatsApp configurados.");
 }
 
 main()

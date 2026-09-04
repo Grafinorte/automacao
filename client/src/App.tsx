@@ -24,6 +24,9 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { MarketingDashboardPage } from "./pages/MarketingDashboardPage";
 import { MarketingContentPage } from "./pages/MarketingContentPage";
 import { MarketingCampaignsPage } from "./pages/MarketingCampaignsPage";
+import { SocialPlannerPage } from "./pages/SocialPlannerPage";
+import { CompetitorAnalysisPage } from "./pages/CompetitorAnalysisPage";
+import { MarketingLayout } from "./components/marketing/MarketingLayout";
 import { HrDashboardPage } from "./pages/HrDashboardPage";
 import { EmployeesPage } from "./pages/EmployeesPage";
 import { VacationsPage } from "./pages/VacationsPage";
@@ -119,9 +122,11 @@ export function App() {
                 <Route path="/comercial/assistente" element={<CrmAgentPage />} />
               </Route>
               <Route element={<ProtectedRoute moduleId="marketing" />}>
-                <Route path="/marketing" element={<MarketingDashboardPage />} />
-                <Route path="/marketing/conteudo" element={<MarketingContentPage />} />
-                <Route path="/marketing/campanhas" element={<MarketingCampaignsPage />} />
+                <Route element={<MarketingLayout />}>
+                  <Route path="/marketing" element={<MarketingDashboardPage />} />
+                  <Route path="/marketing/planner" element={<SocialPlannerPage />} />
+                  <Route path="/marketing/concorrentes" element={<CompetitorAnalysisPage />} />
+                </Route>
               </Route>
               <Route element={<ProtectedRoute moduleId="rh" />}>
                 <Route element={<HrLayout />}>

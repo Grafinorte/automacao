@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+*, *::before, *::after {
+  cursor: url('/assets/cursor.svg') 14 10, auto;
+}
+
+a, button, [role="button"], select, label[for], [tabindex]:not([tabindex="-1"]) {
+  cursor: url('/assets/handpointing.svg') 10 2, pointer;
+}
+
+[draggable="true"], .draggable {
+  cursor: url('/assets/handopen.svg') 10 8, grab;
+}
+
+[draggable="true"]:active, .draggable:active {
+  cursor: url('/assets/handgrabbing.svg') 10 8, grabbing;
+}
+
+input, textarea, [contenteditable] {
+  cursor: text;
+}
+
+/* prevent SVG children from swallowing click events on buttons/links */
+button svg, a svg, [role="button"] svg {
+  pointer-events: none;
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(12px) scale(0.95); }
   to   { opacity: 1; transform: translateY(0)    scale(1);    }

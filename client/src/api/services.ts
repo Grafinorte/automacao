@@ -31,6 +31,7 @@ export interface ServiceOrder {
   orderDate: string;
   seller: string;
   requester: string;
+  clientPhone: string | null;
   status: "open" | "development" | "done" | "deleted";
   queuePosition: number | null;
   completedAt: string | null;
@@ -53,6 +54,7 @@ export interface CreateServiceInput {
   orderDate: string;
   seller: string;
   requester: string;
+  clientPhone?: string;
   items: Array<{ name: string; rollSizes: string[]; notes: string }>;
 }
 
@@ -62,6 +64,7 @@ export interface UpdateServiceInput {
   orderDate?: string;
   seller?: string;
   requester?: string;
+  clientPhone?: string;
   items?: Array<{ name: string; rollSizes: string[]; notes: string }>;
 }
 

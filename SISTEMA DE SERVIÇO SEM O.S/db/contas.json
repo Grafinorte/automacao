@@ -56,15 +56,48 @@
       "passwordHash": "9a704ff0dd8df58e323b2292cf9c520e3b39f96b1ed88aa2623251f1f9d57b0e39f14d3ce181e506c36f5252eb25764d95b12bb5a5c0ac4cc50378a9942766e1"
     },
     {
-      "id": "589c32e2-44df-4474-84c7-76264a947c55",
+      "id": "a28905c1-656f-4401-92cf-5df07b046d73",
+      "username": "gessica",
+      "displayName": "Géssica Aline",
+      "role": "orcamentista",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-08-06T14:00:34.642Z",
+      "passwordSalt": "4a3a79174eb6dd7bb75932da1caeefde",
+      "passwordHash": "d4a3c2195ac770902c01bd658ea74e6662335400193e5a26ad6c65277cc43335ce904a59d6388872b18490e6f4617e94e050854a1a6d8d73a240dedab13d3743"
+    },
+    {
+      "id": "bde87e71-46bc-4f76-a0c3-4bba1f734907",
+      "username": "graciele",
+      "displayName": "Graciele Bueno",
+      "role": "orcamentista",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-08-06T14:01:54.387Z",
+      "passwordSalt": "b14a45cd8d72bb58c2db712835dda3c9",
+      "passwordHash": "76b6c485354fd4e15e95cac4e81ab44093bac494d3bc70729fdccf6165faa11e4d9fe0ae569c9777d5be4687bd3c7283942a3317a0bd674e5145bc0a5d7326f0"
+    },
+    {
+      "id": "53242a09-52ff-4e10-9169-25b71d1844b6",
+      "username": "miguel",
+      "displayName": "Miguel",
+      "role": "supervisor",
+      "active": true,
+      "sessionVersion": 1,
+      "createdAt": "2026-08-13T11:51:46.276Z",
+      "passwordSalt": "8780673a04d5d50df6ef6d1dd8211526",
+      "passwordHash": "952362968612989b12b8f50b19c12260c3e5710d22e2f0d5b3edb48208d5c9976c09175ba8e2ec94eb1c1def6537df0e6978ae3b1a2f799a96620f92a615f23b"
+    },
+    {
+      "id": "3439039e-d22c-4fec-aff4-6cd7d0ab7c82",
       "username": "thiago",
-      "displayName": "Thiago",
+      "displayName": "Thiago Moraes",
       "role": "gerente",
       "active": true,
       "sessionVersion": 1,
-      "createdAt": "2026-07-24T18:47:27.870Z",
-      "passwordSalt": "4d8f5f410f9ddcd17c77027c8af6bc10",
-      "passwordHash": "1d62dd8f9023308cac53da957f175b6832a4e54f36bcb353a66f5771fbbf02262a6edeb24d15ef3a0ff1ee7cfafbab0fe3782ab4895994966d6e31782a84d2df"
+      "createdAt": "2026-08-27T12:22:27.368Z",
+      "passwordSalt": "917bb38de1e856c6d61c07db0baa9178",
+      "passwordHash": "8fae395d477e3e1dda7c6ed6d7021ac565f4f82f88d2ff6800a60952c9c14e45d7552eb6dee67b17a6e715a4bfe6029b479720efed5cc5414afbb94e78b1e04e"
     }
   ]
 }

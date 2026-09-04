@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../../db/prisma";
+import { createNotification } from "../notifications/notifications.service";
 
 const ATTACHMENTS_DIR = path.join(__dirname, "../../../data/attachments/servicos");
 
@@ -59,13 +60,14 @@ interface CreateServiceInput {
   orderDate: string;
   seller: string;
   requester: string;
+  clientPhone?: string;
   items: Array<{ name: string; rollSizes: string[]; notes: string }>;
   actorId: string;
   actorName: string;
 }
 
 export async function createService(input: CreateServiceInput) {
-  const { name, type, orderDate, seller, requester, items, actorId, actorName } = input;
+  const { name, type, orderDate, seller, requester, clientPhone, items, actorId, actorName } = input;
 
   const serviceNumber = await nextServiceNumber();
 
@@ -80,6 +82,7 @@ export async function createService(input: CreateServiceInput) {
       orderDate,
       seller,
       requester,
+      clientPhone: clientPhone || null,
       status: "open",
       queuePosition,
       createdByUserId: actorId,
@@ -118,6 +121,7 @@ interface UpdateServiceInput {
   orderDate?: string;
   seller?: string;
   requester?: string;
+  clientPhone?: string;
   items?: Array<{ name: string; rollSizes: string[]; notes: string }>;
   actorId: string;
   actorName: string;
@@ -133,9 +137,17 @@ export async function updateService(id: string, input: UpdateServiceInput) {
 
   const svc = await prisma.$transaction(async (tx) => {
     if (items !== undefined) {
+      // Preserve attachments from existing items (matched by position) before deleting
+      const existingItems = await tx.serviceOrderItem.findMany({
+        where: { serviceOrderId: id },
+        orderBy: { itemOrder: "asc" },
+        select: { attachments: true, completionAttachments: true },
+      });
+
       await tx.serviceOrderItem.deleteMany({ where: { serviceOrderId: id } });
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
+        const prev = existingItems[i];
         await tx.serviceOrderItem.create({
           data: {
             serviceOrderId: id,
@@ -143,6 +155,8 @@ export async function updateService(id: string, input: UpdateServiceInput) {
             rollSizes: JSON.stringify(it.rollSizes ?? []),
             notes: it.notes ?? "",
             itemOrder: i,
+            attachments: prev?.attachments ?? "[]",
+            completionAttachments: prev?.completionAttachments ?? "[]",
           },
         });
       }
@@ -240,6 +254,7 @@ export async function changeStatus(id: string, input: ChangeStatusInput) {
     },
   });
 
+  // Log
   const actionLabels: Record<string, unknown> = {
     development: "Em desenvolvimento",
     done: "Concluído",
@@ -247,15 +262,45 @@ export async function changeStatus(id: string, input: ChangeStatusInput) {
     open: "Reaberto",
   };
 
+  let logSummary = `Serviço #${existing.serviceNumber} — ${actionLabels[newStatus] ?? newStatus}`;
+  let logDetails: Record<string, unknown> = { from: existing.status, to: newStatus };
+
+  if (newStatus === "development") {
+    const dev = await prisma.user.findUnique({ where: { id: developerUserId! }, select: { name: true } });
+    logSummary = `Serviço #${existing.serviceNumber} — Iniciado por ${dev?.name ?? actorName}`;
+    logDetails = { from: existing.status, to: newStatus, developer: dev?.name ?? actorName };
+  }
+
   await prisma.serviceOrderLog.create({
     data: {
       serviceOrderId: id,
       action: `status:${newStatus}`,
-      summary: `Serviço #${existing.serviceNumber} — ${actionLabels[newStatus] ?? newStatus}`,
+      summary: logSummary,
       actor: JSON.stringify({ id: actorId, name: actorName }),
-      details: JSON.stringify({ from: existing.status, to: newStatus }),
+      details: JSON.stringify(logDetails),
     },
   });
+
+  // Notificar orçamentistas quando serviço for concluído
+  if (newStatus === "done") {
+    const recipients = await prisma.user.findMany({
+      where: { role: { in: ["ORCAMENTISTA", "ADMIN", "GERENTE", "COMERCIAL"] }, isActive: true },
+      select: { id: true },
+    });
+    const svcName = existing.name;
+    const svcNum = String(existing.serviceNumber).padStart(4, "0");
+    await Promise.all(
+      recipients.map((u) =>
+        createNotification(
+          u.id,
+          "service_done",
+          `Serviço #${svcNum} concluído`,
+          `"${svcName}" foi finalizado por ${actorName}.`,
+          `/servicos?id=${id}`
+        )
+      )
+    );
+  }
 
   return deserializeService(svc);
 }

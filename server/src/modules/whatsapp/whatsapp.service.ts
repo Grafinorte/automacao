@@ -1,5 +1,6 @@
 import { prisma } from "../../db/prisma";
 import { env } from "../../config/env";
+import { broadcastWaMessage } from "../notifications/notifications.service";
 import path from "node:path";
 import fs from "node:fs";
 import axios from "axios";
@@ -44,15 +45,28 @@ async function metaGet(url: string, authToken: string): Promise<unknown> {
 
 // ─── Meta API ────────────────────────────────────────────────────────────────
 
+async function getPhoneConfig(phoneNumberId?: string | null): Promise<{ phoneNumberId: string; accessToken: string }> {
+  if (phoneNumberId) {
+    const record = await prisma.waPhoneNumber.findUnique({ where: { phoneNumberId } });
+    if (record) {
+      return { phoneNumberId: record.phoneNumberId, accessToken: record.accessToken ?? env.whatsappAccessToken };
+    }
+  }
+  return { phoneNumberId: env.whatsappPhoneNumberId, accessToken: env.whatsappAccessToken };
+}
+
 export async function sendTextToMeta(to: string, text: string, contextMessageId?: string, phoneNumberId?: string): Promise<string> {
-  const url = `${GRAPH_URL}/${phoneNumberId || env.whatsappPhoneNumberId}/messages`;
+  const cfg = await getPhoneConfig(phoneNumberId);
+  const url = `${GRAPH_URL}/${cfg.phoneNumberId}/messages`;
+  const normalizedTo = to.replace(/^\+/, "");
+  console.log(`[WA Send] to=${normalizedTo} phoneNumberId=${cfg.phoneNumberId} tokenLen=${cfg.accessToken?.length ?? 0}`);
   const data = await metaPost(url, {
     messaging_product: "whatsapp",
-    to,
+    to: normalizedTo,
     type: "text",
     text: { body: text },
     ...(contextMessageId ? { context: { message_id: contextMessageId } } : {}),
-  }, env.whatsappAccessToken) as { messages?: { id: string }[] };
+  }, cfg.accessToken) as { messages?: { id: string }[] };
   return data.messages?.[0]?.id ?? "";
 }
 
@@ -260,8 +274,8 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
     orderBy: { updatedAt: "desc" },
   });
 
-  if (!conversation) {
-    // Try any open conversation for this contact (in case phoneNumberId differs)
+  if (!conversation && !msg.phoneNumberId) {
+    // Only fall back to any open conversation when the message has no phoneNumberId metadata
     conversation = await prisma.waConversation.findFirst({
       where: { contactId: contact.id, status: "open" },
       orderBy: { updatedAt: "desc" },
@@ -334,6 +348,9 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
     },
   });
 
+  // Notify all connected clients in real-time via SSE
+  broadcastWaMessage({ convId: conversation.id, contactName: contact.name, text: lastText, phoneNumberId: msg.phoneNumberId });
+
   // Run automations
   await runAutomations(conversation.id, contact.phone, msg.text);
 }
@@ -379,13 +396,13 @@ async function runAutomations(conversationId: string, phone: string, text: strin
 
 // ─── Start conversation (outbound-initiated) ──────────────────────────────────
 
-export async function startConversation(phone: string, name: string, text: string, sentById: string) {
+export async function startConversation(phone: string, name: string, text: string, sentById: string, explicitPhoneNumberId?: string) {
   // Normalize phone: remove spaces, dashes, parens; ensure starts with +
   const normalized = phone.replace(/[\s\-().]/g, "").replace(/^00/, "+").replace(/^(?!\+)/, "+");
 
-  // Use sender's dedicated WA number if configured
+  // Priority: explicit phoneNumberId from request > user's configured number > default
   const sender = await prisma.user.findUnique({ where: { id: sentById }, select: { waPhoneNumberId: true } });
-  const phoneNumberId = sender?.waPhoneNumberId ?? undefined;
+  const phoneNumberId = explicitPhoneNumberId ?? sender?.waPhoneNumberId ?? undefined;
 
   const contact = await prisma.waContact.upsert({
     where: { phone: normalized },
@@ -438,9 +455,12 @@ const CONV_INCLUDE = {
   labels: { include: { label: true } },
 } as const;
 
-export async function listConversations(status?: string) {
+export async function listConversations(status?: string, filterPhoneNumberId?: string) {
   return prisma.waConversation.findMany({
-    where: status ? { status } : undefined,
+    where: {
+      ...(status ? { status } : {}),
+      ...(filterPhoneNumberId ? { phoneNumberId: filterPhoneNumberId } : {}),
+    },
     include: CONV_INCLUDE,
     orderBy: [{ pinned: "desc" }, { unreadCount: "desc" }, { lastMessageAt: "desc" }],
   });
@@ -506,7 +526,8 @@ export async function sendConversationMessage(
   text: string,
   sentById: string,
   replyToId?: string,
-  isInternal?: boolean
+  isInternal?: boolean,
+  forwarded?: boolean
 ) {
   const MSG_INCLUDE = {
     sentBy: { select: { id: true, name: true, avatarUrl: true } },
@@ -536,7 +557,7 @@ export async function sendConversationMessage(
   const waId = await sendTextToMeta(conv.contact.phone, text, contextMessageId, phoneNumberId);
 
   const message = await prisma.waMessage.create({
-    data: { conversationId, direction: "outbound", text, waMessageId: waId || undefined, status: "sent", sentById, replyToId: replyToId ?? null },
+    data: { conversationId, direction: "outbound", text, waMessageId: waId || undefined, status: "sent", sentById, replyToId: replyToId ?? null, forwarded: forwarded ?? false },
     include: MSG_INCLUDE,
   });
 
@@ -563,6 +584,41 @@ export async function editMessageText(id: string, text: string) {
       replyTo: { include: { sentBy: { select: { id: true, name: true, avatarUrl: true } } } },
     },
   });
+}
+
+export async function starMessage(id: string, starred: boolean) {
+  return prisma.waMessage.update({
+    where: { id },
+    data: { starred },
+    include: {
+      sentBy: { select: { id: true, name: true, avatarUrl: true } },
+      replyTo: { include: { sentBy: { select: { id: true, name: true, avatarUrl: true } } } },
+    },
+  });
+}
+
+export async function getLinkPreview(url: string): Promise<{ title: string; description: string; image: string; domain: string } | null> {
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; LinkPreviewBot/1.0)" },
+      signal: ctrl.signal,
+    }).finally(() => clearTimeout(timeout));
+    const html = await res.text();
+    const getOg = (prop: string) => {
+      const m = html.match(new RegExp(`<meta[^>]+property=["']og:${prop}["'][^>]+content=["']([^"']*)["']`, "i")) ||
+                html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+property=["']og:${prop}["']`, "i"));
+      return m?.[1]?.trim() ?? "";
+    };
+    const title = getOg("title") || (html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? "").trim();
+    const description = getOg("description");
+    const image = getOg("image");
+    const domain = new URL(url).hostname.replace(/^www\./, "");
+    return { title: title.slice(0, 200), description: description.slice(0, 300), image: image.slice(0, 500), domain };
+  } catch {
+    return null;
+  }
 }
 
 // ─── Contacts ─────────────────────────────────────────────────────────────────
@@ -688,7 +744,8 @@ export async function sendTemplateMessage(
   phoneNumberId?: string,
   headerFileName?: string
 ): Promise<string> {
-  const url = `${GRAPH_URL}/${phoneNumberId || env.whatsappPhoneNumberId}/messages`;
+  const cfg = await getPhoneConfig(phoneNumberId);
+  const url = `${GRAPH_URL}/${cfg.phoneNumberId}/messages`;
 
   const components: object[] = [];
 
@@ -714,12 +771,17 @@ export async function sendTemplateMessage(
     });
   }
 
+  const normalizedPhone = phone.replace(/^\+/, "");
   const data = await metaPost(url, {
     messaging_product: "whatsapp",
-    to: phone,
+    to: normalizedPhone,
     type: "template",
-    template: { name: templateName, language: { code: language }, components },
-  }, env.whatsappAccessToken) as { messages?: { id: string }[] };
+    template: {
+      name: templateName,
+      language: { code: language },
+      ...(components.length ? { components } : {}),
+    },
+  }, cfg.accessToken) as { messages?: { id: string }[] };
   return data.messages?.[0]?.id ?? "";
 }
 
@@ -732,12 +794,13 @@ export async function startConversationWithTemplate(
   sentById: string,
   headerMediaUrl?: string,
   headerMediaType?: string,
-  headerFileName?: string
+  headerFileName?: string,
+  explicitPhoneNumberId?: string
 ) {
   const normalized = phone.replace(/[\s\-().]/g, "").replace(/^00/, "+").replace(/^(?!\+)/, "+");
 
   const sender = await prisma.user.findUnique({ where: { id: sentById }, select: { waPhoneNumberId: true } });
-  const phoneNumberId = sender?.waPhoneNumberId ?? undefined;
+  const phoneNumberId = explicitPhoneNumberId ?? sender?.waPhoneNumberId ?? undefined;
 
   const contact = await prisma.waContact.upsert({
     where: { phone: normalized },
@@ -850,7 +913,8 @@ export async function sendMediaMessage(
   mimetype: string,
   caption: string | undefined,
   sentById: string,
-  localFilename: string | null
+  localFilename: string | null,
+  originalFilename: string | null = null
 ) {
   const conv = await prisma.waConversation.findUniqueOrThrow({
     where: { id: conversationId },
@@ -862,15 +926,20 @@ export async function sendMediaMessage(
   const isAudio = mimetype.startsWith("audio/");
   const mediaType = isImage ? "image" : isVideo ? "video" : isAudio ? "audio" : "document";
 
+  const mediaObj: Record<string, unknown> = { id: mediaId };
+  if (caption) mediaObj.caption = caption;
+  if (mediaType === "document" && originalFilename) mediaObj.filename = originalFilename;
+
   const body: Record<string, unknown> = {
     messaging_product: "whatsapp",
-    to: conv.contact.phone,
+    to: conv.contact.phone.replace(/^\+/, ""),
     type: mediaType,
-    [mediaType]: { id: mediaId, ...(caption ? { caption } : {}) },
+    [mediaType]: mediaObj,
   };
 
-  const url = `${GRAPH_URL}/${env.whatsappPhoneNumberId}/messages`;
-  const result = await metaPost(url, body, env.whatsappAccessToken) as { messages?: { id: string }[] };
+  const cfg = await getPhoneConfig(conv.phoneNumberId);
+  const url = `${GRAPH_URL}/${cfg.phoneNumberId}/messages`;
+  const result = await metaPost(url, body, cfg.accessToken) as { messages?: { id: string }[] };
   const waId = result.messages?.[0]?.id;
 
   const message = await prisma.waMessage.create({
@@ -883,6 +952,7 @@ export async function sendMediaMessage(
       sentById,
       mediaType,
       mediaUrl: localFilename,
+      filename: originalFilename,
     },
     include: { sentBy: { select: { id: true, name: true, avatarUrl: true } } },
   });
@@ -904,4 +974,22 @@ export async function getStats() {
     prisma.waConversation.count(),
   ]);
   return { open, unread: unread._sum.unreadCount ?? 0, total };
+}
+
+// ─── Phone numbers ────────────────────────────────────────────────────────────
+
+export function listPhoneNumbers() {
+  return prisma.waPhoneNumber.findMany({ orderBy: { createdAt: "asc" } });
+}
+
+export function createPhoneNumber(data: { phoneNumberId: string; displayName: string; phone?: string; accessToken?: string }) {
+  return prisma.waPhoneNumber.create({ data });
+}
+
+export function updatePhoneNumber(id: string, data: { displayName?: string; phone?: string; accessToken?: string; active?: boolean }) {
+  return prisma.waPhoneNumber.update({ where: { id }, data });
+}
+
+export function deletePhoneNumber(id: string) {
+  return prisma.waPhoneNumber.delete({ where: { id } });
 }

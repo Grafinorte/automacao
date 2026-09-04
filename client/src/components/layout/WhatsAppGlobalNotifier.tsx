@@ -1,9 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { whatsappApi } from "../../api/whatsapp";
+import { subscribeWaMessage } from "../../context/NotificationContext";
 import { Avatar } from "../common/Avatar";
+import { useAuth } from "../../context/AuthContext";
+import { hasModuleAccess } from "../../config/modules";
 
 interface ToastMsg { id: string; convId: string; name: string; text: string; }
+
+function sendDesktopNotification(name: string, text: string) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    new Notification(name, { body: text, icon: "/assets/fav-grafinorte.png", tag: `wa-${name}` });
+  } catch {}
+}
 
 function playSound() {
   try {
@@ -23,53 +32,30 @@ function playSound() {
 export function WhatsAppGlobalNotifier() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
-  const prevUnreadRef = useRef<Record<string, number>>({});
-  const initializedRef = useRef(false);
 
+  const hasWa = user ? hasModuleAccess(user.role, user.permissions, "whatsapp") : false;
   const isOnWhatsApp = location.pathname === "/whatsapp";
 
+  // When NOT on WhatsApp page, listen for real-time WA messages via SSE
   useEffect(() => {
-    if (isOnWhatsApp) {
-      // When user enters WhatsApp page, stop global polling and reset
-      // so when they leave, first poll re-initializes counts (no duplicate toasts)
-      initializedRef.current = false;
-      return;
-    }
+    if (!hasWa || isOnWhatsApp) return; // Only for users with WhatsApp access
 
-    async function poll() {
-      try {
-        const data = await whatsappApi.getConversations("open");
-        if (!initializedRef.current) {
-          // First poll after leaving WhatsApp: just set baseline, no toast
-          prevUnreadRef.current = Object.fromEntries(data.map(c => [c.id, c.unreadCount]));
-          initializedRef.current = true;
-          return;
-        }
-        data.forEach(conv => {
-          const prev = prevUnreadRef.current[conv.id] ?? 0;
-          if (conv.unreadCount > prev) {
-            playSound();
-            const toastId = `${conv.id}-${Date.now()}`;
-            setToasts(ts => [...ts.slice(-4), {
-              id: toastId,
-              convId: conv.id,
-              name: conv.contact.name,
-              text: conv.lastMessageText ?? "Nova mensagem",
-            }]);
-            setTimeout(() => setToasts(ts => ts.filter(t => t.id !== toastId)), 6000);
-          }
-        });
-        prevUnreadRef.current = Object.fromEntries(data.map(c => [c.id, c.unreadCount]));
-      } catch { /* silencioso */ }
-    }
+    return subscribeWaMessage(({ convId, contactName, text, phoneNumberId }) => {
+      // Only notify for this user's phone number (if they have one assigned)
+      const userPhoneId = user?.waPhoneNumberId;
+      if (userPhoneId && phoneNumberId && userPhoneId !== phoneNumberId) return;
 
-    poll();
-    const timer = setInterval(poll, 10000);
-    return () => clearInterval(timer);
-  }, [isOnWhatsApp]);
+      playSound();
+      sendDesktopNotification(contactName, text);
+      const toastId = `${convId}-${Date.now()}`;
+      setToasts(ts => [...ts.slice(-4), { id: toastId, convId, name: contactName, text }]);
+      setTimeout(() => setToasts(ts => ts.filter(t => t.id !== toastId)), 6000);
+    });
+  }, [hasWa, isOnWhatsApp]);
 
-  if (toasts.length === 0) return null;
+  if (!hasWa || toasts.length === 0) return null;
 
   return (
     <>

@@ -21,6 +21,15 @@ export function getOnlineUserIds(): string[] {
   return ids;
 }
 
+export function broadcastWaMessage(payload: { convId: string; contactName: string; text: string; phoneNumberId?: string }) {
+  const data = `data: ${JSON.stringify({ event: "wa_message", data: payload })}\n\n`;
+  for (const clients of sseClients.values()) {
+    for (const res of clients) {
+      try { res.write(data); } catch {}
+    }
+  }
+}
+
 function pushToUser(userId: string, data: object) {
   const clients = sseClients.get(userId);
   if (!clients?.size) return;

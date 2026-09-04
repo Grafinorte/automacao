@@ -1,5 +1,16 @@
 import { api } from "./client";
 
+export interface WaPhoneNumber {
+  id: string;
+  phoneNumberId: string;
+  displayName: string;
+  phone?: string | null;
+  accessToken?: string | null;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface WaLabel {
   id: string;
   name: string;
@@ -36,6 +47,7 @@ export interface WaConversation {
   lastMessageText?: string | null;
   assignedToId?: string | null;
   assignedTo?: WaUser | null;
+  phoneNumberId?: string | null;
   labels: WaConversationLabel[];
   pinned: boolean;
   createdAt: string;
@@ -47,6 +59,7 @@ export interface WaMessageReplyTo {
   text?: string | null;
   direction: string;
   mediaType?: string | null;
+  mediaUrl?: string | null;
   filename?: string | null;
   sentBy?: WaUser | null;
 }
@@ -66,6 +79,8 @@ export interface WaMessage {
   filename?: string | null;
   replyToId?: string | null;
   replyTo?: WaMessageReplyTo | null;
+  starred?: boolean;
+  forwarded?: boolean;
   createdAt: string;
 }
 
@@ -133,7 +148,7 @@ export const whatsappApi = {
 
   deleteAutomation: (id: string) => api.delete<{ ok: boolean }>(`/whatsapp/automations/${id}`),
 
-  startConversation: (data: { phone: string; name?: string; text: string }) =>
+  startConversation: (data: { phone: string; name?: string; text: string; phoneNumberId?: string }) =>
     api.post<{ conversation: WaConversation; message: WaMessage }>("/whatsapp/conversations/start", data),
 
   // Meta Message Templates
@@ -142,7 +157,7 @@ export const whatsappApi = {
   createMetaTemplate: (data: { name: string; category?: string; language?: string; bodyText: string; exampleValues?: string[] }) =>
     api.post<{ id: string; status: string }>("/whatsapp/meta-templates", data),
 
-  sendTemplateMessage: (data: { phone: string; name?: string; templateName: string; language?: string; variables?: string[]; headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string }) =>
+  sendTemplateMessage: (data: { phone: string; name?: string; templateName: string; language?: string; variables?: string[]; headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string; phoneNumberId?: string }) =>
     api.post<{ conversation: WaConversation; message: WaMessage }>("/whatsapp/meta-templates/send", data),
 
   // Templates
@@ -172,17 +187,23 @@ export const whatsappApi = {
     return res.json();
   },
 
-  sendMediaMessage: (conversationId: string, data: { mediaId: string; mimetype: string; caption?: string; localFilename?: string }) =>
+  sendMediaMessage: (conversationId: string, data: { mediaId: string; mimetype: string; caption?: string; localFilename?: string; filename?: string }) =>
     api.post<WaMessage>(`/whatsapp/conversations/${conversationId}/media`, data),
 
-  sendMessage: (conversationId: string, text: string, replyToId?: string, isInternal?: boolean) =>
-    api.post<WaMessage>(`/whatsapp/conversations/${conversationId}/messages`, { text, replyToId, isInternal }),
+  sendMessage: (conversationId: string, text: string, replyToId?: string, isInternal?: boolean, forwarded?: boolean) =>
+    api.post<WaMessage>(`/whatsapp/conversations/${conversationId}/messages`, { text, replyToId, isInternal, forwarded }),
 
   updateMessage: (id: string, text: string) =>
     api.patch<WaMessage>(`/whatsapp/messages/${id}`, { text }),
 
+  starMessage: (id: string, starred: boolean) =>
+    api.patch<WaMessage>(`/whatsapp/messages/${id}/star`, { starred }),
+
   deleteMessage: (id: string) =>
     api.delete<{ ok: boolean }>(`/whatsapp/messages/${id}`),
+
+  getLinkPreview: (url: string) =>
+    api.get<{ title: string; description: string; image: string; domain: string }>(`/whatsapp/link-preview?url=${encodeURIComponent(url)}`),
 
   // Labels
   getLabels: () => api.get<WaLabel[]>("/whatsapp/labels"),
@@ -195,4 +216,12 @@ export const whatsappApi = {
 
   // Agents
   getAgents: () => api.get<WaUser[]>("/whatsapp/agents"),
+
+  // Phone numbers
+  getPhoneNumbers: () => api.get<WaPhoneNumber[]>("/whatsapp/phone-numbers"),
+  createPhoneNumber: (data: { phoneNumberId: string; displayName: string; phone?: string; accessToken?: string }) =>
+    api.post<WaPhoneNumber>("/whatsapp/phone-numbers", data),
+  updatePhoneNumber: (id: string, data: Partial<{ displayName: string; phone: string; accessToken: string; active: boolean }>) =>
+    api.patch<WaPhoneNumber>(`/whatsapp/phone-numbers/${id}`, data),
+  deletePhoneNumber: (id: string) => api.delete<{ ok: boolean }>(`/whatsapp/phone-numbers/${id}`),
 };

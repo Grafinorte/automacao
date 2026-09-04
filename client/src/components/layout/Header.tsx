@@ -21,6 +21,7 @@ const TYPE_ICON: Record<string, string> = {
   task_assigned: "✅",
   new_message: "💬",
   production_advance: "🏭",
+  service_done: "🏁",
 };
 
 export function Header() {

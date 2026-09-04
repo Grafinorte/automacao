@@ -52,6 +52,7 @@ app.use(cookieParser());
 app.use("/avatars", express.static(path.join(__dirname, "../data/avatars")));
 app.use("/attachments", requireAuth, express.static(path.join(__dirname, "../data/attachments")));
 app.use("/wa-media", requireAuth, express.static(path.join(__dirname, "../data/wa-media")));
+app.use("/social-media", express.static(path.join(__dirname, "../data/social-media")));
 app.use(
   "/hr-documents",
   requireAuth,

@@ -5,9 +5,11 @@ export interface DownloadFile {
   ext: string;
   sizeBytes: number;
   coverFile: string | null;
+  group: string | null;
+  relativePath: string;
 }
 
 export const downloadsApi = {
   listFiles: () => api.get<DownloadFile[]>("/downloads"),
-  fileUrl:   (filename: string) => `/api/downloads/file/${encodeURIComponent(filename)}`,
+  fileUrl:   (relativePath: string) => `/api/downloads/file/${relativePath.split(/[\\/]/).map(encodeURIComponent).join("/")}`,
 };

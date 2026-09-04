@@ -56,18 +56,26 @@ export async function receiveWebhook(req: Request, res: Response) {
 // ─── Conversations ────────────────────────────────────────────────────────────
 
 export async function startConversation(req: Request, res: Response) {
-  const { phone, name, text } = req.body as { phone?: string; name?: string; text?: string };
+  const { phone, name, text, phoneNumberId } = req.body as { phone?: string; name?: string; text?: string; phoneNumberId?: string };
   if (!phone || !text?.trim()) {
     res.status(400).json({ error: "Número e mensagem são obrigatórios." });
     return;
   }
-  const result = await waService.startConversation(phone, name ?? phone, text, req.user!.sub);
+  const result = await waService.startConversation(phone, name ?? phone, text, req.user!.sub, phoneNumberId);
   res.status(201).json(result);
 }
 
 export async function getConversations(req: Request, res: Response) {
   const status = typeof req.query.status === "string" ? req.query.status : undefined;
-  res.json(await waService.listConversations(status));
+  // Non-admin users only see conversations for their assigned phone number
+  let filterPhoneNumberId: string | undefined;
+  if (req.user!.role !== "ADMIN") {
+    const dbUser = await import("../../db/prisma").then(m =>
+      m.prisma.user.findUnique({ where: { id: req.user!.sub }, select: { waPhoneNumberId: true } })
+    );
+    if (dbUser?.waPhoneNumberId) filterPhoneNumberId = dbUser.waPhoneNumberId;
+  }
+  res.json(await waService.listConversations(status, filterPhoneNumberId));
 }
 
 export async function getConversationMessages(req: Request, res: Response) {
@@ -82,12 +90,12 @@ export async function getConversationMessages(req: Request, res: Response) {
 
 export async function postMessage(req: Request, res: Response) {
   const { id } = req.params;
-  const { text, replyToId, isInternal } = req.body as { text?: string; replyToId?: string; isInternal?: boolean };
+  const { text, replyToId, isInternal, forwarded } = req.body as { text?: string; replyToId?: string; isInternal?: boolean; forwarded?: boolean };
   if (!text?.trim()) {
     res.status(400).json({ error: "Texto é obrigatório." });
     return;
   }
-  const message = await waService.sendConversationMessage(id, text, req.user!.sub, replyToId, isInternal);
+  const message = await waService.sendConversationMessage(id, text, req.user!.sub, replyToId, isInternal, forwarded);
   res.json(message);
 }
 
@@ -105,6 +113,20 @@ export async function patchMessage(req: Request, res: Response) {
   }
   const msg = await waService.editMessageText(messageId, text.trim());
   res.json(msg);
+}
+
+export async function starMessage(req: Request, res: Response) {
+  const { messageId } = req.params;
+  const { starred } = req.body ?? {};
+  const msg = await waService.starMessage(messageId, starred === true);
+  res.json(msg);
+}
+
+export async function getLinkPreview(req: Request, res: Response) {
+  const url = typeof req.query.url === "string" ? req.query.url : null;
+  if (!url) { res.status(400).json({ error: "url required" }); return; }
+  const preview = await waService.getLinkPreview(url);
+  res.json(preview ?? {});
 }
 
 export async function patchConversation(req: Request, res: Response) {
@@ -200,9 +222,9 @@ export async function postMetaTemplate(req: Request, res: Response) {
 }
 
 export async function postTemplateMessage(req: Request, res: Response) {
-  const { phone, name, templateName, language, variables, headerMediaUrl, headerMediaType, headerFileName } = req.body as {
+  const { phone, name, templateName, language, variables, headerMediaUrl, headerMediaType, headerFileName, phoneNumberId } = req.body as {
     phone?: string; name?: string; templateName?: string; language?: string;
-    variables?: string[]; headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string;
+    variables?: string[]; headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string; phoneNumberId?: string;
   };
   if (!phone || !templateName) {
     res.status(400).json({ error: "Número e template são obrigatórios." });
@@ -211,7 +233,7 @@ export async function postTemplateMessage(req: Request, res: Response) {
   try {
     const result = await waService.startConversationWithTemplate(
       phone, name ?? phone, templateName, language ?? "pt_BR", variables ?? [],
-      req.user!.sub, headerMediaUrl, headerMediaType, headerFileName
+      req.user!.sub, headerMediaUrl, headerMediaType, headerFileName, phoneNumberId
     );
     res.status(201).json(result);
   } catch (err) {
@@ -261,17 +283,18 @@ export async function uploadMedia(req: Request, res: Response) {
 
 export async function postMediaMessage(req: Request, res: Response) {
   const { id } = req.params;
-  const { mediaId, mimetype, caption, localFilename } = req.body as {
+  const { mediaId, mimetype, caption, localFilename, filename } = req.body as {
     mediaId?: string;
     mimetype?: string;
     caption?: string;
     localFilename?: string;
+    filename?: string;
   };
   if (!mediaId || !mimetype) {
     res.status(400).json({ error: "mediaId e mimetype são obrigatórios." });
     return;
   }
-  const message = await waService.sendMediaMessage(id, mediaId, mimetype, caption, req.user!.sub, localFilename ?? null);
+  const message = await waService.sendMediaMessage(id, mediaId, mimetype, caption, req.user!.sub, localFilename ?? null, filename ?? null);
   res.json(message);
 }
 
@@ -306,6 +329,33 @@ export async function deleteConversationLabel(req: Request, res: Response) {
 
 export async function getAgents(_req: Request, res: Response) {
   res.json(await waService.listAgents());
+}
+
+// ─── Phone numbers ────────────────────────────────────────────────────────────
+
+export async function getPhoneNumbers(_req: Request, res: Response) {
+  res.json(await waService.listPhoneNumbers());
+}
+
+export async function postPhoneNumber(req: Request, res: Response) {
+  const { phoneNumberId, displayName, phone, accessToken } = req.body as {
+    phoneNumberId?: string; displayName?: string; phone?: string; accessToken?: string;
+  };
+  if (!phoneNumberId || !displayName) {
+    res.status(400).json({ error: "phoneNumberId e displayName são obrigatórios." });
+    return;
+  }
+  res.json(await waService.createPhoneNumber({ phoneNumberId, displayName, phone, accessToken }));
+}
+
+export async function patchPhoneNumber(req: Request, res: Response) {
+  const { id } = req.params;
+  res.json(await waService.updatePhoneNumber(id, req.body));
+}
+
+export async function deletePhoneNumber(req: Request, res: Response) {
+  await waService.deletePhoneNumber(req.params.id);
+  res.json({ ok: true });
 }
 
 // ─── Stats ────────────────────────────────────────────────────────────────────

@@ -14,6 +14,8 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "ALMOXARIFADO", label: "Almoxarifado" },
   { value: "PCP",          label: "PCP" },
   { value: "DESIGN",       label: "Desenvolvedor" },
+  { value: "ARTE",         label: "Desenvolvimento de Arte" },
+  { value: "ARTE_FINAL",   label: "Arte Final" },
   { value: "GERENTE",      label: "Gerente" },
   { value: "SUPERVISOR",   label: "Supervisor" },
   { value: "CONSULTA",     label: "Consulta" },
@@ -30,6 +32,8 @@ const ROLE_COLOR: Record<Role, string> = {
   ALMOXARIFADO:"bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
   PCP:         "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
   DESIGN:      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  ARTE:        "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
+  ARTE_FINAL:  "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-300",
   GERENTE:     "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300",
   SUPERVISOR:  "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
   CONSULTA:    "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-[#77767b]",
@@ -535,13 +539,20 @@ function UserCard({
 }
 
 const ROLE_SECTIONS: { role: Role; label: string; icon: string }[] = [
-  { role: "ADMIN",        label: "Administradores", icon: "👑" },
-  { role: "COMERCIAL",    label: "Comercial",        icon: "📊" },
-  { role: "ORCAMENTISTA", label: "Orçamentistas",    icon: "📄" },
-  { role: "MARKETING",    label: "Marketing",        icon: "📣" },
-  { role: "RH",           label: "RH",               icon: "👥" },
-  { role: "ALMOXARIFADO", label: "Almoxarifado",     icon: "📦" },
-  { role: "MEMBER",       label: "Membros",           icon: "👤" },
+  { role: "ADMIN",        label: "Administradores",       icon: "👑" },
+  { role: "GERENTE",      label: "Gerentes",              icon: "🏆" },
+  { role: "SUPERVISOR",   label: "Supervisores",          icon: "🎯" },
+  { role: "COMERCIAL",    label: "Comercial",             icon: "📊" },
+  { role: "ORCAMENTISTA", label: "Orçamentistas",         icon: "📄" },
+  { role: "MARKETING",    label: "Marketing",             icon: "📣" },
+  { role: "RH",           label: "RH",                   icon: "👥" },
+  { role: "ALMOXARIFADO", label: "Almoxarifado",          icon: "📦" },
+  { role: "PCP",          label: "PCP",                   icon: "🏭" },
+  { role: "DESIGN",       label: "Desenvolvedor",         icon: "💻" },
+  { role: "ARTE",         label: "Desenvolvimento de Arte", icon: "🎨" },
+  { role: "ARTE_FINAL",   label: "Arte Final",            icon: "✏️" },
+  { role: "MEMBER",       label: "Membros",               icon: "👤" },
+  { role: "CONSULTA",     label: "Consulta",              icon: "👁️" },
 ];
 
 /* ─── Main Page ─── */
@@ -624,6 +635,23 @@ export function UsersAdminPage() {
             </section>
           );
         })}
+
+        {/* Fallback: roles not listed in ROLE_SECTIONS */}
+        {(() => {
+          const listedRoles = new Set(ROLE_SECTIONS.map((s) => s.role));
+          const unlisted = activeUsers.filter((u) => !listedRoles.has(u.role as Role));
+          if (unlisted.length === 0) return null;
+          return (
+            <section>
+              <div className="mb-4 flex items-center gap-2">
+                <span className="text-base">👤</span>
+                <p className="text-[12px] font-semibold uppercase tracking-widest text-[#46464a] dark:text-[#a0a0a4]">Outros</p>
+                <span className="rounded-full bg-[#f3f3f5] px-2 py-0.5 text-[11px] font-semibold text-[#77767b] dark:bg-[#222426] dark:text-[#a0a0a4]">{unlisted.length}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{unlisted.map(renderCard)}</div>
+            </section>
+          );
+        })()}
 
         {/* Inactive */}
         {inactiveUsers.length > 0 && (

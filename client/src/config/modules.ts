@@ -57,6 +57,8 @@ export function hasModuleAccess(
     ALMOXARIFADO:  ["tarefas", "chat", "documentos", "producao", "financeiro", "almoxarifado"],
     PCP:           ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos"],
     DESIGN:        ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos"],
+    ARTE:          ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos"],
+    ARTE_FINAL:    ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos"],
     GERENTE:       ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "comercial", "orcamentos", "rh"],
     SUPERVISOR:    ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "comercial", "orcamentos"],
     CONSULTA:      ["servicos"],

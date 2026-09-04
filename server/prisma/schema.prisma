@@ -17,6 +17,8 @@ enum Role {
   ALMOXARIFADO
   PCP
   DESIGN
+  ARTE
+  ARTE_FINAL
   GERENTE
   SUPERVISOR
   CONSULTA
@@ -120,6 +122,7 @@ model User {
   servicesDeveloped    ServiceOrder[]  @relation("ServiceDeveloper")
   waConversations      WaConversation[] @relation("WaConversationAssignee")
   waMessagesSent       WaMessage[]      @relation("WaMessageSentBy")
+  socialPosts          SocialPost[]
 
   @@map("users")
 }
@@ -715,6 +718,7 @@ model ServiceOrder {
   orderDate         String
   seller            String
   requester         String
+  clientPhone       String?
   status            String    @default("open")
   queuePosition     Int?
   completedAt       DateTime?
@@ -835,6 +839,8 @@ model WaMessage {
   replyToId      String?
   replyTo        WaMessage?     @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies        WaMessage[]    @relation("MessageReplies")
+  starred        Boolean        @default(false)
+  forwarded      Boolean        @default(false)
   createdAt      DateTime       @default(now())
 
   @@index([conversationId, createdAt])
@@ -861,6 +867,19 @@ model WaConversationLabel {
   @@map("wa_conversation_labels")
 }
 
+model WaPhoneNumber {
+  id            String   @id @default(cuid())
+  phoneNumberId String   @unique
+  displayName   String
+  phone         String?
+  accessToken   String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("wa_phone_numbers")
+}
+
 model WaAutomation {
   id         String   @id @default(cuid())
   name       String
@@ -883,6 +902,54 @@ model WaTemplate {
   updatedAt DateTime @updatedAt
 
   @@map("wa_templates")
+}
+
+// ─── Competitor Analysis ─────────────────────────────────────────────────────
+
+model CompetitorProfile {
+  id        String              @id @default(cuid())
+  handle    String
+  name      String
+  niche     String              // "grafinorte" or "pluspackbr"
+  createdAt DateTime            @default(now())
+  reports   CompetitorReport[]
+
+  @@unique([handle, niche])
+  @@map("competitor_profiles")
+}
+
+model CompetitorReport {
+  id          String             @id @default(cuid())
+  profileId   String
+  profile     CompetitorProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  analysis    String             // JSON
+  generatedAt DateTime           @default(now())
+
+  @@index([profileId, generatedAt])
+  @@map("competitor_reports")
+}
+
+// ─── Social Planner ───────────────────────────────────────────────────────────
+
+model SocialPost {
+  id          String    @id @default(cuid())
+  account     String
+  mediaType   String    @default("IMAGE")
+  mediaUrl    String
+  coverUrl    String?
+  caption     String
+  scheduledAt DateTime
+  status      String    @default("PENDING")
+  publishedAt DateTime?
+  errorMsg    String?
+  igMediaId   String?
+  createdAt   DateTime  @default(now())
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+  @@map("social_posts")
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

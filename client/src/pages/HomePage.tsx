@@ -5,6 +5,7 @@ import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { useUnreadWa } from "../hooks/useUnreadWa";
 import { boardApi } from "../api/board";
 import type { Board } from "../types";
+import { hasModuleAccess } from "../config/modules";
 import {
   TasksIcon, CrmIcon, QuoteIcon, FactoryIcon, HrIcon, FinanceIcon,
   MarketingIcon, ChatIcon, StockIcon, ProposalIcon, WhatsAppIcon,
@@ -124,12 +125,13 @@ export function HomePage() {
 
   const firstName = user?.name.split(" ")[0] ?? "";
 
-  const canSeeQuotes    = user?.role === "ADMIN" || user?.role === "ORCAMENTISTA" || user?.role === "COMERCIAL";
-  const canSeeCrm       = user?.role === "ADMIN" || user?.role === "COMERCIAL";
-  const canSeeMarketing = user?.role === "ADMIN" || user?.role === "MARKETING";
-  const canSeeHr        = user?.role === "ADMIN" || user?.role === "RH";
-  const canSeeProposal  = user?.role === "ADMIN" || user?.role === "ORCAMENTISTA" || user?.role === "COMERCIAL";
-  const canSeeStock     = user?.role === "ADMIN" || user?.role === "ALMOXARIFADO";
+  const can = (mod: string) => user ? hasModuleAccess(user.role, user.permissions, mod) : false;
+  const canSeeQuotes    = can("orcamentos");
+  const canSeeCrm       = can("comercial");
+  const canSeeMarketing = can("marketing");
+  const canSeeHr        = can("rh");
+  const canSeeProposal  = can("proposta");
+  const canSeeStock     = can("almoxarifado");
 
   // Pending tasks: pick up to 5 from non-done columns
   const pendingTasks = board
@@ -139,19 +141,19 @@ export function HomePage() {
         .slice(0, 5)
     : [];
 
-  // Modules for the grid
+  // Modules for the grid — respects per-user permissions
   const modules = [
-    { to: "/tarefas",     label: "Tarefas",     icon: TasksIcon,    bg: "bg-violet-50",  color: "text-violet-600",  show: true },
-    { to: "/whatsapp",    label: "WhatsApp",    icon: WhatsAppIcon, bg: "bg-green-50",   color: "text-green-600",   show: true },
-    { to: "/chat",        label: "Chat",         icon: ChatIcon,     bg: "bg-blue-50",    color: "text-blue-600",    show: true, badge: unreadCount },
+    { to: "/tarefas",     label: "Tarefas",     icon: TasksIcon,    bg: "bg-violet-50",  color: "text-violet-600",  show: can("tarefas") },
+    { to: "/whatsapp",    label: "WhatsApp",    icon: WhatsAppIcon, bg: "bg-green-50",   color: "text-green-600",   show: can("whatsapp") },
+    { to: "/chat",        label: "Chat",         icon: ChatIcon,     bg: "bg-blue-50",    color: "text-blue-600",    show: can("chat"), badge: unreadCount },
     { to: "/comercial",   label: "Comercial",    icon: CrmIcon,      bg: "bg-emerald-50", color: "text-emerald-600", show: canSeeCrm },
     { to: "/orcamentos",  label: "Orçamentos",   icon: QuoteIcon,    bg: "bg-amber-50",   color: "text-amber-600",   show: canSeeQuotes },
     { to: "/proposta",    label: "Propostas",    icon: ProposalIcon, bg: "bg-sky-50",     color: "text-sky-600",     show: canSeeProposal },
     { to: "/marketing",   label: "Marketing",    icon: MarketingIcon,bg: "bg-pink-50",    color: "text-pink-600",    show: canSeeMarketing },
     { to: "/rh",          label: "RH",           icon: HrIcon,       bg: "bg-indigo-50",  color: "text-indigo-600",  show: canSeeHr },
     { to: "/almoxarifado",label: "Almoxarifado", icon: StockIcon,    bg: "bg-teal-50",    color: "text-teal-600",    show: canSeeStock },
-    { to: "/producao",    label: "Produção",     icon: FactoryIcon,  bg: "bg-orange-50",  color: "text-orange-600",  show: true },
-    { to: "/financeiro",  label: "Financeiro",   icon: FinanceIcon,  bg: "bg-green-50",   color: "text-green-600",   show: true },
+    { to: "/producao",    label: "Produção",     icon: FactoryIcon,  bg: "bg-orange-50",  color: "text-orange-600",  show: can("producao") },
+    { to: "/financeiro",  label: "Financeiro",   icon: FinanceIcon,  bg: "bg-green-50",   color: "text-green-600",   show: can("financeiro") },
   ].filter((m) => m.show);
 
   // Quick actions depend on role
@@ -239,8 +241,8 @@ export function HomePage() {
           </div>
         </section>
 
-        {/* ── WHATSAPP DESTAQUE (mobile only) ── */}
-        <section className="md:hidden col-span-1">
+        {/* ── WHATSAPP DESTAQUE (mobile only, only for users with WA access) ── */}
+        {can("whatsapp") && <section className="md:hidden col-span-1">
           <button
             onClick={() => navigate("/whatsapp")}
             className="relative w-full overflow-hidden rounded-2xl p-5 flex items-center gap-4 active:scale-[0.98] transition-transform"
@@ -266,7 +268,7 @@ export function HomePage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>
           </button>
-        </section>
+        </section>}
 
         {/* ── AÇÕES RÁPIDAS ── */}
         <section className="glass-card smooth-shadow rounded-2xl p-5 col-span-1">

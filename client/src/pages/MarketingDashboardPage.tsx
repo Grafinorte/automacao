@@ -1,231 +1,390 @@
-import { useEffect, useMemo, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { marketingApi } from "../api/marketing";
-import type { Campaign, ContentBoardColumn, MarketingChannel } from "../types";
-import { CONTENT_STATUS_LABELS, MARKETING_CHANNEL_LABELS } from "../types";
-import { MarketingSubNav } from "../components/marketing/MarketingSubNav";
+import { useEffect, useState, useMemo } from "react";
+import { metaApi, type IgAccountSummary, type IgPost } from "../api/meta";
 
-const CHANNEL_COLORS: Record<MarketingChannel, string> = {
-  REDES_SOCIAIS: "#005cba",
-  EMAIL: "#7c3aed",
-  IMPRESSO: "#111111",
-  SITE: "#16A34A",
-  OUTRO: "#9CA3AF",
-};
+// ─── Formatters ───────────────────────────────────────────────────────────────
 
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("pt-BR");
+function fmt(n?: number | null) {
+  if (n == null) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
+  return String(n);
 }
 
-function KpiCard({
-  icon, label, value, sub, badge,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-  badge?: string;
+function timeAgo(ts: string) {
+  const diff = (Date.now() - new Date(ts).getTime()) / 1000;
+  if (diff < 3600) return `${Math.floor(diff / 60)}min`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+  return `${Math.floor(diff / 86400)}d`;
+}
+
+// ─── Sparkline chart ──────────────────────────────────────────────────────────
+
+function Sparkline({ values, color }: { values: number[]; color: string }) {
+  if (values.length < 2) return <div className="w-full h-10 rounded bg-gray-100 dark:bg-white/5" />;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const W = 100, H = 36;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * W;
+    const y = H - ((v - min) / range) * (H - 4) - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+  const area = `M0,${H} L${pts.split(" ").join(" L")} L${W},${H} Z`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-10" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={`grad-${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#grad-${color.replace("#","")})`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// ─── Stat card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, sub, color, icon, sparkValues, sparkColor }: {
+  label: string; value: string; sub?: string; color: string; icon: React.ReactNode;
+  sparkValues?: number[]; sparkColor?: string;
 }) {
   return (
-    <div className="glass-card smooth-shadow rounded-2xl p-6">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[#005cba]/10 text-[#005cba]">
-        {icon}
+    <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-5 border border-gray-100 dark:border-white/5 flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>{icon}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5 leading-none">{value}</p>
+          {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+        </div>
       </div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#77767b]">{label}</p>
-      <div className="mt-1 flex items-baseline gap-2">
-        <h2 className="text-[28px] font-bold leading-none tracking-tight text-[#030304]">{value}</h2>
-        {badge && (
-          <span className="rounded-full bg-green-50 px-2 py-0.5 text-[11px] font-semibold text-green-700">{badge}</span>
-        )}
-      </div>
-      {sub && <p className="mt-2 text-[11px] text-[#77767b]">{sub}</p>}
+      {sparkValues && sparkValues.length > 1 && sparkColor && (
+        <Sparkline values={sparkValues} color={sparkColor} />
+      )}
     </div>
   );
 }
 
-export function MarketingDashboardPage() {
-  const [columns, setColumns] = useState<ContentBoardColumn[] | null>(null);
-  const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
+// ─── Post thumbnail ───────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    marketingApi.getContentBoard().then(setColumns);
-    marketingApi.listCampaigns().then(setCampaigns);
-  }, []);
-
-  const metrics = useMemo(() => {
-    if (!columns || !campaigns) return null;
-
-    const allItems = columns.flatMap((c) => c.items);
-    const activeCampaigns = campaigns.filter((c) => c.status === "EM_ANDAMENTO").length;
-
-    const now = new Date();
-    const in7Days = new Date(now);
-    in7Days.setDate(in7Days.getDate() + 7);
-
-    const upcoming = allItems
-      .filter((item) => item.status !== "PUBLICADO" && item.scheduledDate)
-      .filter((item) => {
-        const d = new Date(item.scheduledDate!);
-        return d >= now && d <= in7Days;
-      })
-      .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime());
-
-    const publishedThisMonth = allItems.filter((item) => {
-      if (item.status !== "PUBLICADO" || !item.scheduledDate) return false;
-      const d = new Date(item.scheduledDate);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
-
-    const statusBars = columns.map((c) => ({
-      status: CONTENT_STATUS_LABELS[c.status],
-      quantidade: c.items.length,
-    }));
-
-    const channelCounts = new Map<MarketingChannel, number>();
-    for (const item of allItems) {
-      channelCounts.set(item.channel, (channelCounts.get(item.channel) ?? 0) + 1);
-    }
-    const channelPie = Array.from(channelCounts.entries()).map(([channel, count]) => ({
-      name: MARKETING_CHANNEL_LABELS[channel],
-      value: count,
-      color: CHANNEL_COLORS[channel],
-    }));
-
-    return { activeCampaigns, totalContent: allItems.length, publishedThisMonthCount: publishedThisMonth.length, upcoming: upcoming.slice(0, 5), statusBars, channelPie };
-  }, [columns, campaigns]);
-
-  if (!metrics) {
-    return (
-      <div className="flex min-h-full items-center justify-center p-8">
-        <p className="text-[15px] text-[#46464a]">Carregando dashboard...</p>
+function PostThumb({ post, rank }: { post: IgPost; rank?: number }) {
+  const thumb = post.thumbnail_url ?? post.media_url;
+  const engagement = (post.like_count ?? 0) + (post.comments_count ?? 0);
+  return (
+    <a href={post.permalink} target="_blank" rel="noopener noreferrer"
+      className="group relative rounded-xl overflow-hidden bg-gray-100 dark:bg-white/5 aspect-square border border-transparent hover:border-[#005cba]/50 transition-all block">
+      {thumb ? (
+        <img src={thumb} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">📷</div>
+      )}
+      {rank != null && rank < 3 && (
+        <div className="absolute top-1.5 left-1.5 bg-amber-400 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow">
+          {rank + 1}
+        </div>
+      )}
+      {(post.media_type === "VIDEO" || post.media_type === "REELS") && (
+        <div className="absolute top-1.5 right-1.5 bg-black/60 rounded-full p-1">
+          <svg className="h-2.5 w-2.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+      )}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex flex-col items-center justify-end pb-2 gap-0.5">
+        <div className="opacity-0 group-hover:opacity-100 transition-all text-center">
+          <p className="text-white text-xs font-semibold">❤️ {fmt(post.like_count)} · 💬 {fmt(post.comments_count)}</p>
+          <p className="text-white/70 text-[10px]">{fmt(engagement)} interações · {timeAgo(post.timestamp)}</p>
+        </div>
       </div>
-    );
-  }
+    </a>
+  );
+}
+
+// ─── Reach bar chart ──────────────────────────────────────────────────────────
+
+function DailyBars({ values, color }: { values: { value: number; end_time: string }[]; color: string }) {
+  if (!values.length) return null;
+  const last30 = values.slice(-30);
+  const max = Math.max(...last30.map(v => v.value)) || 1;
+  return (
+    <div className="flex items-end gap-px h-12 w-full">
+      {last30.map((v, i) => (
+        <div key={i} className="flex-1 rounded-t-sm transition-all group/bar relative"
+          style={{ height: `${Math.max(4, (v.value / max) * 100)}%`, backgroundColor: color, opacity: 0.7 + (i / last30.length) * 0.3 }}
+          title={`${new Date(v.end_time).toLocaleDateString("pt-BR")}: ${fmt(v.value)}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Account section ──────────────────────────────────────────────────────────
+
+function AccountSection({ summary }: { summary: IgAccountSummary }) {
+  const p = summary.profile;
+
+  const reachValues = useMemo(() =>
+    summary.insights.find(i => i.name === "reach")?.values ?? [], [summary.insights]);
+  const impressionValues = useMemo(() =>
+    summary.insights.find(i => i.name === "impressions")?.values ?? [], [summary.insights]);
+  const profileViewValues = useMemo(() =>
+    summary.insights.find(i => i.name === "profile_views")?.values ?? [], [summary.insights]);
+
+  const totalReach = useMemo(() => reachValues.reduce((s, v) => s + v.value, 0), [reachValues]);
+  const totalImpressions = useMemo(() => impressionValues.reduce((s, v) => s + v.value, 0), [impressionValues]);
+  const totalProfileViews = useMemo(() => profileViewValues.reduce((s, v) => s + v.value, 0), [profileViewValues]);
+
+  const totalLikes = useMemo(() =>
+    summary.posts.reduce((s, post) => s + (post.like_count ?? 0), 0), [summary.posts]);
+  const totalComments = useMemo(() =>
+    summary.posts.reduce((s, post) => s + (post.comments_count ?? 0), 0), [summary.posts]);
+
+  const engRate = useMemo(() => {
+    if (!p?.followers_count || !summary.posts.length) return 0;
+    const total = summary.posts.reduce((s, post) => s + (post.like_count ?? 0) + (post.comments_count ?? 0), 0);
+    return (total / summary.posts.length / p.followers_count) * 100;
+  }, [summary.posts, p]);
+
+  const topPosts = useMemo(() =>
+    [...summary.posts].sort((a, b) =>
+      ((b.like_count ?? 0) + (b.comments_count ?? 0)) - ((a.like_count ?? 0) + (a.comments_count ?? 0))
+    ), [summary.posts]);
 
   return (
-    <div className="min-h-full overflow-y-auto p-8">
-      {/* Header */}
-      <div className="mb-8 flex items-end justify-between">
-        <div>
-          <h1 className="text-[32px] font-semibold leading-tight tracking-tight text-[#030304]">Marketing</h1>
-          <p className="mt-1 text-[17px] text-[#46464a]">Campanhas, conteúdo e desempenho em tempo real.</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="flex items-center gap-2 rounded-xl border border-[#c7c6ca] bg-white px-5 py-2.5 text-[13px] font-semibold text-[#1a1c1d] transition-colors hover:bg-[#f3f3f5]">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-            Últimos 30 dias
-          </button>
-          <button className="flex items-center gap-2 rounded-xl bg-[#030304] px-5 py-2.5 text-[13px] font-semibold text-white shadow-lg shadow-black/10 transition-all hover:bg-[#1d1d1f] active:scale-[0.98]">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            Nova Campanha
-          </button>
-        </div>
-      </div>
+    <div className="space-y-6">
+      {/* Profile card */}
+      {p && (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden">
+          {/* Banner */}
+          <div className="h-28 bg-gradient-to-r from-[#005cba] via-blue-500 to-purple-600 relative">
+            <div className="absolute -bottom-9 left-6">
+              {p.profile_picture_url ? (
+                <img src={p.profile_picture_url} alt="" className="w-18 h-18 w-[72px] h-[72px] rounded-full object-cover ring-4 ring-white dark:ring-[#1a1a1a]" />
+              ) : (
+                <div className="w-[72px] h-[72px] rounded-full bg-gradient-to-br from-[#005cba] to-purple-600 flex items-center justify-center text-white text-3xl font-bold ring-4 ring-white dark:ring-[#1a1a1a]">
+                  {p.name?.[0] ?? p.username?.[0]}
+                </div>
+              )}
+            </div>
+          </div>
 
-      <MarketingSubNav />
+          {/* Content */}
+          <div className="pt-12 px-6 pb-5">
+            <div className="flex items-start justify-between gap-4">
+              {/* Left — name & bio */}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 dark:text-white text-lg leading-tight">@{p.username}</p>
+                {p.name && <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{p.name}</p>}
+                {p.biography && (
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 leading-snug">{p.biography}</p>
+                )}
+                {p.website && (
+                  <a href={p.website} target="_blank" rel="noopener noreferrer"
+                    className="text-sm text-[#005cba] hover:underline mt-1 inline-block">{p.website}</a>
+                )}
+              </div>
 
-      {/* KPI Cards */}
-      <div className="mb-6 grid grid-cols-2 gap-5 md:grid-cols-4">
-        <KpiCard
-          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 1 8.835-2.535m0 0A23.74 23.74 0 0 1 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" /></svg>}
-          label="Campanhas ativas"
-          value={String(metrics.activeCampaigns)}
-          sub="em andamento agora"
-        />
-        <KpiCard
-          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9z" /></svg>}
-          label="Peças no calendário"
-          value={String(metrics.totalContent)}
-          sub="total de conteúdos"
-        />
-        <KpiCard
-          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg>}
-          label="Publicadas este mês"
-          value={String(metrics.publishedThisMonthCount)}
-          sub="conteúdos publicados"
-          badge={metrics.publishedThisMonthCount > 0 ? "Ativo" : undefined}
-        />
-        <KpiCard
-          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg>}
-          label="Agendadas (7 dias)"
-          value={String(metrics.upcoming.length)}
-          sub="próximas peças"
-        />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <div className="glass-card smooth-shadow rounded-2xl p-6 lg:col-span-2">
-          <h3 className="mb-1 text-[15px] font-semibold text-[#030304]">Peças por status</h3>
-          <p className="mb-5 text-[13px] text-[#77767b]">Distribuição do calendário editorial</p>
-          <div className="h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={metrics.statusBars} margin={{ left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.04)" />
-                <XAxis dataKey="status" tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={50} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="quantidade" fill="#005cba" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+              {/* Right — stats */}
+              <div className="flex gap-6 text-center flex-shrink-0">
+                {[["seguidores", p.followers_count], ["seguindo", p.follows_count], ["posts", p.media_count]].map(([l, v]) => (
+                  <div key={String(l)}>
+                    <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{fmt(v as number)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{l}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        <div className="glass-card smooth-shadow rounded-2xl p-6">
-          <h3 className="mb-1 text-[15px] font-semibold text-[#030304]">Por canal</h3>
-          <p className="mb-5 text-[13px] text-[#77767b]">Distribuição de conteúdo</p>
-          {metrics.channelPie.length === 0 ? (
-            <div className="flex h-44 items-center justify-center">
-              <p className="text-center text-[13px] text-[#77767b]">Sem peças cadastradas.</p>
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <StatCard
+          label="Alcance 30d" value={fmt(totalReach)} sub="pessoas únicas"
+          color="bg-blue-50 dark:bg-blue-500/10 text-blue-600"
+          sparkValues={reachValues.map(v => v.value)} sparkColor="#005cba"
+          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>}
+        />
+        <StatCard
+          label="Impressões 30d" value={fmt(totalImpressions)} sub="visualizações totais"
+          color="bg-purple-50 dark:bg-purple-500/10 text-purple-600"
+          sparkValues={impressionValues.map(v => v.value)} sparkColor="#9333ea"
+          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>}
+        />
+        <StatCard
+          label="Visitas ao perfil" value={fmt(totalProfileViews)} sub="últimos 30 dias"
+          color="bg-cyan-50 dark:bg-cyan-500/10 text-cyan-600"
+          sparkValues={profileViewValues.map(v => v.value)} sparkColor="#0891b2"
+          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>}
+        />
+        <StatCard
+          label="Engajamento" value={engRate > 0 ? `${engRate.toFixed(2)}%` : "—"} sub="por post / seguidores"
+          color="bg-green-50 dark:bg-green-500/10 text-green-600"
+          icon={<svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>}
+        />
+      </div>
+
+      {/* Secondary stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Curtidas (total)", value: fmt(totalLikes), icon: "❤️", sub: `${summary.posts.length} posts` },
+          { label: "Comentários", value: fmt(totalComments), icon: "💬", sub: "nos posts recentes" },
+          { label: "Média curtidas", value: fmt(summary.posts.length ? Math.round(totalLikes / summary.posts.length) : 0), icon: "📊", sub: "por post" },
+          { label: "Média comentários", value: fmt(summary.posts.length ? Math.round(totalComments / summary.posts.length) : 0), icon: "📝", sub: "por post" },
+        ].map(s => (
+          <div key={s.label} className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-4 border border-gray-100 dark:border-white/5 flex items-center gap-3">
+            <span className="text-2xl">{s.icon}</span>
+            <div>
+              <p className="text-xs text-gray-400 font-medium">{s.label}</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{s.value}</p>
+              <p className="text-xs text-gray-400">{s.sub}</p>
             </div>
-          ) : (
-            <div className="h-44 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={metrics.channelPie} dataKey="value" nameKey="name" innerRadius={40} outerRadius={65} paddingAngle={2}>
-                    {metrics.channelPie.map((entry, index) => (
-                      <Cell key={index} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+          </div>
+        ))}
+      </div>
+
+      {/* Reach chart */}
+      {reachValues.length > 2 && (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-5 border border-gray-100 dark:border-white/5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Alcance diário (30 dias)</p>
+              <p className="text-xs text-gray-400 mt-0.5">Pessoas únicas que viram seus conteúdos</p>
             </div>
-          )}
+            <p className="text-sm font-bold text-[#005cba]">{fmt(totalReach)} total</p>
+          </div>
+          <DailyBars values={reachValues} color="#005cba" />
+          <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+            <span>{new Date(reachValues[0]?.end_time).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+            <span>{new Date(reachValues[reachValues.length - 1]?.end_time).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Impressions chart */}
+      {impressionValues.length > 2 && (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-5 border border-gray-100 dark:border-white/5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Impressões diárias (30 dias)</p>
+              <p className="text-xs text-gray-400 mt-0.5">Total de vezes que seus conteúdos foram exibidos</p>
+            </div>
+            <p className="text-sm font-bold text-purple-600">{fmt(totalImpressions)} total</p>
+          </div>
+          <DailyBars values={impressionValues} color="#9333ea" />
+          <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+            <span>{new Date(impressionValues[0]?.end_time).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+            <span>{new Date(impressionValues[impressionValues.length - 1]?.end_time).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Top posts */}
+      {topPosts.length > 0 && (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-5 border border-gray-100 dark:border-white/5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Top posts por engajamento</p>
+              <p className="text-xs text-gray-400 mt-0.5">Ordenados por curtidas + comentários</p>
+            </div>
+            <span className="text-xs text-gray-400">{topPosts.length} posts</span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+            {topPosts.slice(0, 8).map((post, i) => <PostThumb key={post.id} post={post} rank={i} />)}
+          </div>
+        </div>
+      )}
+
+      {/* All posts grid */}
+      {summary.posts.length > 0 && (
+        <div className="bg-white dark:bg-[#1a1a1a] rounded-2xl p-5 border border-gray-100 dark:border-white/5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Todos os posts recentes</p>
+            <span className="text-xs text-gray-400">{summary.posts.length} posts</span>
+          </div>
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+            {summary.posts.map(post => <PostThumb key={post.id} post={post} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export function MarketingDashboardPage() {
+  const [summaries, setSummaries] = useState<IgAccountSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeAccount, setActiveAccount] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    setLoading(true);
+    metaApi.getSummary()
+      .then(data => {
+        setSummaries(data);
+        if (data.length > 0 && !activeAccount) setActiveAccount(data[0].account);
+      })
+      .finally(() => setLoading(false));
+  }, [refreshKey]);
+
+  const active = summaries.find(s => s.account === activeAccount);
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="p-6 w-full">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard Instagram</h1>
+            <p className="text-sm text-gray-400 mt-0.5">Desempenho real das suas contas</p>
+          </div>
+          <button type="button" onClick={() => setRefreshKey(k => k + 1)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white text-sm transition-colors">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{pointerEvents:"none"}}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Atualizar
+          </button>
         </div>
 
-        <div className="glass-card smooth-shadow rounded-2xl p-6 lg:col-span-3">
-          <h3 className="mb-1 text-[15px] font-semibold text-[#030304]">Próximas peças agendadas</h3>
-          <p className="mb-5 text-[13px] text-[#77767b]">Publicações nos próximos 7 dias</p>
-          {metrics.upcoming.length === 0 ? (
-            <div className="flex h-16 items-center justify-center">
-              <p className="text-center text-[13px] text-[#77767b]">Nenhuma peça agendada para os próximos 7 dias.</p>
+        {/* Account tabs */}
+        {summaries.length > 1 && (
+          <div className="flex gap-2 mb-6">
+            {summaries.map(s => (
+              <button key={s.account} type="button" onClick={() => setActiveAccount(s.account)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all border ${activeAccount === s.account ? "bg-[#005cba] text-white border-[#005cba] shadow-md shadow-[#005cba]/20" : "bg-white dark:bg-white/5 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:border-[#005cba]/40"}`}>
+                {s.profile?.profile_picture_url
+                  ? <img src={s.profile.profile_picture_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                  : <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#005cba] to-purple-500" />}
+                @{s.account}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="flex items-center justify-center py-32">
+            <div className="text-center space-y-3">
+              <svg className="h-10 w-10 animate-spin text-[#005cba] mx-auto" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              <p className="text-sm text-gray-400">Carregando métricas do Instagram...</p>
             </div>
-          ) : (
-            <div className="divide-y divide-[rgba(0,0,0,0.04)]">
-              {metrics.upcoming.map((item) => (
-                <div key={item.id} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#005cba]/10">
-                      <svg className="h-4 w-4 text-[#005cba]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-                    </div>
-                    <div>
-                      <p className="text-[13px] font-semibold text-[#1a1c1d]">{item.title}</p>
-                      <p className="text-[11px] text-[#77767b]">
-                        {item.type} · {MARKETING_CHANNEL_LABELS[item.channel]}
-                        {item.campaign && ` · ${item.campaign.name}`}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="rounded-full bg-[#f3f3f5] px-3 py-1 text-[11px] font-medium text-[#46464a]">
-                    {formatDate(item.scheduledDate!)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          </div>
+        ) : active ? (
+          <AccountSection summary={active} />
+        ) : (
+          <div className="text-center py-32">
+            <p className="text-4xl mb-3">📊</p>
+            <p className="text-gray-500 dark:text-gray-400">Nenhuma conta Instagram configurada.</p>
+            <p className="text-xs text-gray-400 mt-1">Adicione as variáveis META_INSTAGRAM_* no .env do servidor</p>
+          </div>
+        )}
       </div>
     </div>
   );

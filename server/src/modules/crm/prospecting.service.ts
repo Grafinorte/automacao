@@ -25,9 +25,8 @@ export interface ProspectingResult {
 }
 
 const MODELS = [
-  "gemini-2.0-flash-lite",
-  "gemini-2.0-flash",
-  "gemini-1.5-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.6-flash",
 ];
 
 function buildPrompt(input: ProspectingInput): string {

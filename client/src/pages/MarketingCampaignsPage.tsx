@@ -6,7 +6,6 @@ import type { Campaign, CampaignStatus, MarketingChannel, TaskUserRef } from "..
 import { CAMPAIGN_STATUS_LABELS, MARKETING_CHANNEL_LABELS } from "../types";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
-import { MarketingSubNav } from "../components/marketing/MarketingSubNav";
 
 const CHANNEL_OPTIONS = Object.entries(MARKETING_CHANNEL_LABELS) as [MarketingChannel, string][];
 const STATUS_OPTIONS = Object.entries(CAMPAIGN_STATUS_LABELS) as [CampaignStatus, string][];
@@ -117,8 +116,6 @@ export function MarketingCampaignsPage() {
     <div className="mx-auto h-full max-w-4xl overflow-y-auto p-6">
       <h1 className="mb-1 text-2xl font-semibold tracking-tight text-gray-900">Marketing</h1>
       <p className="mb-4 text-sm text-gray-500">Campanhas</p>
-      <MarketingSubNav />
-
       <form
         onSubmit={handleSubmit}
         className="mb-6 grid grid-cols-2 gap-3 rounded-xl border border-gray-100 bg-white dark:bg-gray-900 p-5 shadow-sm"

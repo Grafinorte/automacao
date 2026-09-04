@@ -2,7 +2,7 @@ import { env } from "../../config/env";
 import { HttpError } from "../../middleware/errorHandler";
 import { prisma } from "../../db/prisma";
 
-const GEMINI_MODELS = ["gemini-flash-latest", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash"];
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 interface GeminiContent {

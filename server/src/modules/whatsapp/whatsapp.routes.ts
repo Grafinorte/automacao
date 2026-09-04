@@ -6,7 +6,7 @@ import * as ctrl from "./whatsapp.controller";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 16 * 1024 * 1024 }, // 16MB (limite WhatsApp)
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
 });
 
 export const whatsappRouter = Router();
@@ -29,7 +29,9 @@ whatsappRouter.post("/conversations/:id/messages", asyncHandler(ctrl.postMessage
 whatsappRouter.post("/conversations/:id/media", asyncHandler(ctrl.postMediaMessage));
 whatsappRouter.patch("/conversations/:id", asyncHandler(ctrl.patchConversation));
 whatsappRouter.patch("/messages/:messageId", asyncHandler(ctrl.patchMessage));
+whatsappRouter.patch("/messages/:messageId/star", asyncHandler(ctrl.starMessage));
 whatsappRouter.delete("/messages/:messageId", asyncHandler(ctrl.deleteMessage));
+whatsappRouter.get("/link-preview", asyncHandler(ctrl.getLinkPreview));
 
 // Media upload
 whatsappRouter.post("/media/upload", upload.single("file"), asyncHandler(ctrl.uploadMedia));
@@ -64,6 +66,12 @@ whatsappRouter.get("/automations", asyncHandler(ctrl.getAutomations));
 whatsappRouter.post("/automations", requireRole("ADMIN"), asyncHandler(ctrl.postAutomation));
 whatsappRouter.patch("/automations/:id", requireRole("ADMIN"), asyncHandler(ctrl.patchAutomation));
 whatsappRouter.delete("/automations/:id", requireRole("ADMIN"), asyncHandler(ctrl.deleteAutomation));
+
+// Phone numbers (multi-number coexistence)
+whatsappRouter.get("/phone-numbers", asyncHandler(ctrl.getPhoneNumbers));
+whatsappRouter.post("/phone-numbers", requireRole("ADMIN"), asyncHandler(ctrl.postPhoneNumber));
+whatsappRouter.patch("/phone-numbers/:id", requireRole("ADMIN"), asyncHandler(ctrl.patchPhoneNumber));
+whatsappRouter.delete("/phone-numbers/:id", requireRole("ADMIN"), asyncHandler(ctrl.deletePhoneNumber));
 
 // Legacy
 whatsappRouter.post("/send", requireRole("ADMIN"), asyncHandler(ctrl.sendMessage));

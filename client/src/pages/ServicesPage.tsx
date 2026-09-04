@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { servicesApi, fileToDataUrl } from "../api/services";
 import type { ServiceOrder, ServiceLog } from "../api/services";
@@ -8,7 +9,7 @@ import {
 
 // ─── Permission helpers ───────────────────────────────────────────────────────
 const WRITE_ROLES = ["ADMIN", "GERENTE", "SUPERVISOR", "ORCAMENTISTA", "COMERCIAL", "MEMBER"];
-const WORKFLOW_ROLES = ["ADMIN", "DESIGN"];
+const WORKFLOW_ROLES = ["ADMIN", "DESIGN", "ARTE", "ARTE_FINAL"];
 const QUEUE_ROLES = ["ADMIN", "PCP"];
 const DELETE_ROLES = ["ADMIN", "PCP", "GERENTE", "SUPERVISOR"];
 function canCreate(role: string) { return WRITE_ROLES.includes(role); }
@@ -26,20 +27,20 @@ type Section = "dashboard" | "servicos" | "logs" | "mockup" | "admin";
 type StatusTab = "open" | "development" | "done" | "deleted";
 type Period = "today" | "7d" | "30d" | "week" | "month" | "year" | "max";
 interface PendingFile { name: string; dataUrl: string; }
-interface ItemDraft { name: string; rollSizes: string[]; notes: string; rollInput: string; pendingFiles: PendingFile[]; }
+interface ItemDraft { name: string; rollSizes: string[]; notes: string; rollInput: string; pendingFiles: PendingFile[]; existingAttachments: string[]; }
 interface FormState {
   name: string; type: string; orderDate: string;
-  seller: string; requester: string; items: ItemDraft[];
+  seller: string; requester: string; clientPhone: string; items: ItemDraft[];
 }
 function emptyForm(userName?: string): FormState {
   return {
     name: "", type: "Criação de Faca",
     orderDate: new Date().toISOString().slice(0, 10),
-    seller: "", requester: userName ?? "", items: [],
+    seller: "", requester: userName ?? "", clientPhone: "", items: [],
   };
 }
 function emptyItem(): ItemDraft {
-  return { name: "", rollSizes: [], notes: "", rollInput: "", pendingFiles: [] };
+  return { name: "", rollSizes: [], notes: "", rollInput: "", pendingFiles: [], existingAttachments: [] };
 }
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
@@ -197,17 +198,25 @@ const LockIcon = () => (
   </svg>
 );
 
+const DragHandleIcon = () => (
+  <svg className="h-4 w-4 text-[#a0a0a4]" viewBox="0 0 20 20" fill="currentColor">
+    <circle cx="7" cy="5" r="1.4"/><circle cx="13" cy="5" r="1.4"/>
+    <circle cx="7" cy="10" r="1.4"/><circle cx="13" cy="10" r="1.4"/>
+    <circle cx="7" cy="15" r="1.4"/><circle cx="13" cy="15" r="1.4"/>
+  </svg>
+);
+
 // ─── SERVICE MODAL ────────────────────────────────────────────────────────────
-function ServiceModal({ initial, onClose, onSave, userName }: {
+function ServiceModal({ initial, onClose, onSave, userName, isDuplicate }: {
   initial: ServiceOrder | null; onClose: () => void;
-  onSave: (form: FormState) => Promise<void>; userName: string;
+  onSave: (form: FormState) => Promise<void>; userName: string; isDuplicate?: boolean;
 }) {
   const [form, setForm] = useState<FormState>(() => {
     if (!initial) return emptyForm(userName);
     return {
       name: initial.name, type: initial.type, orderDate: initial.orderDate,
-      seller: initial.seller, requester: initial.requester,
-      items: initial.items.map((it) => ({ name: it.name, rollSizes: [...it.rollSizes], notes: it.notes, rollInput: "", pendingFiles: [] })),
+      seller: initial.seller, requester: initial.requester, clientPhone: initial.clientPhone ?? "",
+      items: initial.items.map((it) => ({ name: it.name, rollSizes: [...it.rollSizes], notes: it.notes, rollInput: "", pendingFiles: [], existingAttachments: [...it.attachments] })),
     };
   });
   const [saving, setSaving] = useState(false);
@@ -232,7 +241,7 @@ function ServiceModal({ initial, onClose, onSave, userName }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-[#1c1e22]">
         <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] px-6 py-4 dark:border-white/8">
-          <h2 className="text-[17px] font-semibold dark:text-white">{initial ? "Editar serviço" : "Adicionar serviço"}</h2>
+          <h2 className="text-[17px] font-semibold dark:text-white">{isDuplicate ? "Duplicar serviço" : initial ? "Editar serviço" : "Adicionar serviço"}</h2>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-[#77767b] hover:bg-[#f3f3f5] dark:hover:bg-[#222426]">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
           </button>
@@ -260,9 +269,14 @@ function ServiceModal({ initial, onClose, onSave, userName }: {
                 <label className={labelCls}>Solicitante</label>
                 <input value={form.requester} onChange={(e) => setForm((f) => ({ ...f, requester: e.target.value }))} placeholder="Administrador" className={inputCls} />
               </div>
-              <div className="col-span-2">
+              <div>
                 <label className={labelCls}>Vendedor</label>
                 <input value={form.seller} onChange={(e) => setForm((f) => ({ ...f, seller: e.target.value }))} placeholder="Nome do vendedor" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>WhatsApp p/ aviso (orçamentista)</label>
+                <input value={form.clientPhone} onChange={(e) => setForm((f) => ({ ...f, clientPhone: e.target.value }))}
+                  placeholder="554334207765 (apenas números com DDI)" className={inputCls} />
               </div>
             </div>
 
@@ -336,6 +350,24 @@ function ServiceModal({ initial, onClose, onSave, userName }: {
                         {/* Imagens e PDFs */}
                         <div>
                           <label className="block text-[11px] font-semibold text-[#77767b] mb-2">Imagens e PDFs</label>
+                          {/* Arquivos já salvos */}
+                          {item.existingAttachments.length > 0 && (
+                            <div className="mb-2 space-y-1">
+                              {item.existingAttachments.map((url, aIdx) => {
+                                const raw = url.split("/").pop() ?? url;
+                                const displayName = raw.replace(/^\d+_/, "");
+                                return (
+                                  <div key={aIdx} className="flex items-center gap-2 rounded-lg border border-[rgba(199,198,202,0.3)] bg-[#f9f9fb] px-3 py-1.5 text-[12px] dark:bg-[#23252a] dark:border-white/10">
+                                    <svg className="h-4 w-4 flex-shrink-0 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+                                    <a href={url} target="_blank" rel="noreferrer" className="flex-1 truncate text-[#005cba] hover:underline dark:text-blue-400">{displayName}</a>
+                                    <button type="button" title="Remover arquivo"
+                                      onClick={() => setItem(idx, { existingAttachments: item.existingAttachments.filter((_, i) => i !== aIdx) })}
+                                      className="text-[#77767b] hover:text-red-500 text-base leading-none">×</button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                           <div className="flex items-center gap-3">
                             <input type="file" accept="image/*,.pdf" multiple className="hidden"
                               ref={(el) => { fileRef.current = el; }}
@@ -352,11 +384,11 @@ function ServiceModal({ initial, onClose, onSave, userName }: {
                             <button type="button" onClick={() => fileRef.current?.click()}
                               className="flex items-center gap-2 rounded-lg border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-[12px] font-medium text-[#46464a] hover:bg-[#f3f3f5] dark:bg-[#1c1e22] dark:text-[#a0a0a4] dark:border-white/10 dark:hover:bg-[#222426]">
                               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" /></svg>
-                              Selecionar arquivos
+                              Adicionar arquivo
                             </button>
-                            <span className="text-[11px] text-[#77767b]">
-                              {item.pendingFiles.length === 0 ? "Nenhum arquivo selecionado" : `${item.pendingFiles.length} arquivo(s)`}
-                            </span>
+                            {item.pendingFiles.length > 0 && (
+                              <span className="text-[11px] text-[#77767b]">{item.pendingFiles.length} novo(s) para enviar</span>
+                            )}
                           </div>
                           {item.pendingFiles.length > 0 && (
                             <div className="mt-2 space-y-1">
@@ -406,11 +438,16 @@ function ServiceModal({ initial, onClose, onSave, userName }: {
 }
 
 // ─── START DEV MODAL ──────────────────────────────────────────────────────────
-function StartDevModal({ svc, users, onClose, onConfirm }: {
-  svc: ServiceOrder; users: { id: string; name: string }[];
+function StartDevModal({ svc, users, defaultDevUserId, onClose, onConfirm }: {
+  svc: ServiceOrder; users: { id: string; name: string; role?: string }[];
+  defaultDevUserId?: string;
   onClose: () => void; onConfirm: (devUserId: string) => Promise<void>;
 }) {
-  const [devUserId, setDevUserId] = useState(svc.developerUserId ?? "");
+  const [devUserId, setDevUserId] = useState(() => {
+    if (svc.developerUserId) return svc.developerUserId;
+    const inList = users.some((u) => u.id === defaultDevUserId);
+    return inList ? (defaultDevUserId ?? "") : "";
+  });
   const [saving, setSaving] = useState(false);
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); if (!devUserId) return;
@@ -452,52 +489,203 @@ function CompleteModal({ svc, onClose, onConfirm }: {
   onConfirm: (payload: { message: string; itemCompletions: Array<{ id: string; completed: boolean; completionNote: string }> }) => Promise<void>;
 }) {
   const [message, setMessage] = useState(svc.completionMessage ?? "");
-  const [items, setItems] = useState(svc.items.map((it) => ({ id: it.id, completed: it.completed, completionNote: it.completionNote })));
+  const [items, setItems] = useState(() =>
+    svc.items.map((it) => ({
+      id: it.id,
+      completed: it.completed,
+      completionNote: it.completionNote,
+      pendingFiles: [] as PendingFile[],
+    }))
+  );
   const [saving, setSaving] = useState(false);
-  function patchItem(idx: number, patch: Partial<typeof items[0]>) { setItems((p) => p.map((it, i) => i === idx ? { ...it, ...patch } : it)); }
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true);
-    try { await onConfirm({ message, itemCompletions: items }); } finally { setSaving(false); }
+  const fileRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const completedCount = items.filter((it) => it.completed).length;
+
+  function patchItem(idx: number, patch: Partial<typeof items[0]>) {
+    setItems((p) => p.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      for (let i = 0; i < items.length; i++) {
+        for (const f of items[i].pendingFiles) {
+          await servicesApi.uploadAttachment(svc.id, {
+            itemId: items[i].id,
+            fileName: f.name,
+            dataUrl: f.dataUrl,
+            type: "completion",
+          });
+        }
+      }
+      const itemCompletions = items.map(({ id, completed, completionNote }) => ({ id, completed, completionNote }));
+      await onConfirm({ message, itemCompletions });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const attachIconCls = "h-4 w-4 flex-shrink-0 text-[#46464a] dark:text-[#a0a0a4]";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl dark:bg-[#1c1e22]">
-        <div className="border-b border-[rgba(0,0,0,0.06)] px-6 py-4 dark:border-white/8">
-          <h2 className="text-[16px] font-semibold dark:text-white">Concluir Serviço</h2>
-          <p className="mt-0.5 text-[12px] text-[#77767b]">#{String(svc.serviceNumber).padStart(4, "0")} — {svc.name}</p>
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-[#1c1e22]">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] px-6 py-4 dark:border-white/8">
+          <h2 className="text-[17px] font-semibold text-[#1a1c1d] dark:text-white">Concluir serviço</h2>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-[#77767b] hover:bg-[#f3f3f5] dark:hover:bg-[#222426]">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-1">Mensagem de conclusão</label>
-              <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} placeholder="Observações..."
-                className="w-full rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-sm outline-none focus:border-[#005cba] dark:bg-[#23252a] dark:text-white dark:border-white/10" />
+
+        <div className="flex-1 overflow-y-auto">
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {/* Service info card */}
+            <div className="rounded-xl border border-[rgba(199,198,202,0.3)] bg-[#f9f9fb] p-4 dark:bg-[#222426] dark:border-white/8">
+              <p className="text-[15px] font-bold text-[#1a1c1d] dark:text-white">{svc.name}</p>
+              <p className="text-[12px] text-[#77767b] mt-0.5">ID: {String(svc.serviceNumber).padStart(4, "0")}</p>
+              {svc.seller && <p className="text-[12px] text-[#77767b]">Vendedor: {svc.seller}</p>}
             </div>
-            {items.length > 0 && (
+
+            {/* Per-item cards */}
+            {svc.items.length > 0 && (
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-2">Status dos itens</label>
-                <div className="space-y-2">
-                  {svc.items.map((svcItem, idx) => (
-                    <div key={svcItem.id} className="rounded-xl border border-[rgba(199,198,202,0.3)] bg-[#f9f9fb] p-3 dark:bg-[#222426] dark:border-white/8">
-                      <div className="flex items-center gap-2 mb-2">
-                        <input type="checkbox" checked={items[idx].completed} onChange={(e) => patchItem(idx, { completed: e.target.checked })} className="h-4 w-4 rounded accent-emerald-500" />
-                        <span className="text-[13px] font-medium dark:text-white">{svcItem.name}</span>
-                        {svcItem.rollSizes.length > 0 && <span className="text-[11px] text-[#77767b]">({svcItem.rollSizes.join(", ")})</span>}
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-[14px] font-semibold text-[#1a1c1d] dark:text-white">Serviços do pedido</h3>
+                  <span className="text-[12px] text-[#77767b]">{completedCount} de {items.length} serão concluídos</span>
+                </div>
+                <div className="space-y-3">
+                  {svc.items.map((svcItem, idx) => {
+                    const item = items[idx];
+                    return (
+                      <div key={svcItem.id} className="overflow-hidden rounded-xl border border-[rgba(199,198,202,0.3)] bg-white dark:bg-[#1c1e22] dark:border-white/8">
+                        {/* Item header */}
+                        <div className="flex items-start justify-between gap-3 border-b border-[rgba(199,198,202,0.3)] px-4 py-3 dark:border-white/8">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#77767b]">
+                              ITEM {String(idx + 1).padStart(2, "0")}
+                            </p>
+                            <p className="text-[13px] font-bold uppercase text-[#1a1c1d] dark:text-white">
+                              {svcItem.name}
+                              {svcItem.rollSizes.length > 0 && ` – ${svcItem.rollSizes.join(", ")}`}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => patchItem(idx, { completed: !item.completed })}
+                            className={`mt-0.5 flex flex-shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold transition-colors ${
+                              item.completed
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300"
+                                : "border-[rgba(199,198,202,0.5)] bg-[#f3f3f5] text-[#77767b] dark:border-white/10 dark:bg-[#222426] dark:text-[#a0a0a4]"
+                            }`}>
+                            {item.completed ? <CheckIcon /> : (
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <circle cx="12" cy="12" r="9" />
+                              </svg>
+                            )}
+                            Produzido
+                          </button>
+                        </div>
+                        {/* Item body: two columns */}
+                        <div className="grid grid-cols-2 gap-4 p-4">
+                          <div>
+                            <label className="mb-1 block text-[11px] font-semibold text-[#77767b]">Observação da conclusão</label>
+                            <textarea
+                              rows={3}
+                              placeholder="Observação desta conclusão (opcional)"
+                              value={item.completionNote}
+                              onChange={(e) => patchItem(idx, { completionNote: e.target.value })}
+                              className="w-full resize-none rounded-xl border border-[rgba(199,198,202,0.3)] bg-[#f9f9fb] px-3 py-2 text-[12px] outline-none focus:border-[#005cba] dark:bg-[#23252a] dark:text-white dark:border-white/10"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[11px] font-semibold text-[#77767b]">PDF da faca</label>
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              multiple
+                              className="hidden"
+                              ref={(el) => { fileRefs.current[idx] = el; }}
+                              onChange={async (e) => {
+                                const files = Array.from(e.target.files ?? []);
+                                const loaded: PendingFile[] = [];
+                                for (const f of files) {
+                                  const dataUrl = await fileToDataUrl(f);
+                                  loaded.push({ name: f.name, dataUrl });
+                                }
+                                patchItem(idx, { pendingFiles: [...item.pendingFiles, ...loaded] });
+                                e.target.value = "";
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => fileRefs.current[idx]?.click()}
+                              className="flex items-center gap-2 rounded-lg border border-[rgba(199,198,202,0.3)] bg-[#f9f9fb] px-3 py-2 text-[12px] font-medium text-[#46464a] hover:bg-[#f3f3f5] dark:bg-[#222426] dark:text-[#a0a0a4] dark:border-white/10">
+                              <svg className={attachIconCls} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" /></svg>
+                              Selecionar arquivos
+                            </button>
+                            <p className="mt-1 text-[11px] text-[#77767b]">
+                              {item.pendingFiles.length > 0 ? `${item.pendingFiles.length} arquivo(s) selecionado(s)` : "Nenhum arquivo selecionado"}
+                            </p>
+                            {item.pendingFiles.length > 0 && (
+                              <div className="mt-0.5 space-y-0.5">
+                                {item.pendingFiles.map((f, fIdx) => (
+                                  <div key={fIdx} className="flex items-center gap-1 text-[11px] text-[#46464a] dark:text-[#a0a0a4]">
+                                    <span className="flex-1 truncate">{f.name}</span>
+                                    <button type="button" onClick={() => patchItem(idx, { pendingFiles: item.pendingFiles.filter((_, i) => i !== fIdx) })} className="text-[#77767b] hover:text-red-500">×</button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <p className="mt-1 text-[10px] text-[#77767b]">Os arquivos ficarão vinculados somente a este item.</p>
+                            {svcItem.completionAttachments.length > 0 ? (
+                              <p className="mt-0.5 text-[10px] text-emerald-600 dark:text-emerald-400">{svcItem.completionAttachments.length} arquivo(s) de conclusão anexado(s).</p>
+                            ) : (
+                              <p className="mt-0.5 text-[10px] text-[#77767b]">Nenhum arquivo de conclusão anexado.</p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <input placeholder="Nota..." value={items[idx].completionNote} onChange={(e) => patchItem(idx, { completionNote: e.target.value })}
-                        className="w-full rounded-lg border border-[rgba(199,198,202,0.3)] bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-[#005cba] dark:bg-[#1c1e22] dark:text-white dark:border-white/10" />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
-            <div className="flex justify-end gap-2 border-t border-[rgba(0,0,0,0.06)] pt-4 dark:border-white/8">
-              <button type="button" onClick={onClose}
-                className="rounded-xl border border-[rgba(199,198,202,0.5)] px-4 py-2 text-sm text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-[#222426]">Cancelar</button>
-              <button type="submit" disabled={saving}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
-                {saving ? "Salvando..." : "Concluir serviço"}
-              </button>
+
+            {/* Developer message */}
+            <div>
+              <label className="mb-2 block text-[14px] font-semibold text-[#1a1c1d] dark:text-white">Mensagem do desenvolvedor</label>
+              <textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={4}
+                placeholder="Informe o que foi concluído e observações importantes para o orçamento."
+                className="w-full resize-none rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-sm outline-none focus:border-[#005cba] dark:bg-[#23252a] dark:text-white dark:border-white/10"
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-2 border-t border-[rgba(0,0,0,0.06)] pt-4 dark:border-white/8">
+              <a
+                href={`https://wa.me/${(localStorage.getItem("orcamentista_whatsapp") ?? "554334207765").replace(/\D/g, "")}?text=${encodeURIComponent(buildCompletionWhatsappMessage(svc, message, items.map(({ id, completed, completionNote }) => ({ id, completed, completionNote }))))}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#25D366]/60 bg-[#25D366]/10 px-4 py-2 text-sm font-semibold text-[#128C7E] hover:bg-[#25D366]/20 dark:text-[#25D366] dark:border-[#25D366]/30">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                Avisar
+              </a>
+              <div className="flex gap-2">
+                <button type="button" onClick={onClose}
+                  className="rounded-xl border border-[rgba(199,198,202,0.5)] px-4 py-2 text-sm text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-[#222426]">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
+                  {saving ? "Salvando..." : "Concluir serviço"}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -905,26 +1093,67 @@ function DashboardSection({ services }: { services: ServiceOrder[] }) {
 }
 
 // ─── SERVICES TABLE SECTION ───────────────────────────────────────────────────
-function ServicesSection({ services, logs, role, userId, users, onReload }: {
+function buildCompletionWhatsappMessage(
+  svc: ServiceOrder,
+  completionMessage: string,
+  itemCompletions: Array<{ id: string; completed: boolean; completionNote: string }>
+): string {
+  const num = String(svc.serviceNumber).padStart(4, "0");
+  const lines: string[] = [
+    `✅ *Serviço #${num} concluído!*`,
+    `*Cliente:* ${svc.name}`,
+  ];
+  if (svc.seller) lines.push(`*Vendedor:* ${svc.seller}`);
+  if (svc.requester) lines.push(`*Solicitante:* ${svc.requester}`);
+  if (svc.developerUser?.name) lines.push(`*Desenvolvido por:* ${svc.developerUser.name}`);
+  if (svc.type) lines.push(`*Tipo:* ${svc.type}`);
+  if (svc.items.length > 0) {
+    lines.push("", "*Itens:*");
+    for (const item of svc.items) {
+      const comp = itemCompletions.find((c) => c.id === item.id);
+      const status = comp?.completed ? "✓" : "—";
+      const sizes = item.rollSizes.length > 0 ? ` (${item.rollSizes.join(", ")})` : "";
+      const note = comp?.completionNote ? ` — ${comp.completionNote}` : "";
+      lines.push(`• ${item.name}${sizes} ${status}${note}`);
+    }
+  }
+  if (completionMessage.trim()) lines.push("", `*Observações:* ${completionMessage.trim()}`);
+  return lines.join("\n");
+}
+
+function ServicesSection({ services, logs, role, userId, users, onReload, autoOpenServiceId }: {
   services: ServiceOrder[]; logs: ServiceLog[]; role: string; userId: string;
-  users: { id: string; name: string }[]; onReload: () => void;
+  users: { id: string; name: string; role?: string }[]; onReload: () => void;
+  autoOpenServiceId?: string;
 }) {
   const [tab, setTab] = useState<StatusTab>("open");
   const [search, setSearch] = useState("");
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{ waMsg: string; phone: string } | null>(null);
   const [modal, setModal] = useState<
     | { type: "detail"; svc: ServiceOrder }
     | { type: "edit"; svc: ServiceOrder }
+    | { type: "duplicate"; svc: ServiceOrder }
     | { type: "startDev"; svc: ServiceOrder }
     | { type: "complete"; svc: ServiceOrder }
     | { type: "delete"; svc: ServiceOrder }
     | { type: "upload"; svc: ServiceOrder }
     | null>(null);
 
-  const tabs: { key: StatusTab; label: string; icon: string }[] = [
-    { key: "open", label: "Abertos", icon: "🔓" },
-    { key: "development", label: "Desenvolvimento", icon: "🔨" },
-    { key: "done", label: "Concluídos", icon: "✓" },
-    { key: "deleted", label: "Deletados", icon: "🗑" },
+  const autoOpenedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoOpenServiceId || services.length === 0) return;
+    if (autoOpenedRef.current === autoOpenServiceId) return;
+    const svc = services.find((s) => s.id === autoOpenServiceId);
+    if (svc) { setModal({ type: "detail", svc }); autoOpenedRef.current = autoOpenServiceId; }
+  }, [autoOpenServiceId, services]);
+
+  const tabs: { key: StatusTab; label: string; color: { border: string; text: string; activeBadge: string; inactiveBadge: string } }[] = [
+    { key: "open",        label: "Abertos",        color: { border: "border-blue-500",    text: "text-blue-600 dark:text-blue-400",    activeBadge: "bg-blue-500 text-white",                                      inactiveBadge: "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300" } },
+    { key: "development", label: "Desenvolvimento", color: { border: "border-amber-500",   text: "text-amber-600 dark:text-amber-400",  activeBadge: "bg-amber-500 text-white",                                     inactiveBadge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" } },
+    { key: "done",        label: "Concluídos",      color: { border: "border-emerald-500", text: "text-emerald-600 dark:text-emerald-400", activeBadge: "bg-emerald-500 text-white",                                 inactiveBadge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" } },
+    { key: "deleted",     label: "Deletados",       color: { border: "border-red-400",     text: "text-red-500 dark:text-red-400",      activeBadge: "bg-red-400 text-white",                                       inactiveBadge: "bg-red-100 text-red-500 dark:bg-red-900/40 dark:text-red-300" } },
   ];
 
   const filtered = services
@@ -938,13 +1167,45 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
   const thCls = "px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-[#77767b]";
   const tdCls = "px-4 py-3 text-[13px] text-[#1a1c1d] dark:text-[#e0e0e0]";
 
-  async function handleEdit(form: FormState) {
-    if (modal?.type !== "edit") return;
-    await servicesApi.update(modal.svc.id, {
+  async function handleDuplicate(form: FormState) {
+    await servicesApi.create({
       name: form.name, type: form.type, orderDate: form.orderDate,
-      seller: form.seller, requester: form.requester,
+      seller: form.seller, requester: form.requester, clientPhone: form.clientPhone,
       items: form.items.map(({ name, rollSizes, notes }) => ({ name, rollSizes, notes })),
     });
+    setModal(null); onReload();
+  }
+
+  async function handleEdit(form: FormState) {
+    if (modal?.type !== "edit") return;
+    const svc = await servicesApi.update(modal.svc.id, {
+      name: form.name, type: form.type, orderDate: form.orderDate,
+      seller: form.seller, requester: form.requester, clientPhone: form.clientPhone,
+      items: form.items.map(({ name, rollSizes, notes }) => ({ name, rollSizes, notes })),
+    });
+    // Delete attachments the user removed from the list
+    for (let i = 0; i < form.items.length; i++) {
+      const original = modal.svc.items[i]?.attachments ?? [];
+      const kept = form.items[i].existingAttachments;
+      const removed = original.filter((url) => !kept.includes(url));
+      const svcItem = svc.items[i];
+      if (svcItem) {
+        for (const url of removed) {
+          await servicesApi.deleteAttachment(svc.id, { itemId: svcItem.id, attachmentUrl: url, type: "service" });
+        }
+      }
+    }
+    // Upload any files added during edit
+    for (let i = 0; i < form.items.length; i++) {
+      const pending = form.items[i].pendingFiles;
+      if (pending.length === 0) continue;
+      const svcItem = svc.items[i];
+      for (const f of pending) {
+        await servicesApi.uploadAttachment(svc.id, {
+          itemId: svcItem?.id, fileName: f.name, dataUrl: f.dataUrl, type: "service",
+        });
+      }
+    }
     setModal(null); onReload();
   }
 
@@ -956,8 +1217,13 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
 
   async function handleComplete(payload: { message: string; itemCompletions: Array<{ id: string; completed: boolean; completionNote: string }> }) {
     if (modal?.type !== "complete") return;
-    await servicesApi.changeStatus(modal.svc.id, { newStatus: "done", completionMessage: payload.message, itemCompletions: payload.itemCompletions });
-    setModal(null); onReload();
+    const svc = modal.svc;
+    await servicesApi.changeStatus(svc.id, { newStatus: "done", completionMessage: payload.message, itemCompletions: payload.itemCompletions });
+    const waMsg = buildCompletionWhatsappMessage(svc, payload.message, payload.itemCompletions);
+    const phone = (localStorage.getItem("orcamentista_whatsapp") ?? "554334207765").replace(/\D/g, "");
+    setModal(null);
+    onReload();
+    setNotification({ waMsg, phone });
   }
 
   async function handleDelete(reason: string) {
@@ -970,10 +1236,25 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
     await servicesApi.changeStatus(svc.id, { newStatus: "open" }); onReload();
   }
 
+  async function handleQueueDrop(targetId: string) {
+    if (!draggedId || draggedId === targetId) { setDraggedId(null); setDragOverId(null); return; }
+    const ids = sorted.map((s) => s.id);
+    const from = ids.indexOf(draggedId);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return;
+    const newIds = [...ids];
+    newIds.splice(from, 1);
+    newIds.splice(to, 0, draggedId);
+    setDraggedId(null); setDragOverId(null);
+    await servicesApi.reorderQueue(newIds);
+    onReload();
+  }
+
   async function handleUpload(itemId: string | undefined, file: File, type: "service" | "completion") {
     if (modal?.type !== "upload") return;
     const dataUrl = await fileToDataUrl(file);
     await servicesApi.uploadAttachment(modal.svc.id, { itemId, fileName: file.name, dataUrl, type });
+    onReload();
   }
 
   return (
@@ -994,14 +1275,16 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
 
       {/* Sub-tabs */}
       <div className="flex gap-0 border-b border-[rgba(199,198,202,0.3)] bg-white px-6 dark:bg-[#1c1e22] dark:border-white/8">
-        {tabs.map(({ key, label }) => (
+        {tabs.map(({ key, label, color }) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`flex items-center gap-1.5 border-b-2 px-5 py-3 text-[13px] font-medium transition-colors ${
-              tab === key ? "border-[#030304] text-[#030304] dark:border-white dark:text-white" : "border-transparent text-[#77767b] hover:text-[#1a1c1d] dark:hover:text-white"
+            className={`flex items-center gap-2 border-b-2 px-5 py-3 text-[13px] font-medium transition-colors ${
+              tab === key
+                ? `${color.border} ${color.text} font-semibold`
+                : "border-transparent text-[#77767b] hover:text-[#1a1c1d] dark:hover:text-[#d0d0d0]"
             }`}>
             {label}
             <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-              tab === key ? "bg-[#030304] text-white dark:bg-white dark:text-[#030304]" : "bg-[#f3f3f5] text-[#77767b] dark:bg-[#222426]"
+              tab === key ? color.activeBadge : color.inactiveBadge
             }`}>
               {services.filter((s) => s.status === key).length}
             </span>
@@ -1045,7 +1328,7 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
                     Nenhum serviço {tab === "open" ? "aberto" : tab === "development" ? "em desenvolvimento" : tab === "done" ? "concluído" : "excluído"}
                   </td>
                 </tr>
-              ) : sorted.map((svc) => {
+              ) : sorted.map((svc, qIdx) => {
                 const urg = urgencyOf(svc);
                 const rowAccent = svc.status === "development"
                   ? "border-l-4 border-l-emerald-400"
@@ -1054,13 +1337,24 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
                   : urg === "warn"
                   ? "border-l-4 border-l-amber-400"
                   : "border-l-4 border-l-transparent";
+                const isDragging = draggedId === svc.id;
+                const isDropTarget = dragOverId === svc.id && draggedId !== svc.id;
+                const draggable = tab === "open" && canQueue(role);
                 return (
-                  <tr key={svc.id} className={`border-b border-[rgba(199,198,202,0.2)] bg-white hover:bg-[#f9f9fb] dark:bg-[#1c1e22] dark:border-white/5 dark:hover:bg-[#222426] transition-colors ${rowAccent}`}>
+                  <tr
+                    key={svc.id}
+                    draggable={draggable}
+                    onDragStart={draggable ? () => setDraggedId(svc.id) : undefined}
+                    onDragOver={draggable ? (e) => { e.preventDefault(); setDragOverId(svc.id); } : undefined}
+                    onDrop={draggable ? () => handleQueueDrop(svc.id) : undefined}
+                    onDragEnd={draggable ? () => { setDraggedId(null); setDragOverId(null); } : undefined}
+                    className={`border-b border-[rgba(199,198,202,0.2)] bg-white hover:bg-[#f9f9fb] dark:bg-[#1c1e22] dark:border-white/5 dark:hover:bg-[#222426] transition-colors ${rowAccent} ${isDragging ? "opacity-40" : ""} ${isDropTarget ? "border-t-2 border-t-[#005cba] dark:border-t-[#4d9fff]" : ""}`}
+                  >
                     {tab === "open" && (
                       <td className={tdCls + " text-center"}>
                         <div className="flex flex-col items-center gap-0.5">
-                          <LockIcon />
-                          <span className="text-[11px] font-mono text-[#77767b]">{svc.queuePosition ?? "—"}</span>
+                          {canQueue(role) ? <DragHandleIcon /> : <LockIcon />}
+                          <span className="text-[11px] font-mono text-[#77767b]">{qIdx + 1}</span>
                         </div>
                       </td>
                     )}
@@ -1089,6 +1383,13 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
                             <PencilIcon />
                           </IconBtn>
                         )}
+                        {canCreate(role) && (
+                          <IconBtn onClick={() => setModal({ type: "duplicate", svc })} title="Duplicar serviço">
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                            </svg>
+                          </IconBtn>
+                        )}
                         {svc.status === "open" && canWorkflow(role) && (
                           <button
                             onClick={() => setModal({ type: "startDev", svc })}
@@ -1097,14 +1398,22 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
                             Iniciar desenvolvimento
                           </button>
                         )}
+                        {svc.status === "open" && role === "ADMIN" && (
+                          <IconBtn onClick={() => setModal({ type: "complete", svc })} title="Concluir (Admin)" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20">
+                            <CheckIcon />
+                          </IconBtn>
+                        )}
                         {svc.status === "development" && canWorkflow(role) && (
                           <>
                             <IconBtn onClick={() => setModal({ type: "upload", svc })} title="Upload arquivo" className="text-blue-600 border-blue-300 hover:bg-blue-50 dark:text-blue-400">
                               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
                             </IconBtn>
-                            <IconBtn onClick={() => setModal({ type: "complete", svc })} title="Concluir" className="text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-900/20">
+                            <button
+                              onClick={() => setModal({ type: "complete", svc })}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
                               <CheckIcon />
-                            </IconBtn>
+                              Concluir e avisar
+                            </button>
                           </>
                         )}
                         {(svc.status === "done" || svc.status === "deleted") && (
@@ -1130,10 +1439,56 @@ function ServicesSection({ services, logs, role, userId, users, onReload }: {
 
       {modal?.type === "detail" && <ServiceDetailModal svc={modal.svc} logs={logs} onClose={() => setModal(null)} />}
       {modal?.type === "edit" && <ServiceModal initial={modal.svc} onClose={() => setModal(null)} onSave={handleEdit} userName="" />}
-      {modal?.type === "startDev" && <StartDevModal svc={modal.svc} users={users} onClose={() => setModal(null)} onConfirm={handleStartDev} />}
-      {modal?.type === "complete" && <CompleteModal svc={modal.svc} onClose={() => setModal(null)} onConfirm={handleComplete} />}
+      {modal?.type === "duplicate" && <ServiceModal initial={modal.svc} onClose={() => setModal(null)} onSave={handleDuplicate} userName="" isDuplicate />}
+      {modal?.type === "startDev" && <StartDevModal svc={modal.svc} users={users.filter(u => ["ADMIN", "DESIGN", "ARTE", "ARTE_FINAL"].includes(u.role ?? ""))} defaultDevUserId={userId} onClose={() => setModal(null)} onConfirm={handleStartDev} />}
+      {modal?.type === "complete" && (
+        <CompleteModal svc={modal.svc} onClose={() => setModal(null)} onConfirm={handleComplete} />
+      )}
       {modal?.type === "delete" && <DeleteModal svc={modal.svc} onClose={() => setModal(null)} onConfirm={handleDelete} />}
       {modal?.type === "upload" && <UploadModal svc={modal.svc} onClose={() => setModal(null)} onUpload={handleUpload} />}
+
+      {/* Notificação pós-conclusão */}
+      {notification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl dark:bg-[#1c1e22]">
+            <div className="flex items-center justify-between border-b border-[rgba(0,0,0,0.06)] px-6 py-4 dark:border-white/8">
+              <h2 className="text-[16px] font-semibold text-[#1a1c1d] dark:text-white">Serviço concluído</h2>
+              <button onClick={() => setNotification(null)} className="flex h-8 w-8 items-center justify-center rounded-full text-[#77767b] hover:bg-[#f3f3f5] dark:hover:bg-[#222426]">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <div className="flex items-start gap-3 mb-5">
+                <svg className="h-5 w-5 flex-shrink-0 mt-0.5 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <p className="text-[13px] text-[#1a1c1d] dark:text-[#e0e0e0]">
+                  Serviço marcado como concluído. Clique em "Abrir WhatsApp" para enviar a mensagem ao orçamentista.
+                </p>
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => { void navigator.clipboard.writeText(notification.waMsg); }}
+                  className="flex items-center gap-1.5 rounded-xl border border-[rgba(199,198,202,0.5)] px-4 py-2 text-[13px] text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-[#222426]">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" /></svg>
+                  Copiar mensagem
+                </button>
+                <a
+                  href={`https://wa.me/${notification.phone}?text=${encodeURIComponent(notification.waMsg)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setNotification(null)}
+                  className="flex items-center gap-1.5 rounded-xl bg-[#25D366] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1ebe5d]">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                  </svg>
+                  Abrir WhatsApp
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1207,317 +1562,44 @@ function LogsSection({ logs, onReload }: { logs: ServiceLog[]; onReload: () => v
   );
 }
 
-// ─── IMAGE UPLOAD HELPER (must be outside MockupSection to avoid hook-in-render issues) ──
-function MockupImageUpload({ label, value, onSet }: { label: string; value: string | null; onSet: (v: string | null) => void }) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <div>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-2">{label}</p>
-      <div onClick={() => ref.current?.click()}
-        className="relative flex h-28 cursor-pointer items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-[rgba(199,198,202,0.5)] bg-[#f9f9fb] hover:border-[#005cba] transition-colors dark:bg-[#222426] dark:border-white/10">
-        {value ? (
-          <>
-            <img src={value} alt="" className="h-full w-full object-contain" />
-            <button onClick={(e) => { e.stopPropagation(); onSet(null); }}
-              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white text-[10px] hover:bg-red-600">×</button>
-          </>
-        ) : (
-          <span className="text-[12px] text-[#77767b]">Clique para selecionar imagem</span>
-        )}
-      </div>
-      <input ref={ref} type="file" accept="image/*" className="hidden"
-        onChange={async (e) => {
-          const file = e.target.files?.[0]; if (!file) return;
-          const url = await fileToDataUrl(file); onSet(url);
-        }} />
-    </div>
-  );
-}
-
 // ─── MOCKUP GENERATOR ─────────────────────────────────────────────────────────
 function MockupSection() {
-  const [client, setClient] = useState("");
-  const [rep, setRep] = useState("");
-  const [packaging, setPackaging] = useState("Copo");
-  const [capacity, setCapacity] = useState("100");
-  const [arteAberta, setArteAberta] = useState<string | null>(null);
-  const [arteMockup, setArteMockup] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const PACKAGING_OPTIONS = ["Copo", "Pote", "Bisnaga", "Saco", "Caixa", "Envelope", "Outro"];
-
-  async function loadImg(src: string): Promise<HTMLImageElement> {
-    return new Promise((res, rej) => {
-      const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src;
-    });
-  }
-
-  const drawMockup = useCallback(async () => {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const W = 1920, H = 1080;
-    canvas.width = W; canvas.height = H;
-    const ctx = canvas.getContext("2d"); if (!ctx) return;
-    ctx.clearRect(0, 0, W, H);
-
-    // text-wrap helper (accepts ctx explicitly to satisfy TypeScript narrowing)
-    function wrap(c: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lh: number) {
-      const words = text.split(" ");
-      let line = "";
-      let cy = y;
-      for (const word of words) {
-        const test = line ? `${line} ${word}` : word;
-        if (c.measureText(test).width > maxW && line) { c.fillText(line, x, cy); line = word; cy += lh; }
-        else { line = test; }
-      }
-      if (line) c.fillText(line, x, cy);
-    }
-
-    // ── Layout constants ──────────────────────────────────────────────────
-    const TOP_H  = 140;   // header bar height
-    const BOT_H  = 290;   // footer height
-    const CT     = TOP_H;
-    const CB     = H - BOT_H;
-    const CONT_H = CB - CT; // 650
-
-    const PAD       = 48;
-    const LEFT_W    = Math.round(W * 0.575); // ~1104 – left art panel
-    const RIGHT_X   = LEFT_W;
-    const RIGHT_W   = W - LEFT_W;            // ~816
-
-    const BOT_Y      = CB;
-    const BOT_DARK_W = Math.round(W * 0.30); // ~576 – dark "Importante" column
-    const BOT_LIGHT_X = BOT_DARK_W;
-
-    // ── White base ────────────────────────────────────────────────────────
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
-
-    // ═══════════════════════════════════════════════════════════════════
-    // TOP BAR
-    // ═══════════════════════════════════════════════════════════════════
-    ctx.fillStyle = "#0d1b2e"; ctx.fillRect(0, 0, W, TOP_H);
-
-    // Badge "APROVAÇÃO DE LAYOUT"
-    ctx.fillStyle = "#22c55e";
-    ctx.beginPath(); ctx.roundRect(PAD, 20, 282, 34, 6); ctx.fill();
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold 17px Arial"; ctx.textAlign = "left";
-    ctx.fillText("APROVAÇÃO DE LAYOUT", PAD + 16, 43);
-
-    // Main title
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold 82px Arial"; ctx.textAlign = "left";
-    ctx.fillText(`${packaging.toUpperCase()}   →   ${capacity ? capacity + " ml" : "---ml"}`, PAD, TOP_H - 16);
-
-    // Pluspack logo (right side)
-    const PP_RIGHT = W - PAD - 44; // anchor for "pluspack" right edge (leaves room for ®)
-    ctx.fillStyle = "#ffffff"; ctx.font = "bold 80px Arial"; ctx.textAlign = "right";
-    ctx.fillText("pluspack", PP_RIGHT, TOP_H - 20);
-    ctx.font = "bold 34px Arial"; ctx.textAlign = "left";
-    ctx.fillText("®", PP_RIGHT + 4, TOP_H - 66);
-    ctx.fillStyle = "#64748b"; ctx.font = "bold 18px Arial"; ctx.textAlign = "right";
-    ctx.fillText("EMBALAGENS", W - PAD, TOP_H - 2);
-
-    // ═══════════════════════════════════════════════════════════════════
-    // CONTENT AREA
-    // ═══════════════════════════════════════════════════════════════════
-
-    // ── Left panel — Arte Aberta ────────────────────────────────────────
-    const LBX = PAD, LBY = CT + PAD, LBW = LEFT_W - PAD * 2, LBH = CONT_H - PAD * 2;
-    ctx.strokeStyle = "#d1d5db"; ctx.lineWidth = 2; ctx.setLineDash([14, 10]);
-    ctx.strokeRect(LBX, LBY, LBW, LBH);
-    ctx.setLineDash([]);
-    if (arteAberta) {
-      try {
-        const img = await loadImg(arteAberta);
-        const scale = Math.min(LBW / img.width, LBH / img.height);
-        const dw = img.width * scale, dh = img.height * scale;
-        ctx.drawImage(img, LBX + (LBW - dw) / 2, LBY + (LBH - dh) / 2, dw, dh);
-      } catch { /* ignore */ }
-    } else {
-      ctx.fillStyle = "#9ca3af"; ctx.font = "28px Arial"; ctx.textAlign = "center";
-      ctx.fillText("ARTE ABERTA (PLANIFICADA)", LBX + LBW / 2, LBY + LBH / 2);
-    }
-
-    // ── Right panel — Simulação ─────────────────────────────────────────
-    const RPX = RIGHT_X + PAD;
-    const RPW = RIGHT_W - PAD * 2;
-
-    ctx.fillStyle = "#6b7280"; ctx.font = "italic 22px Arial"; ctx.textAlign = "left";
-    ctx.fillText("Simulação", RPX, CT + 46);
-    ctx.fillStyle = "#1e293b"; ctx.font = "bold italic 22px Arial";
-    ctx.fillText("*Meramente Ilustrativa", RPX, CT + 76);
-
-    ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(RPX, CT + 94); ctx.lineTo(RIGHT_X + RIGHT_W - PAD, CT + 94); ctx.stroke();
-
-    ctx.fillStyle = "#374151"; ctx.font = "20px Arial"; ctx.textAlign = "left";
-    ctx.fillText(`Cliente: ${client || "-"}`, RPX, CT + 124);
-    ctx.fillText(`Representante: ${rep || "-"}`, RPX, CT + 154);
-
-    // Mockup box
-    const MBX = RPX, MBY = CT + 176, MBW = RPW, MBH = CONT_H - 176 - PAD;
-    ctx.strokeStyle = "#d1d5db"; ctx.lineWidth = 2; ctx.setLineDash([14, 10]);
-    ctx.strokeRect(MBX, MBY, MBW, MBH);
-    ctx.setLineDash([]);
-    if (arteMockup) {
-      try {
-        const img = await loadImg(arteMockup);
-        const scale = Math.min(MBW / img.width, MBH / img.height);
-        const dw = img.width * scale, dh = img.height * scale;
-        ctx.drawImage(img, MBX + (MBW - dw) / 2, MBY + (MBH - dh) / 2, dw, dh);
-      } catch { /* ignore */ }
-    } else {
-      ctx.fillStyle = "#9ca3af"; ctx.font = "24px Arial"; ctx.textAlign = "center";
-      ctx.fillText("ARTE MOCKUP", MBX + MBW / 2, MBY + MBH / 2);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // BOTTOM SECTION
-    // ═══════════════════════════════════════════════════════════════════
-
-    // Top border
-    ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(0, BOT_Y); ctx.lineTo(W, BOT_Y); ctx.stroke();
-
-    // ── Dark left column — IMPORTANTE ──────────────────────────────────
-    ctx.fillStyle = "#0d1b2e"; ctx.fillRect(0, BOT_Y, BOT_DARK_W, BOT_H);
-
-    // White badge "IMPORTANTE"
-    const IB_X = 28, IB_Y = BOT_Y + 24;
-    ctx.fillStyle = "#ffffff";
-    ctx.beginPath(); ctx.roundRect(IB_X, IB_Y, 178, 32, 5); ctx.fill();
-    ctx.fillStyle = "#0d1b2e"; ctx.font = "bold 16px Arial"; ctx.textAlign = "left";
-    ctx.fillText("IMPORTANTE", IB_X + 12, IB_Y + 21);
-
-    // Bullet lines
-    ctx.fillStyle = "#ffffff"; ctx.font = "16px Arial";
-    ["ENVIAR SEU ARQUIVO EM PDF/X-1A",
-     "RESOLUÇÃO MÍNIMA 300 DPI",
-     "USAR AS CORES DA PALETA CMYK. CASO TENHA PANTONE,",
-     "NOS INFORME O CÓDIGO",
-    ].forEach((b, i) => ctx.fillText(b, IB_X, IB_Y + 52 + i * 24));
-
-    // Disclaimer
-    ctx.fillStyle = "#94a3b8"; ctx.font = "italic 13px Arial";
-    wrap(ctx,
-      "*O mockup 3D é meramente ilustrativo e não representa o material final da embalagem. As cores exibidas podem variar de acordo com a calibração e as configurações do monitor.",
-      IB_X, IB_Y + 52 + 4 * 24 + 18, BOT_DARK_W - IB_X - 16, 18);
-
-    // Vertical divider dark/light
-    ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(BOT_LIGHT_X, BOT_Y); ctx.lineTo(BOT_LIGHT_X, H); ctx.stroke();
-
-    // ── Light right column — 3 stacked items ───────────────────────────
-    const ITEM_H  = Math.floor(BOT_H / 3);
-    const BOT_PAD = 36;
-    const ITEM_RIGHT_MAX_W = W - BOT_LIGHT_X - BOT_PAD * 2;
-
-    const BOTTOM_ITEMS: { label: string; color: string | null; text: string }[] = [
-      { label: "SEGURANÇA", color: null,
-        text: "As informações importantes (textos e imagens) devem ser recuadas dentro da margem de segurança, para não serem danificadas em caso de violação do corte." },
-      { label: "CORTE",     color: "#ef4444",
-        text: "Não utilizar a linha de corte como parâmetro para inserir informações, tendo em vista que o corte pode variar." },
-      { label: "SANGRIA",   color: "#f97316",
-        text: "Encaixe o fundo em toda área da sangria para evitar filetes brancos em sua arte." },
-    ];
-
-    BOTTOM_ITEMS.forEach((item, i) => {
-      const IY = BOT_Y + ITEM_H * i;
-      const IX = BOT_LIGHT_X + BOT_PAD;
-
-      // Horizontal row divider
-      if (i > 0) {
-        ctx.strokeStyle = "#e5e7eb"; ctx.lineWidth = 1; ctx.setLineDash([]);
-        ctx.beginPath(); ctx.moveTo(BOT_LIGHT_X, IY); ctx.lineTo(W, IY); ctx.stroke();
-      }
-
-      // Colour indicator rectangle
-      const INDIC_W = 56, INDIC_H = 32, INDIC_Y = IY + 18;
-      if (item.color) {
-        ctx.fillStyle = item.color;
-        ctx.fillRect(IX, INDIC_Y, INDIC_W, INDIC_H);
-      } else {
-        ctx.strokeStyle = "#6b7280"; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
-        ctx.strokeRect(IX, INDIC_Y, INDIC_W, INDIC_H);
-        ctx.setLineDash([]);
-      }
-
-      // Label
-      ctx.fillStyle = "#1e293b"; ctx.font = "bold 22px Arial"; ctx.textAlign = "left";
-      ctx.fillText(item.label, IX + INDIC_W + 16, INDIC_Y + 22);
-
-      // Description (wrapped)
-      ctx.fillStyle = "#6b7280"; ctx.font = "18px Arial";
-      wrap(ctx, item.text, IX, IY + 66, ITEM_RIGHT_MAX_W, 26);
-    });
-
-  }, [client, rep, packaging, capacity, arteAberta, arteMockup]);
-
-  useEffect(() => { void drawMockup(); }, [drawMockup]);
-
-  function handleDownload() {
-    const canvas = canvasRef.current; if (!canvas) return;
-    const link = document.createElement("a");
-    link.download = `aprovacao-layout-${packaging.toLowerCase()}-${Date.now()}.png`;
-    link.href = canvas.toDataURL("image/png"); link.click();
-  }
-
-  const inputCls = "w-full rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-[13px] outline-none focus:border-[#005cba] dark:bg-[#23252a] dark:text-white dark:border-white/10";
-  const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-1";
-
   return (
-    <div className="flex h-full">
-      {/* Sidebar form — 300px */}
-      <div className="flex w-[300px] flex-shrink-0 flex-col gap-5 overflow-y-auto border-r border-[rgba(199,198,202,0.3)] bg-white p-5 dark:bg-[#1c1e22] dark:border-white/8">
-        <div>
-          <h2 className="text-[15px] font-bold text-[#1a1c1d] dark:text-white">Aprovação de Layout</h2>
-          <p className="text-[11px] text-[#77767b]">Preencha e gere o documento 1920×1080</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={labelCls}>Embalagem</label>
-            <select value={packaging} onChange={(e) => setPackaging(e.target.value)} className={inputCls}>
-              {PACKAGING_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>Capacidade (ML)</label>
-            <input value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="100" className={inputCls} />
-          </div>
-        </div>
-        <div>
-          <label className={labelCls}>Cliente</label>
-          <input value={client} onChange={(e) => setClient(e.target.value)} placeholder="Ex: Apex Brasil" className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>Representante</label>
-          <input value={rep} onChange={(e) => setRep(e.target.value)} placeholder="Ex: Ancoraggio" className={inputCls} />
-        </div>
-        <MockupImageUpload label="Arte Aberta (Planificada)" value={arteAberta} onSet={setArteAberta} />
-        <MockupImageUpload label="Arte Mockup / Simulação 3D" value={arteMockup} onSet={setArteMockup} />
-        <button onClick={handleDownload}
-          className="w-full rounded-xl bg-[#0b1929] py-3 text-[14px] font-semibold text-white hover:bg-[#1a2e4a] dark:bg-white dark:text-[#030304] dark:hover:bg-[#f3f3f5]">
-          ↓ Baixar PNG (1920×1080)
-        </button>
-      </div>
-
-      {/* Canvas preview */}
-      <div className="flex flex-1 flex-col items-center justify-center overflow-auto bg-[#cbd5e1] dark:bg-[#111214] p-6">
-        <canvas ref={canvasRef} className="rounded-lg shadow-2xl" style={{ aspectRatio: "16/9", maxWidth: "min(100%, 900px)", width: "100%" }} />
-        <p className="mt-2 text-[11px] text-[#64748b]">Pré-visualização em tempo real — o arquivo baixado é 1920×1080 px</p>
-      </div>
-    </div>
+    <iframe
+      src="/mockup/index.html"
+      style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+      title="Gerador de Aprovação de Layout"
+    />
   );
 }
 
 // ─── ADMIN SECTION ────────────────────────────────────────────────────────────
 function AdminSection(_props: { users: { id: string; name: string; role?: string }[] }) {
   const [networkPath, setNetworkPath] = useState(() => localStorage.getItem("services_network_path") ?? "");
+  const [orcPhone, setOrcPhone] = useState(() => localStorage.getItem("orcamentista_whatsapp") ?? "554334207765");
   function saveNetworkPath() { localStorage.setItem("services_network_path", networkPath); }
+  function saveOrcPhone() { localStorage.setItem("orcamentista_whatsapp", orcPhone.replace(/\D/g, "")); setOrcPhone(orcPhone.replace(/\D/g, "")); }
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-[20px] font-bold text-[#1a1c1d] dark:text-white">Administração</h1>
         <p className="text-[13px] text-[#77767b]">Configurações do módulo de serviços.</p>
+      </div>
+
+      {/* WhatsApp do orçamentista */}
+      <div className="rounded-2xl border border-[rgba(199,198,202,0.3)] bg-white p-5 dark:bg-[#1c1e22] dark:border-white/8">
+        <h2 className="mb-1 text-[14px] font-semibold text-[#1a1c1d] dark:text-white">WhatsApp do Orçamentista</h2>
+        <p className="mb-3 text-[12px] text-[#77767b]">Número usado no botão "Avisar" ao concluir serviços. Apenas números com DDI (ex: 554334207765).</p>
+        <div className="flex gap-2">
+          <input value={orcPhone} onChange={(e) => setOrcPhone(e.target.value)}
+            placeholder="554334207765"
+            className="flex-1 rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-[13px] font-mono outline-none focus:border-[#005cba] dark:bg-[#23252a] dark:text-white dark:border-white/10" />
+          <button onClick={saveOrcPhone}
+            className="rounded-xl bg-[#005cba] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#0052a8]">
+            Salvar
+          </button>
+        </div>
       </div>
 
       {/* Network path */}
@@ -1556,7 +1638,9 @@ function AdminSection(_props: { users: { id: string; name: string; role?: string
               {[
                 { role: "ADMIN",        label: "Admin",         create: true,  edit: true,  del: true,  workflow: true,  queue: true },
                 { role: "PCP",          label: "PCP",           create: false, edit: false, del: true,  workflow: false, queue: true },
-                { role: "DESIGN",       label: "Desenvolvedor", create: false, edit: false, del: false, workflow: true,  queue: false },
+                { role: "DESIGN",       label: "Desenvolvedor",         create: false, edit: false, del: false, workflow: true,  queue: false },
+                { role: "ARTE",        label: "Desenv. de Arte",       create: false, edit: false, del: false, workflow: true,  queue: false },
+                { role: "ARTE_FINAL",  label: "Arte Final",            create: false, edit: false, del: false, workflow: true,  queue: false },
                 { role: "GERENTE",      label: "Gerente",       create: true,  edit: true,  del: true,  workflow: false, queue: false },
                 { role: "SUPERVISOR",   label: "Supervisor",    create: true,  edit: true,  del: true,  workflow: false, queue: false },
                 { role: "ORCAMENTISTA", label: "Orçamentista",  create: true,  edit: true,  del: false, workflow: false, queue: false },
@@ -1592,7 +1676,10 @@ export function ServicesPage() {
   const userId = user?.id ?? "";
   const userName = user?.name ?? "";
 
-  const [section, setSection] = useState<Section>("dashboard");
+  const [searchParams] = useSearchParams();
+  const autoOpenId = searchParams.get("id") ?? undefined;
+
+  const [section, setSection] = useState<Section>(() => autoOpenId ? "servicos" : "dashboard");
   const [services, setServices] = useState<ServiceOrder[]>([]);
   const [logs, setLogs] = useState<ServiceLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1610,8 +1697,19 @@ export function ServicesPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  // Auto-refresh every 30 s without showing loading spinner
   useEffect(() => {
-    fetch("/api/users", { credentials: "include" })
+    const interval = setInterval(async () => {
+      try {
+        const [all, logData] = await Promise.all([servicesApi.list(), servicesApi.logs()]);
+        setServices(all); setLogs(logData);
+      } catch {}
+    }, 15_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/users/directory", { credentials: "include" })
       .then((r) => r.json())
       .then((data: unknown) => {
         if (Array.isArray(data)) {
@@ -1625,7 +1723,7 @@ export function ServicesPage() {
   async function handleCreate(form: FormState) {
     const svc = await servicesApi.create({
       name: form.name, type: form.type, orderDate: form.orderDate,
-      seller: form.seller, requester: form.requester,
+      seller: form.seller, requester: form.requester, clientPhone: form.clientPhone,
       items: form.items.map(({ name, rollSizes, notes }) => ({ name, rollSizes, notes })),
     });
     // Upload pending files for each item
@@ -1652,7 +1750,7 @@ export function ServicesPage() {
     { key: "dashboard", label: "Dashboard", icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg> },
     { key: "servicos", label: "Serviços", icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-7.5A1.125 1.125 0 0 1 12 18.375m9.75-12.75c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125m19.5 0v1.5c0 .621-.504 1.125-1.125 1.125M2.25 5.625v1.5c0 .621.504 1.125 1.125 1.125m0 0h17.25m-17.25 0h7.5c.621 0 1.125.504 1.125 1.125M3.375 8.25c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m17.25-3.75h-7.5c-.621 0-1.125.504-1.125 1.125m8.625-1.125c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m-7.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125M12 10.875v-1.5m0 1.5c0 .621-.504 1.125-1.125 1.125M12 10.875c0 .621.504 1.125 1.125 1.125m-2.25 0c0 .621-.504 1.125-1.125 1.125H9.75m1.125-1.125c0 .621.504 1.125 1.125 1.125h1.5m1.125 0c0 .621.504 1.125 1.125 1.125H15m-3 0h1.5" /></svg> },
     { key: "logs", label: "Logs", icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> },
-    { key: "mockup", label: "Gerador de mockup", roles: ["ADMIN", "DESIGN", "GERENTE", "SUPERVISOR", "PCP", "MEMBER", "ORCAMENTISTA", "COMERCIAL"], icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg> },
+    { key: "mockup", label: "Gerador de mockup", roles: ["ADMIN", "DESIGN", "ARTE", "ARTE_FINAL", "GERENTE", "SUPERVISOR", "PCP", "MEMBER", "ORCAMENTISTA", "COMERCIAL"], icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg> },
     { key: "admin", label: "Administração", roles: ["ADMIN", "GERENTE", "SUPERVISOR", "PCP"], icon: <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 0 1 1.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.559.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.894.149c-.424.07-.764.383-.929.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 0 1-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.398.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 0 1-.12-1.45l.527-.737c.25-.35.272-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 0 1 .12-1.45l.773-.773a1.125 1.125 0 0 1 1.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg> },
   ];
   const navItems = allNavItems.filter((n) => !n.roles || n.roles.includes(role));
@@ -1684,7 +1782,7 @@ export function ServicesPage() {
           )}
           {canCreate(role) && (
             <button onClick={() => setModal({ type: "create" })}
-              className="flex items-center gap-2 rounded-xl bg-[#030304] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#1a1c1d] dark:bg-white dark:text-[#030304] dark:hover:bg-[#f3f3f5]">
+              className="flex items-center gap-2 rounded-xl bg-[#005cba] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#004fa0]">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               Adicionar serviço
             </button>
@@ -1701,9 +1799,9 @@ export function ServicesPage() {
         ) : (
           <>
             {section === "dashboard" && <div className="h-full overflow-y-auto"><DashboardSection services={services} /></div>}
-            {section === "servicos" && <ServicesSection services={services} logs={logs} role={role} userId={userId} users={users} onReload={load} />}
+            {section === "servicos" && <ServicesSection services={services} logs={logs} role={role} userId={userId} users={users} onReload={load} autoOpenServiceId={autoOpenId} />}
             {section === "logs" && <LogsSection logs={logs} onReload={load} />}
-            {section === "mockup" && <MockupSection />}
+            {section === "mockup" && <div className="h-full"><MockupSection /></div>}
             {section === "admin" && <div className="h-full overflow-y-auto"><AdminSection users={users} /></div>}
           </>
         )}
