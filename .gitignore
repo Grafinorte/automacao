@@ -7,6 +7,12 @@ server/data/*.db-journal
 server/data/avatars/
 server/data/attachments/
 server/data/media/
+server/data/wa-media/
+server/data/social-media/
+server/scripts/railway-import/
 server/src/generated/
 .env
 *.local
+Thumbs.db
+*.MOV
+*.mov
