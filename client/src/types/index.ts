@@ -9,6 +9,17 @@ export const ISSUING_COMPANY_LABELS: Record<IssuingCompany, string> = {
   PLUSPACK: "Pluspack",
 };
 
+export type LeadSource = "SITE" | "LANDING_PAGE" | "PROSPECCAO_ATIVA" | "CLIENTE_PROCUROU" | "INDICACAO" | "OUTRO";
+
+export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
+  SITE: "Site",
+  LANDING_PAGE: "Landing page",
+  PROSPECCAO_ATIVA: "Prospecção ativa (comercial foi atrás)",
+  CLIENTE_PROCUROU: "Cliente procurou a empresa",
+  INDICACAO: "Indicação",
+  OUTRO: "Outro",
+};
+
 export const ROLE_LABELS: Record<Role, string> = {
   ADMIN: "Administrador",
   MEMBER: "Membro",
@@ -204,19 +215,50 @@ export interface ContactWithDeals extends Contact {
   deals: (Deal & { stage: CrmStage })[];
 }
 
-export interface ProspectCompany {
-  nome: string;
-  cidade: string;
-  telefone: string;
-  porte: string;
-  redeSocial: string;
-  fontes: string;
-  confiabilidade: string;
+export type ProspectLeadStatus = "NOVO" | "ADICIONADO" | "DESCARTADO";
+
+export interface ProspectLead {
+  id: string;
+  placeId: string | null;
+  name: string;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  category: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  mapsUrl: string | null;
+  status: ProspectLeadStatus;
+  contactId: string | null;
+  dealId: string | null;
+  addedById: string | null;
+  addedByName?: string | null;
+  addedAt: string | null;
+  createdAt: string;
+  /** Telefone já existe num contato do CRM */
+  inCrm?: boolean;
+  /** Já apareceu numa busca anterior */
+  seenBefore?: { at: string; by: string; status: ProspectLeadStatus } | null;
 }
 
-export interface ProspectingResult {
-  raw: string;
-  companies: ProspectCompany[];
+export interface ProspectSearchSummary {
+  id: string;
+  segmento: string;
+  regiao: string;
+  company: "GRAFINORTE" | "PLUSPACK";
+  resultCount: number;
+  /** Só admin recebe (milionésimos de dólar) */
+  costMicro?: number;
+  createdAt: string;
+  user: { id: string; name: string };
+  addedCount: number;
+  discardedCount: number;
+}
+
+export interface ProspectSearch extends Omit<ProspectSearchSummary, "addedCount" | "discardedCount"> {
+  query: string;
+  provider: string | null;
+  leads: ProspectLead[];
 }
 
 export interface Deal {
@@ -235,6 +277,8 @@ export interface Deal {
   owner: TaskUserRef;
   quote: { id: string; number: number } | null;
   company: string;
+  source: LeadSource | null;
+  sourceDetail: string | null;
 }
 
 export interface DealActivity {

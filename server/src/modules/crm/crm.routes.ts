@@ -35,16 +35,19 @@ crmRouter.delete("/contacts/:id", asyncHandler(contactsController.deleteContact)
 
 // Deals
 crmRouter.post("/deals", asyncHandler(dealsController.postDeal));
-crmRouter.get("/deals/export", asyncHandler(dealsController.getDealsExport));
+crmRouter.get("/deals/export", requireRole("ADMIN"), asyncHandler(dealsController.getDealsExport));
 crmRouter.get("/deals/:id", asyncHandler(dealsController.getDealById));
 crmRouter.patch("/deals/:id", asyncHandler(dealsController.patchDeal));
-crmRouter.delete("/deals/:id", asyncHandler(dealsController.deleteDeal));
+crmRouter.delete("/deals/:id", requireRole("ADMIN"), asyncHandler(dealsController.deleteDeal));
 crmRouter.patch("/deals/:id/move", asyncHandler(dealsController.moveDeal));
 crmRouter.post("/deals/:dealId/activities", asyncHandler(activitiesController.postActivity));
 
 // Prospecção (IA)
-crmRouter.post("/prospecting", asyncHandler(prospectingController.postProspecting));
-crmRouter.post("/prospecting/stream", prospectingController.postProspectingStream);
+crmRouter.post("/prospecting/searches", asyncHandler(prospectingController.postSearch));
+crmRouter.get("/prospecting/searches", asyncHandler(prospectingController.getSearches));
+crmRouter.get("/prospecting/searches/:id", asyncHandler(prospectingController.getSearch));
+crmRouter.post("/prospecting/leads/:id/add", asyncHandler(prospectingController.postAddLead));
+crmRouter.patch("/prospecting/leads/:id", asyncHandler(prospectingController.patchLead));
 
 // Agente IA
 crmRouter.post("/agent", asyncHandler(crmAgentController.postCrmAgent));

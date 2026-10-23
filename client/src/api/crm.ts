@@ -7,7 +7,10 @@ import type {
   Deal,
   DealActivity,
   DealDetail,
-  ProspectingResult,
+  LeadSource,
+  ProspectLead,
+  ProspectSearch,
+  ProspectSearchSummary,
 } from "../types";
 
 export interface ContactInput {
@@ -29,6 +32,8 @@ export interface DealInput {
   nextFollowUp?: string | null;
   lossReason?: string | null;
   company?: string;
+  source?: LeadSource | null;
+  sourceDetail?: string | null;
 }
 
 export interface ImportContactsResult {
@@ -69,6 +74,14 @@ export const crmApi = {
   listStages: () => api.get<CrmStageBase[]>("/crm/stages"),
   setupDefaultStages: () => api.post<{ created: number; skipped: boolean }>("/crm/stages/setup-defaults", {}),
 
-  runProspecting: (data: { segmento: string; regiao: string; quantidade: number; observacoes?: string }) =>
-    api.post<ProspectingResult>("/crm/prospecting", data),
+  // Prospecção (Google Maps via treg)
+  searchProspects: (data: { segmento: string; regiao: string; company: "GRAFINORTE" | "PLUSPACK" }) =>
+    api.post<ProspectSearch>("/crm/prospecting/searches", data),
+  listProspectSearches: (mine?: boolean) =>
+    api.get<ProspectSearchSummary[]>(`/crm/prospecting/searches${mine ? "?mine=1" : ""}`),
+  getProspectSearch: (id: string) => api.get<ProspectSearch>(`/crm/prospecting/searches/${id}`),
+  addProspectToCrm: (leadId: string) =>
+    api.post<{ contactId: string; dealId: string }>(`/crm/prospecting/leads/${leadId}/add`, {}),
+  setProspectStatus: (leadId: string, status: "NOVO" | "DESCARTADO") =>
+    api.patch<ProspectLead>(`/crm/prospecting/leads/${leadId}`, { status }),
 };

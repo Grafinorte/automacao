@@ -1,64 +1,55 @@
 import type { Request, Response } from "express";
 import * as prospectingService from "./prospecting.service";
-import { HttpError } from "../../middleware/errorHandler";
 
-function validateInput(body: Record<string, unknown>): { error: string; status: number } | { input: { segmento: string; regiao: string; quantidade: number; observacoes?: string } } {
-  const { segmento, regiao, quantidade, observacoes } = body;
-  if (!segmento || typeof segmento !== "string" || !segmento.trim()) {
-    return { error: "Segmento é obrigatório", status: 400 };
+// O custo das buscas (saldo do treg) só aparece para o admin
+function hideCost<T extends { costMicro?: number }>(req: Request, item: T): T {
+  if (req.user!.role === "ADMIN") return item;
+  const { costMicro: _omit, ...rest } = item;
+  return rest as T;
+}
+
+export async function postSearch(req: Request, res: Response) {
+  const { segmento, regiao, company } = (req.body ?? {}) as Record<string, unknown>;
+  if (typeof segmento !== "string" || !segmento.trim()) {
+    res.status(400).json({ error: "Informe o segmento (ex.: sorveteria, escola, editora)" });
+    return;
   }
-  if (!regiao || typeof regiao !== "string" || !regiao.trim()) {
-    return { error: "Região é obrigatória", status: 400 };
+  if (typeof regiao !== "string" || !regiao.trim()) {
+    res.status(400).json({ error: "Informe a cidade ou região" });
+    return;
   }
-  const parsedQuantidade = Number(quantidade);
-  if (!Number.isInteger(parsedQuantidade) || parsedQuantidade < 1 || parsedQuantidade > 15) {
-    return { error: "Quantidade deve ser um número entre 1 e 15", status: 400 };
-  }
-  return {
-    input: {
-      segmento: (segmento as string).trim(),
-      regiao: (regiao as string).trim(),
-      quantidade: parsedQuantidade,
-      observacoes: typeof observacoes === "string" ? observacoes : undefined,
+  const search = await prospectingService.runSearch(
+    {
+      segmento: segmento.trim().slice(0, 120),
+      regiao: regiao.trim().slice(0, 120),
+      company: company === "PLUSPACK" ? "PLUSPACK" : "GRAFINORTE",
     },
-  };
+    req.user!.sub
+  );
+  res.status(201).json(hideCost(req, search));
 }
 
-export async function postProspecting(req: Request, res: Response) {
-  const validated = validateInput(req.body ?? {});
-  if ("error" in validated) {
-    res.status(validated.status).json({ error: validated.error });
-    return;
-  }
-  const result = await prospectingService.runProspecting(validated.input);
-  res.json(result);
+export async function getSearches(req: Request, res: Response) {
+  const mine = req.query.mine === "1";
+  const searches = await prospectingService.listSearches({ userId: mine ? req.user!.sub : undefined });
+  res.json(searches.map((s) => hideCost(req, s)));
 }
 
-export async function postProspectingStream(req: Request, res: Response) {
-  const validated = validateInput(req.body ?? {});
-  if ("error" in validated) {
-    res.status(validated.status).json({ error: validated.error });
+export async function getSearch(req: Request, res: Response) {
+  const search = await prospectingService.getSearch(req.params.id as string);
+  res.json(hideCost(req, search));
+}
+
+export async function postAddLead(req: Request, res: Response) {
+  const result = await prospectingService.addLeadToCrm(req.params.id as string, req.user!.sub);
+  res.status(201).json(result);
+}
+
+export async function patchLead(req: Request, res: Response) {
+  const { status } = (req.body ?? {}) as { status?: string };
+  if (status !== "NOVO" && status !== "DESCARTADO") {
+    res.status(400).json({ error: "Status inválido" });
     return;
   }
-
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-
-  const send = (data: object) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  };
-
-  try {
-    const raw = await prospectingService.streamProspecting(validated.input, (company) => {
-      send({ type: "company", company });
-    });
-    send({ type: "done", raw });
-  } catch (err: unknown) {
-    const msg = err instanceof HttpError ? err.message : "Erro interno no servidor";
-    send({ type: "error", message: msg });
-  } finally {
-    res.end();
-  }
+  res.json(await prospectingService.setLeadStatus(req.params.id as string, status));
 }
