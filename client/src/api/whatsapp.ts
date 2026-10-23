@@ -6,6 +6,8 @@ export interface WaPhoneNumber {
   displayName: string;
   phone?: string | null;
   accessToken?: string | null;
+  /** Conta do WhatsApp Business (WABA) — onde ficam os templates deste número */
+  wabaId?: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -15,6 +17,8 @@ export interface WaLabel {
   id: string;
   name: string;
   color: string;
+  /** Número dono da etiqueta; null = etiqueta geral (todos os números) */
+  phoneNumberId?: string | null;
 }
 
 export interface WaConversationLabel {
@@ -91,6 +95,8 @@ export interface WaAutomation {
   matchType: string;
   response: string;
   active: boolean;
+  /** Número ao qual pertence; null = vale para todos os números */
+  phoneNumberId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -125,6 +131,10 @@ export const whatsappApi = {
   getConversations: (status?: string) =>
     api.get<WaConversation[]>(`/whatsapp/conversations${status ? `?status=${status}` : ""}`),
 
+  /** Zera as não lidas de todas as conversas do número (ou de todos, com "all") */
+  markAllRead: (phoneNumberId: string) =>
+    api.post<{ count: number }>("/whatsapp/conversations/read-all", { phoneNumberId }),
+
   getConversationMessages: (id: string) =>
     api.get<{ conversation: WaConversation; messages: WaMessage[] }>(
       `/whatsapp/conversations/${id}/messages`
@@ -140,7 +150,7 @@ export const whatsappApi = {
 
   getAutomations: () => api.get<WaAutomation[]>("/whatsapp/automations"),
 
-  createAutomation: (data: { name: string; keyword: string; matchType?: string; response: string; active?: boolean }) =>
+  createAutomation: (data: { name: string; keyword: string; matchType?: string; response: string; active?: boolean; phoneNumberId?: string | null }) =>
     api.post<WaAutomation>("/whatsapp/automations", data),
 
   updateAutomation: (id: string, data: Partial<WaAutomation>) =>
@@ -152,9 +162,11 @@ export const whatsappApi = {
     api.post<{ conversation: WaConversation; message: WaMessage }>("/whatsapp/conversations/start", data),
 
   // Meta Message Templates
-  getMetaTemplates: () => api.get<MetaTemplate[]>("/whatsapp/meta-templates"),
+  /** Templates da conta (WABA) do número; sem número = conta principal */
+  getMetaTemplates: (phoneNumberId?: string | null) =>
+    api.get<MetaTemplate[]>(`/whatsapp/meta-templates${phoneNumberId ? `?phoneNumberId=${encodeURIComponent(phoneNumberId)}` : ""}`),
 
-  createMetaTemplate: (data: { name: string; category?: string; language?: string; bodyText: string; exampleValues?: string[] }) =>
+  createMetaTemplate: (data: { name: string; category?: string; language?: string; bodyText: string; exampleValues?: string[]; phoneNumberId?: string | null }) =>
     api.post<{ id: string; status: string }>("/whatsapp/meta-templates", data),
 
   sendTemplateMessage: (data: { phone: string; name?: string; templateName: string; language?: string; variables?: string[]; headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string; phoneNumberId?: string }) =>
@@ -172,8 +184,10 @@ export const whatsappApi = {
   deleteTemplate: (id: string) => api.delete<{ ok: boolean }>(`/whatsapp/templates/${id}`),
 
   // Media
-  uploadMedia: async (file: File): Promise<{ mediaId: string; mimetype: string; filename: string; localFilename: string }> => {
+  /** Sobe a mídia pelo número que vai enviar (sem número = principal) */
+  uploadMedia: async (file: File, phoneNumberId?: string | null): Promise<{ mediaId: string; mimetype: string; filename: string; localFilename: string }> => {
     const form = new FormData();
+    if (phoneNumberId && phoneNumberId !== "all") form.append("phoneNumberId", phoneNumberId);
     form.append("file", file);
     const res = await fetch("/api/whatsapp/media/upload", {
       method: "POST",
@@ -206,8 +220,10 @@ export const whatsappApi = {
     api.get<{ title: string; description: string; image: string; domain: string }>(`/whatsapp/link-preview?url=${encodeURIComponent(url)}`),
 
   // Labels
-  getLabels: () => api.get<WaLabel[]>("/whatsapp/labels"),
-  createLabel: (data: { name: string; color: string }) => api.post<WaLabel>("/whatsapp/labels", data),
+  /** Etiquetas gerais + as do número informado ("all" ou vazio = todas, só admin) */
+  getLabels: (phoneNumberId?: string | null) =>
+    api.get<WaLabel[]>(`/whatsapp/labels${phoneNumberId ? `?phoneNumberId=${encodeURIComponent(phoneNumberId)}` : ""}`),
+  createLabel: (data: { name: string; color: string; phoneNumberId?: string | null }) => api.post<WaLabel>("/whatsapp/labels", data),
   deleteLabel: (id: string) => api.delete<{ ok: boolean }>(`/whatsapp/labels/${id}`),
   addLabel: (conversationId: string, labelId: string) =>
     api.post<WaConversation>(`/whatsapp/conversations/${conversationId}/labels/${labelId}`, {}),
@@ -219,9 +235,9 @@ export const whatsappApi = {
 
   // Phone numbers
   getPhoneNumbers: () => api.get<WaPhoneNumber[]>("/whatsapp/phone-numbers"),
-  createPhoneNumber: (data: { phoneNumberId: string; displayName: string; phone?: string; accessToken?: string }) =>
+  createPhoneNumber: (data: { phoneNumberId: string; displayName: string; phone?: string; accessToken?: string; wabaId?: string }) =>
     api.post<WaPhoneNumber>("/whatsapp/phone-numbers", data),
-  updatePhoneNumber: (id: string, data: Partial<{ displayName: string; phone: string; accessToken: string; active: boolean }>) =>
+  updatePhoneNumber: (id: string, data: Partial<{ displayName: string; phone: string; accessToken: string; active: boolean; wabaId: string }>) =>
     api.patch<WaPhoneNumber>(`/whatsapp/phone-numbers/${id}`, data),
   deletePhoneNumber: (id: string) => api.delete<{ ok: boolean }>(`/whatsapp/phone-numbers/${id}`),
 };

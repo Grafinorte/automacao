@@ -78,6 +78,20 @@ export async function getConversations(req: Request, res: Response) {
   res.json(await waService.listConversations(status, filterPhoneNumberId));
 }
 
+export async function postReadAll(req: Request, res: Response) {
+  const requested = typeof req.body?.phoneNumberId === "string" && req.body.phoneNumberId !== "all" ? req.body.phoneNumberId : undefined;
+  let phoneNumberId = requested;
+  // Quem não é admin só marca as conversas do próprio número (mesma regra da lista)
+  if (req.user!.role !== "ADMIN") {
+    const dbUser = await import("../../db/prisma").then(m =>
+      m.prisma.user.findUnique({ where: { id: req.user!.sub }, select: { waPhoneNumberId: true } })
+    );
+    if (dbUser?.waPhoneNumberId) phoneNumberId = dbUser.waPhoneNumberId;
+  }
+  const count = await waService.markAllConversationsRead(phoneNumberId);
+  res.json({ count });
+}
+
 export async function getConversationMessages(req: Request, res: Response) {
   const { id } = req.params;
   const [conversation, messages] = await Promise.all([
@@ -160,52 +174,101 @@ export async function patchContact(req: Request, res: Response) {
 
 // ─── Automations ──────────────────────────────────────────────────────────────
 
-export async function getAutomations(_req: Request, res: Response) {
-  res.json(await waService.listAutomations());
+/** Número de WhatsApp atribuído ao usuário (null se não tiver) */
+async function assignedPhoneOf(userId: string): Promise<string | null> {
+  const { prisma } = await import("../../db/prisma");
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { waPhoneNumberId: true } });
+  return u?.waPhoneNumberId ?? null;
+}
+
+/**
+ * Admin gerencia todas as automações (gerais e de qualquer número).
+ * Quem tem número atribuído gerencia só as do próprio número; as gerais ficam só para leitura.
+ */
+async function canManageAutomation(req: Request, automationPhone: string | null): Promise<boolean> {
+  if (req.user!.role === "ADMIN") return true;
+  const mine = await assignedPhoneOf(req.user!.sub);
+  return !!mine && automationPhone === mine;
+}
+
+export async function getAutomations(req: Request, res: Response) {
+  if (req.user!.role === "ADMIN") {
+    res.json(await waService.listAutomations());
+    return;
+  }
+  const mine = await assignedPhoneOf(req.user!.sub);
+  res.json(await waService.listAutomations(mine ?? undefined));
 }
 
 export async function postAutomation(req: Request, res: Response) {
-  const { name, keyword, matchType, response, active } = req.body as {
+  const { name, keyword, matchType, response, active, phoneNumberId } = req.body as {
     name?: string;
     keyword?: string;
     matchType?: string;
     response?: string;
     active?: boolean;
+    phoneNumberId?: string | null;
   };
   if (!name || !keyword || !response) {
     res.status(400).json({ error: "Nome, keyword e resposta são obrigatórios." });
     return;
   }
-  res.status(201).json(await waService.createAutomation({ name, keyword, matchType, response, active }));
+  let targetPhone: string | null = phoneNumberId || null;
+  if (req.user!.role !== "ADMIN") {
+    const mine = await assignedPhoneOf(req.user!.sub);
+    if (!mine) {
+      res.status(403).json({ error: "Você precisa ter um número de WhatsApp atribuído para criar automações." });
+      return;
+    }
+    targetPhone = mine; // não-admin sempre cria para o próprio número
+  }
+  res.status(201).json(await waService.createAutomation({ name, keyword, matchType, response, active, phoneNumberId: targetPhone }));
 }
 
 export async function patchAutomation(req: Request, res: Response) {
   const { id } = req.params;
-  const { name, keyword, matchType, response, active } = req.body as {
+  const existing = await waService.getAutomation(id);
+  if (!existing) { res.status(404).json({ error: "Automação não encontrada." }); return; }
+  if (!(await canManageAutomation(req, existing.phoneNumberId))) {
+    res.status(403).json({ error: "Você só pode alterar automações do seu número." });
+    return;
+  }
+  const { name, keyword, matchType, response, active, phoneNumberId } = req.body as {
     name?: string;
     keyword?: string;
     matchType?: string;
     response?: string;
     active?: boolean;
+    phoneNumberId?: string | null;
   };
-  res.json(await waService.updateAutomation(id, { name, keyword, matchType, response, active }));
+  // Só o admin troca o número de uma automação
+  const phonePatch = req.user!.role === "ADMIN" && phoneNumberId !== undefined ? { phoneNumberId: phoneNumberId || null } : {};
+  res.json(await waService.updateAutomation(id, { name, keyword, matchType, response, active, ...phonePatch }));
 }
 
 export async function deleteAutomation(req: Request, res: Response) {
   const { id } = req.params;
+  const existing = await waService.getAutomation(id);
+  if (!existing) { res.status(404).json({ error: "Automação não encontrada." }); return; }
+  if (!(await canManageAutomation(req, existing.phoneNumberId))) {
+    res.status(403).json({ error: "Você só pode excluir automações do seu número." });
+    return;
+  }
   await waService.deleteAutomation(id);
   res.json({ ok: true });
 }
 
 // ─── Meta Message Templates ───────────────────────────────────────────────────
 
-export async function getMetaTemplates(_req: Request, res: Response) {
-  res.json(await waService.listMetaTemplates());
+export async function getMetaTemplates(req: Request, res: Response) {
+  // Cada número usa os templates da sua conta (WABA)
+  const phoneNumberId = typeof req.query.phoneNumberId === "string" && req.query.phoneNumberId !== "all" ? req.query.phoneNumberId : undefined;
+  res.json(await waService.listMetaTemplates(phoneNumberId));
 }
 
 export async function postMetaTemplate(req: Request, res: Response) {
-  const { name, category, language, bodyText, exampleValues } = req.body as {
-    name?: string; category?: string; language?: string; bodyText?: string; exampleValues?: string[];
+  const { name, category, language, bodyText, exampleValues, phoneNumberId } = req.body as {
+    name?: string; category?: string; language?: string; bodyText?: string; exampleValues?: string[]; phoneNumberId?: string;
   };
   if (!name || !bodyText) {
     res.status(400).json({ error: "Nome e texto são obrigatórios." });
@@ -217,7 +280,7 @@ export async function postMetaTemplate(req: Request, res: Response) {
     language: language ?? "pt_BR",
     bodyText,
     exampleValues,
-  });
+  }, phoneNumberId && phoneNumberId !== "all" ? phoneNumberId : undefined);
   res.status(201).json(result);
 }
 
@@ -277,8 +340,12 @@ export async function uploadMedia(req: Request, res: Response) {
     res.status(400).json({ error: "Arquivo é obrigatório." });
     return;
   }
-  const { mediaId, localFilename } = await waService.uploadMediaToMeta(file.buffer, file.mimetype, file.originalname);
-  res.json({ mediaId, mimetype: file.mimetype, filename: file.originalname, localFilename });
+  // Número que vai enviar a mídia (campo do formulário); sem ele, usa o principal
+  const phoneNumberId = typeof req.body?.phoneNumberId === "string" && req.body.phoneNumberId !== "all" ? req.body.phoneNumberId : undefined;
+  // O multer lê o nome como latin1: "Orçamento.pdf" viraria "OrÃ§amento.pdf" no celular do cliente
+  const filename = Buffer.from(file.originalname, "latin1").toString("utf8");
+  const { mediaId, localFilename } = await waService.uploadMediaToMeta(file.buffer, file.mimetype, filename, phoneNumberId);
+  res.json({ mediaId, mimetype: file.mimetype, filename, localFilename });
 }
 
 export async function postMediaMessage(req: Request, res: Response) {
@@ -300,22 +367,63 @@ export async function postMediaMessage(req: Request, res: Response) {
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
 
-export async function getLabels(_req: Request, res: Response) {
-  res.json(await waService.listLabels());
+// Cada número tem as suas etiquetas; etiquetas sem número são gerais (aparecem em todos).
+// Admin gerencia todas; quem tem número atribuído cria/exclui só as do próprio número.
+
+export async function getLabels(req: Request, res: Response) {
+  const requested = typeof req.query.phoneNumberId === "string" && req.query.phoneNumberId !== "all" ? req.query.phoneNumberId : undefined;
+  if (req.user!.role === "ADMIN") {
+    res.json(await waService.listLabels(requested));
+    return;
+  }
+  const mine = await assignedPhoneOf(req.user!.sub);
+  res.json(await waService.listLabels(mine ?? requested));
 }
 
 export async function postLabel(req: Request, res: Response) {
-  const { name, color } = req.body as { name?: string; color?: string };
+  const { name, color, phoneNumberId } = req.body as { name?: string; color?: string; phoneNumberId?: string | null };
   if (!name?.trim()) { res.status(400).json({ error: "Nome é obrigatório." }); return; }
-  res.status(201).json(await waService.createLabel(name.trim(), color ?? "#22c55e"));
+  let target: string | null = phoneNumberId || null;
+  if (req.user!.role !== "ADMIN") {
+    const mine = await assignedPhoneOf(req.user!.sub);
+    if (!mine) {
+      res.status(403).json({ error: "Você precisa ter um número de WhatsApp atribuído para criar etiquetas." });
+      return;
+    }
+    target = mine;
+  }
+  if (await waService.findLabelByName(name.trim(), target)) {
+    res.status(409).json({ error: "Já existe uma etiqueta com esse nome neste número." });
+    return;
+  }
+  res.status(201).json(await waService.createLabel(name.trim(), color ?? "#22c55e", target));
 }
 
 export async function deleteLabel(req: Request, res: Response) {
+  const label = await waService.getLabel(req.params.id);
+  if (!label) { res.status(404).json({ error: "Etiqueta não encontrada." }); return; }
+  if (req.user!.role !== "ADMIN") {
+    const mine = await assignedPhoneOf(req.user!.sub);
+    if (!mine || label.phoneNumberId !== mine) {
+      res.status(403).json({ error: "Você só pode excluir etiquetas do seu número." });
+      return;
+    }
+  }
   await waService.deleteLabel(req.params.id);
   res.json({ ok: true });
 }
 
 export async function postConversationLabel(req: Request, res: Response) {
+  const [label, conversation] = await Promise.all([
+    waService.getLabel(req.params.labelId),
+    waService.getConversation(req.params.id),
+  ]);
+  if (!label) { res.status(404).json({ error: "Etiqueta não encontrada." }); return; }
+  // Etiqueta de um número não pode ser usada em conversa de outro número
+  if (label.phoneNumberId && conversation.phoneNumberId && label.phoneNumberId !== conversation.phoneNumberId) {
+    res.status(400).json({ error: "Esta etiqueta é de outro número de WhatsApp." });
+    return;
+  }
   await waService.addLabelToConversation(req.params.id, req.params.labelId);
   res.json(await waService.getConversation(req.params.id));
 }
@@ -338,19 +446,25 @@ export async function getPhoneNumbers(_req: Request, res: Response) {
 }
 
 export async function postPhoneNumber(req: Request, res: Response) {
-  const { phoneNumberId, displayName, phone, accessToken } = req.body as {
-    phoneNumberId?: string; displayName?: string; phone?: string; accessToken?: string;
+  const { phoneNumberId, displayName, phone, accessToken, wabaId } = req.body as {
+    phoneNumberId?: string; displayName?: string; phone?: string; accessToken?: string; wabaId?: string;
   };
   if (!phoneNumberId || !displayName) {
     res.status(400).json({ error: "phoneNumberId e displayName são obrigatórios." });
     return;
   }
-  res.json(await waService.createPhoneNumber({ phoneNumberId, displayName, phone, accessToken }));
+  res.json(await waService.createPhoneNumber({ phoneNumberId, displayName, phone, accessToken, wabaId: wabaId?.trim() || undefined }));
 }
 
 export async function patchPhoneNumber(req: Request, res: Response) {
   const { id } = req.params;
-  res.json(await waService.updatePhoneNumber(id, req.body));
+  const { displayName, phone, accessToken, active, wabaId } = req.body as {
+    displayName?: string; phone?: string; accessToken?: string; active?: boolean; wabaId?: string;
+  };
+  res.json(await waService.updatePhoneNumber(id, {
+    displayName, phone, accessToken, active,
+    ...(wabaId !== undefined ? { wabaId: wabaId.trim() || null } : {}),
+  }));
 }
 
 export async function deletePhoneNumber(req: Request, res: Response) {

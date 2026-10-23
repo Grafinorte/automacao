@@ -24,6 +24,7 @@ whatsappRouter.get("/stats", asyncHandler(ctrl.getStats));
 // Conversations
 whatsappRouter.post("/conversations/start", asyncHandler(ctrl.startConversation));
 whatsappRouter.get("/conversations", asyncHandler(ctrl.getConversations));
+whatsappRouter.post("/conversations/read-all", asyncHandler(ctrl.postReadAll));
 whatsappRouter.get("/conversations/:id/messages", asyncHandler(ctrl.getConversationMessages));
 whatsappRouter.post("/conversations/:id/messages", asyncHandler(ctrl.postMessage));
 whatsappRouter.post("/conversations/:id/media", asyncHandler(ctrl.postMediaMessage));
@@ -42,8 +43,9 @@ whatsappRouter.patch("/contacts/:id", asyncHandler(ctrl.patchContact));
 
 // Labels
 whatsappRouter.get("/labels", asyncHandler(ctrl.getLabels));
-whatsappRouter.post("/labels", requireRole("ADMIN"), asyncHandler(ctrl.postLabel));
-whatsappRouter.delete("/labels/:id", requireRole("ADMIN"), asyncHandler(ctrl.deleteLabel));
+// Permissões por número ficam no controller (admin: todas; demais: só do próprio número)
+whatsappRouter.post("/labels", asyncHandler(ctrl.postLabel));
+whatsappRouter.delete("/labels/:id", asyncHandler(ctrl.deleteLabel));
 whatsappRouter.post("/conversations/:id/labels/:labelId", asyncHandler(ctrl.postConversationLabel));
 whatsappRouter.delete("/conversations/:id/labels/:labelId", asyncHandler(ctrl.deleteConversationLabel));
 
@@ -63,9 +65,10 @@ whatsappRouter.delete("/templates/:id", requireRole("ADMIN"), asyncHandler(ctrl.
 
 // Automations (ADMIN only)
 whatsappRouter.get("/automations", asyncHandler(ctrl.getAutomations));
-whatsappRouter.post("/automations", requireRole("ADMIN"), asyncHandler(ctrl.postAutomation));
-whatsappRouter.patch("/automations/:id", requireRole("ADMIN"), asyncHandler(ctrl.patchAutomation));
-whatsappRouter.delete("/automations/:id", requireRole("ADMIN"), asyncHandler(ctrl.deleteAutomation));
+// Permissões por número ficam no controller (admin: todas; demais: só do próprio número)
+whatsappRouter.post("/automations", asyncHandler(ctrl.postAutomation));
+whatsappRouter.patch("/automations/:id", asyncHandler(ctrl.patchAutomation));
+whatsappRouter.delete("/automations/:id", asyncHandler(ctrl.deleteAutomation));
 
 // Phone numbers (multi-number coexistence)
 whatsappRouter.get("/phone-numbers", asyncHandler(ctrl.getPhoneNumbers));

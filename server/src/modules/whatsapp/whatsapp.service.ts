@@ -49,10 +49,23 @@ async function getPhoneConfig(phoneNumberId?: string | null): Promise<{ phoneNum
   if (phoneNumberId) {
     const record = await prisma.waPhoneNumber.findUnique({ where: { phoneNumberId } });
     if (record) {
-      return { phoneNumberId: record.phoneNumberId, accessToken: record.accessToken ?? env.whatsappAccessToken };
+      // "||" e não "??": token salvo em branco também cai no token principal
+      return { phoneNumberId: record.phoneNumberId, accessToken: record.accessToken || env.whatsappAccessToken };
     }
   }
   return { phoneNumberId: env.whatsappPhoneNumberId, accessToken: env.whatsappAccessToken };
+}
+
+/** Conta (WABA) e token de um número — templates ficam na conta; sem configuração usa a principal */
+async function getWabaConfig(phoneNumberId?: string | null): Promise<{ wabaId: string; accessToken: string }> {
+  if (phoneNumberId) {
+    const record = await prisma.waPhoneNumber.findUnique({ where: { phoneNumberId } });
+    if (record?.wabaId) {
+      return { wabaId: record.wabaId, accessToken: record.accessToken || env.whatsappAccessToken };
+    }
+  }
+  if (!env.whatsappBusinessAccountId) throw new Error("WHATSAPP_BUSINESS_ACCOUNT_ID não configurado.");
+  return { wabaId: env.whatsappBusinessAccountId, accessToken: env.whatsappAccessToken };
 }
 
 export async function sendTextToMeta(to: string, text: string, contextMessageId?: string, phoneNumberId?: string): Promise<string> {
@@ -195,6 +208,11 @@ export function parseStatusUpdate(body: unknown): StatusUpdate | null {
     const status = s.status as string;
     if (!["sent", "delivered", "read", "failed"].includes(status)) return null;
 
+    if (status === "failed") {
+      // Motivo da falha (ex.: mídia inválida para este número, janela de 24h fechada) — fica no log do servidor
+      const e = (s.errors as Record<string, unknown>[] | undefined)?.[0];
+      console.warn(`[WhatsApp] Mensagem ${s.id} falhou para ${s.recipient_id}: ${e?.code ?? "?"} ${e?.title ?? ""} ${JSON.stringify(e?.error_data ?? "")}`);
+    }
     return { waMessageId: s.id as string, status: status as StatusUpdate["status"] };
   } catch {
     return null;
@@ -210,17 +228,19 @@ export async function handleStatusUpdate(update: StatusUpdate): Promise<void> {
 
 // ─── Media download from Meta ─────────────────────────────────────────────────
 
-async function downloadMediaFromMeta(mediaId: string, mimeType: string): Promise<string | null> {
+async function downloadMediaFromMeta(mediaId: string, mimeType: string, phoneNumberId?: string | null): Promise<string | null> {
   try {
+    // Token do número que recebeu a mídia (outra conta pode precisar de outro token)
+    const { accessToken } = await getPhoneConfig(phoneNumberId);
     const infoRes = await fetch(`${GRAPH_URL}/${mediaId}`, {
-      headers: { Authorization: `Bearer ${env.whatsappAccessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!infoRes.ok) return null;
     const info = await infoRes.json() as { url?: string };
     if (!info.url) return null;
 
     const binRes = await fetch(info.url, {
-      headers: { Authorization: `Bearer ${env.whatsappAccessToken}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!binRes.ok) return null;
 
@@ -254,7 +274,8 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
 
   if (contact) {
     // Fix phone format if stored in old format, and update name
-    const updates: { name: string; phone?: string } = { name: msg.name };
+    // Nome editado pela equipe (nameLocked) não é sobrescrito pelo nome do perfil do WhatsApp
+    const updates: { name?: string; phone?: string } = contact.nameLocked ? {} : { name: msg.name };
     if (contact.phone !== normalizedPhone) {
       const conflict = await prisma.waContact.findUnique({ where: { phone: normalizedPhone } });
       if (!conflict) updates.phone = normalizedPhone;
@@ -310,7 +331,7 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
   // Download media from Meta if applicable
   let savedMediaUrl: string | null = null;
   if (msg.mediaId && msg.mediaType && msg.mimeType) {
-    savedMediaUrl = await downloadMediaFromMeta(msg.mediaId, msg.mimeType);
+    savedMediaUrl = await downloadMediaFromMeta(msg.mediaId, msg.mimeType, msg.phoneNumberId);
   }
 
   // Resolve replyTo
@@ -352,13 +373,18 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
   broadcastWaMessage({ convId: conversation.id, contactName: contact.name, text: lastText, phoneNumberId: msg.phoneNumberId });
 
   // Run automations
-  await runAutomations(conversation.id, contact.phone, msg.text);
+  await runAutomations(conversation.id, contact.phone, msg.text, msg.phoneNumberId ?? conversation.phoneNumberId);
 }
 
 // ─── Automations ──────────────────────────────────────────────────────────────
 
-async function runAutomations(conversationId: string, phone: string, text: string): Promise<void> {
-  const automations = await prisma.waAutomation.findMany({ where: { active: true } });
+async function runAutomations(conversationId: string, phone: string, text: string, phoneNumberId?: string | null): Promise<void> {
+  // Automações do número que recebeu a mensagem + as gerais (sem número); as do número têm prioridade
+  const automations = await prisma.waAutomation.findMany({
+    where: { active: true, OR: [{ phoneNumberId: null }, ...(phoneNumberId ? [{ phoneNumberId }] : [])] },
+    orderBy: { createdAt: "asc" },
+  });
+  automations.sort((a, b) => Number(!a.phoneNumberId) - Number(!b.phoneNumberId));
   const lower = text.toLowerCase();
 
   for (const auto of automations) {
@@ -373,7 +399,8 @@ async function runAutomations(conversationId: string, phone: string, text: strin
     if (!matches) continue;
 
     try {
-      const waId = await sendTextToMeta(phone, auto.response);
+      // Responde pelo mesmo número que recebeu a mensagem (antes saía sempre pelo número principal)
+      const waId = await sendTextToMeta(phone, auto.response, undefined, phoneNumberId ?? undefined);
       await prisma.waMessage.create({
         data: {
           conversationId,
@@ -489,6 +516,19 @@ export async function markConversationRead(conversationId: string) {
     where: { id: conversationId },
     data: { unreadCount: 0 },
   });
+}
+
+/** Zera as não lidas de todas as conversas (de um número, quando informado). Só local — não envia nada ao cliente. */
+export async function markAllConversationsRead(phoneNumberId?: string) {
+  const result = await prisma.waConversation.updateMany({
+    where: {
+      unreadCount: { gt: 0 },
+      // Mesma regra da lista: conversas sem número definido aparecem em todos os números
+      ...(phoneNumberId ? { OR: [{ phoneNumberId }, { phoneNumberId: null }] } : {}),
+    },
+    data: { unreadCount: 0 },
+  });
+  return result.count;
 }
 
 export async function closeConversation(conversationId: string) {
@@ -628,17 +668,36 @@ export async function listContacts() {
 }
 
 export async function updateContact(id: string, data: { name?: string; notes?: string; crmContactId?: string | null }) {
-  return prisma.waContact.update({ where: { id }, data });
+  // Se a equipe mudou o nome, trava para o nome do perfil do WhatsApp não voltar na próxima mensagem
+  const current = await prisma.waContact.findUnique({ where: { id }, select: { name: true } });
+  const renamed = data.name !== undefined && data.name.trim() !== "" && data.name.trim() !== current?.name;
+  return prisma.waContact.update({
+    where: { id },
+    data: { ...data, ...(data.name !== undefined ? { name: data.name.trim() || current?.name } : {}), ...(renamed ? { nameLocked: true } : {}) },
+  });
 }
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
 
-export function listLabels() {
-  return prisma.waLabel.findMany({ orderBy: { name: "asc" } });
+/** Sem número: todas. Com número: as gerais + as daquele número. */
+export function listLabels(phoneNumberId?: string) {
+  return prisma.waLabel.findMany({
+    where: phoneNumberId ? { OR: [{ phoneNumberId: null }, { phoneNumberId }] } : undefined,
+    orderBy: { name: "asc" },
+  });
 }
 
-export function createLabel(name: string, color: string) {
-  return prisma.waLabel.create({ data: { name, color } });
+export function getLabel(id: string) {
+  return prisma.waLabel.findUnique({ where: { id } });
+}
+
+/** Já existe etiqueta com esse nome no mesmo número (ou geral)? */
+export function findLabelByName(name: string, phoneNumberId: string | null) {
+  return prisma.waLabel.findFirst({ where: { name, phoneNumberId } });
+}
+
+export function createLabel(name: string, color: string, phoneNumberId: string | null = null) {
+  return prisma.waLabel.create({ data: { name, color, phoneNumberId } });
 }
 
 export function deleteLabel(id: string) {
@@ -670,8 +729,16 @@ export function listAgents() {
 
 // ─── Automations CRUD ─────────────────────────────────────────────────────────
 
-export async function listAutomations() {
-  return prisma.waAutomation.findMany({ orderBy: { createdAt: "desc" } });
+/** Sem filtro: todas. Com número: as gerais + as daquele número. */
+export async function listAutomations(phoneNumberId?: string) {
+  return prisma.waAutomation.findMany({
+    where: phoneNumberId ? { OR: [{ phoneNumberId: null }, { phoneNumberId }] } : undefined,
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export function getAutomation(id: string) {
+  return prisma.waAutomation.findUnique({ where: { id } });
 }
 
 export async function createAutomation(data: {
@@ -680,13 +747,14 @@ export async function createAutomation(data: {
   matchType?: string;
   response: string;
   active?: boolean;
+  phoneNumberId?: string | null;
 }) {
   return prisma.waAutomation.create({ data });
 }
 
 export async function updateAutomation(
   id: string,
-  data: { name?: string; keyword?: string; matchType?: string; response?: string; active?: boolean }
+  data: { name?: string; keyword?: string; matchType?: string; response?: string; active?: boolean; phoneNumberId?: string | null }
 ) {
   return prisma.waAutomation.update({ where: { id }, data });
 }
@@ -697,11 +765,11 @@ export async function deleteAutomation(id: string) {
 
 // ─── Meta Message Templates ───────────────────────────────────────────────────
 
-export async function listMetaTemplates() {
-  const wabaId = env.whatsappBusinessAccountId;
-  if (!wabaId) throw new Error("WHATSAPP_BUSINESS_ACCOUNT_ID não configurado.");
+/** Templates da conta (WABA) do número informado; sem número = conta principal */
+export async function listMetaTemplates(phoneNumberId?: string | null) {
+  const { wabaId, accessToken } = await getWabaConfig(phoneNumberId);
   const url = `${GRAPH_URL}/${wabaId}/message_templates?fields=id,name,status,category,language,components&limit=50`;
-  const res = await metaHttp.get(url, { headers: { Authorization: `Bearer ${env.whatsappAccessToken}` } }).catch(e => { throw new Error(`WhatsApp API error: ${e.message}`); });
+  const res = await metaHttp.get(url, { headers: { Authorization: `Bearer ${accessToken}` } }).catch(e => { throw new Error(`WhatsApp API error: ${e.message}`); });
   return (res.data as { data: unknown[] }).data ?? [];
 }
 
@@ -711,9 +779,8 @@ export async function createMetaTemplate(payload: {
   language: string;
   bodyText: string;
   exampleValues?: string[];
-}) {
-  const wabaId = env.whatsappBusinessAccountId;
-  if (!wabaId) throw new Error("WHATSAPP_BUSINESS_ACCOUNT_ID não configurado.");
+}, phoneNumberId?: string | null) {
+  const { wabaId, accessToken } = await getWabaConfig(phoneNumberId);
 
   const body: Record<string, unknown> = {
     name: payload.name.toLowerCase().replace(/\s+/g, "_"),
@@ -731,7 +798,7 @@ export async function createMetaTemplate(payload: {
   };
 
   const url = `${GRAPH_URL}/${wabaId}/message_templates`;
-  return await metaPost(url, body, env.whatsappAccessToken);
+  return await metaPost(url, body, accessToken);
 }
 
 export async function sendTemplateMessage(
@@ -875,10 +942,15 @@ export async function deleteTemplate(id: string) {
 export async function uploadMediaToMeta(
   buffer: Buffer,
   mimetype: string,
-  filename: string
+  filename: string,
+  phoneNumberId?: string | null
 ): Promise<{ mediaId: string; localFilename: string }> {
-  const url = `${GRAPH_URL}/${env.whatsappPhoneNumberId}/media`;
+  // Sobe a mídia pelo mesmo número que vai enviar (antes ia sempre pelo principal)
+  const cfg = await getPhoneConfig(phoneNumberId);
+  const url = `${GRAPH_URL}/${cfg.phoneNumberId}/media`;
 
+  // A Meta recusa parâmetros no tipo ("audio/ogg; codecs=opus" → "audio/ogg")
+  mimetype = mimetype.split(";")[0].trim();
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
   form.append("type", mimetype);
@@ -886,7 +958,7 @@ export async function uploadMediaToMeta(
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${env.whatsappAccessToken}` },
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
     body: form,
   });
 
@@ -982,11 +1054,11 @@ export function listPhoneNumbers() {
   return prisma.waPhoneNumber.findMany({ orderBy: { createdAt: "asc" } });
 }
 
-export function createPhoneNumber(data: { phoneNumberId: string; displayName: string; phone?: string; accessToken?: string }) {
+export function createPhoneNumber(data: { phoneNumberId: string; displayName: string; phone?: string; accessToken?: string; wabaId?: string }) {
   return prisma.waPhoneNumber.create({ data });
 }
 
-export function updatePhoneNumber(id: string, data: { displayName?: string; phone?: string; accessToken?: string; active?: boolean }) {
+export function updatePhoneNumber(id: string, data: { displayName?: string; phone?: string; accessToken?: string; active?: boolean; wabaId?: string | null }) {
   return prisma.waPhoneNumber.update({ where: { id }, data });
 }
 

@@ -9,6 +9,7 @@ import { Avatar } from "../components/common/Avatar";
 import { useNavigate } from "react-router-dom";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
+import { startVoiceRecording, MicError, type VoiceRecording } from "../lib/voiceRecorder";
 
 // ─── Desktop (OS) notification ────────────────────────────────────────────────
 
@@ -830,12 +831,26 @@ function TemplatesManager({ onClose, onSelect }: { onClose: () => void; onSelect
 
 // ─── Automations panel ────────────────────────────────────────────────────────
 
-function AutomationsPanel() {
+function AutomationsPanel({ phoneNumbers, defaultPhoneNumberId }: {
+  phoneNumbers: import("../api/whatsapp").WaPhoneNumber[];
+  defaultPhoneNumberId: string | null;
+}) {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
+  // Admin gerencia todas; quem tem número atribuído gerencia só as do próprio número
+  const myPhone = user?.waPhoneNumberId ?? null;
+  const canCreate = isAdmin || !!myPhone;
+  const canManage = (auto: WaAutomation) => isAdmin || (!!myPhone && auto.phoneNumberId === myPhone);
+  const phoneLabel = (id: string | null) =>
+    id ? (phoneNumbers.find((p) => p.phoneNumberId === id)?.displayName ?? id) : "Todos os números";
+
+  const emptyForm = () => ({
+    name: "", keyword: "", matchType: "contains", response: "", active: true,
+    phoneNumberId: isAdmin ? (defaultPhoneNumberId ?? "") : (myPhone ?? ""),
+  });
   const [automations, setAutomations] = useState<WaAutomation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", keyword: "", matchType: "contains", response: "", active: true });
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
@@ -849,10 +864,12 @@ function AutomationsPanel() {
     if (!form.name || !form.keyword || !form.response) return;
     setSaving(true);
     try {
-      await whatsappApi.createAutomation(form);
-      setForm({ name: "", keyword: "", matchType: "contains", response: "", active: true });
+      await whatsappApi.createAutomation({ ...form, phoneNumberId: form.phoneNumberId || null });
+      setForm(emptyForm());
       setShowForm(false);
       load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Não foi possível salvar a automação.");
     } finally { setSaving(false); }
   }
 
@@ -876,15 +893,29 @@ function AutomationsPanel() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">Automações</h2>
           <p className="text-xs text-gray-500 mt-0.5">Respostas automáticas por palavra-chave</p>
         </div>
-        {isAdmin && (
+        {canCreate && (
           <button onClick={() => setShowForm((v) => !v)} className="rounded-lg bg-green-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-600">
             + Nova
           </button>
         )}
       </div>
 
-      {showForm && isAdmin && (
+      {showForm && canCreate && (
         <div className="px-6 py-4 border-b border-[rgba(0,0,0,0.06)] bg-gray-50 dark:bg-white/3 space-y-3">
+          {isAdmin ? (
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400">Vale para:</label>
+              <select value={form.phoneNumberId} onChange={(e) => setForm((f) => ({ ...f, phoneNumberId: e.target.value }))}
+                className="flex-1 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e2024] px-3 py-2 text-sm focus:outline-none focus:border-green-400">
+                <option value="">Todos os números</option>
+                {phoneNumbers.map((p) => <option key={p.phoneNumberId} value={p.phoneNumberId}>{p.displayName}</option>)}
+              </select>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Esta automação vai responder só no seu número: <b className="text-gray-700 dark:text-gray-200">{phoneLabel(myPhone)}</b>
+            </p>
+          )}
           <input placeholder="Nome da automação" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             className="w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e2024] px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
           <div className="flex gap-2">
@@ -926,15 +957,19 @@ function AutomationsPanel() {
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${auto.active ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-gray-100 text-gray-500 dark:bg-white/5"}`}>
                       {auto.active ? "Ativa" : "Inativa"}
                     </span>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${auto.phoneNumberId ? "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400"}`}
+                      title="Número em que esta automação responde">
+                      📱 {phoneLabel(auto.phoneNumberId)}
+                    </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                     <span className="font-medium text-gray-700 dark:text-gray-300">{matchLabels[auto.matchType] ?? auto.matchType}:</span> "{auto.keyword}"
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{auto.response}</p>
                 </div>
-                {isAdmin && (
+                {canManage(auto) && (
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <button onClick={() => toggleActive(auto)} className="rounded-lg p-1.5 text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20">
+                    <button onClick={() => toggleActive(auto)} title={auto.active ? "Pausar" : "Ativar"} className="rounded-lg p-1.5 text-gray-400 hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20">
                       {auto.active ? (
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -946,7 +981,7 @@ function AutomationsPanel() {
                         </svg>
                       )}
                     </button>
-                    <button onClick={() => handleDelete(auto.id)} className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                    <button onClick={() => handleDelete(auto.id)} title="Excluir" className="rounded-lg p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -964,7 +999,11 @@ function AutomationsPanel() {
 
 // ─── Meta templates panel ─────────────────────────────────────────────────────
 
-function MetaTemplatesPanel({ onSend }: { onSend: (convId: string) => void }) {
+function MetaTemplatesPanel({ onSend, phoneNumberId }: {
+  onSend: (convId: string) => void;
+  /** Número em atendimento — os templates vêm da conta (WABA) dele */
+  phoneNumberId?: string | null;
+}) {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   const [templates, setTemplates] = useState<MetaTemplate[]>([]);
@@ -975,8 +1014,9 @@ function MetaTemplatesPanel({ onSend }: { onSend: (convId: string) => void }) {
   const [sendModal, setSendModal] = useState<MetaTemplate | null>(null);
 
   const load = useCallback(() => {
-    whatsappApi.getMetaTemplates().then(setTemplates).catch(() => setTemplates([])).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    whatsappApi.getMetaTemplates(phoneNumberId).then(setTemplates).catch(() => setTemplates([])).finally(() => setLoading(false));
+  }, [phoneNumberId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -990,6 +1030,7 @@ function MetaTemplatesPanel({ onSend }: { onSend: (convId: string) => void }) {
         language: form.language,
         bodyText: form.bodyText,
         exampleValues: form.exampleValues ? form.exampleValues.split(",").map(s => s.trim()) : undefined,
+        phoneNumberId,
       });
       setForm({ name: "", category: "UTILITY", language: "pt_BR", bodyText: "", exampleValues: "" });
       setShowForm(false);
@@ -1099,14 +1140,16 @@ function MetaTemplatesPanel({ onSend }: { onSend: (convId: string) => void }) {
       </div>
 
       {sendModal && (
-        <SendTemplateModal template={sendModal} onClose={() => setSendModal(null)} onSent={(id) => { setSendModal(null); onSend(id); }} />
+        <SendTemplateModal template={sendModal} phoneNumberId={phoneNumberId} onClose={() => setSendModal(null)} onSent={(id) => { setSendModal(null); onSend(id); }} />
       )}
     </div>
   );
 }
 
-function SendTemplateModal({ template, onClose, onSent }: {
+function SendTemplateModal({ template, onClose, onSent, phoneNumberId }: {
   template: MetaTemplate; onClose: () => void; onSent: (convId: string) => void;
+  /** Número que envia o template (o da conta do template) */
+  phoneNumberId?: string | null;
 }) {
   const body = template.components.find(c => c.type === "BODY");
   const headerComp = template.components.find(c => c.type === "HEADER");
@@ -1134,7 +1177,7 @@ function SendTemplateModal({ template, onClose, onSent }: {
     setUploadingHeader(true);
     setError(null);
     try {
-      const { mediaId } = await whatsappApi.uploadMedia(file);
+      const { mediaId } = await whatsappApi.uploadMedia(file, phoneNumberId);
       setHeaderMediaId(mediaId);
       setHeaderFileName(file.name);
     } catch {
@@ -1153,6 +1196,7 @@ function SendTemplateModal({ template, onClose, onSent }: {
         templateName: template.name, language: template.language,
         variables: variables.filter(Boolean),
         ...(headerMediaType && headerMediaId ? { headerMediaUrl: headerMediaId, headerMediaType, headerFileName: headerFileName || undefined } : {}),
+        ...(phoneNumberId ? { phoneNumberId } : {}),
       });
       onSent(result.conversation.id);
     } catch (err) {
@@ -1258,7 +1302,8 @@ function NewConversationModal({ onClose, onCreated, initialPhone = "", initialNa
   const headerFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    whatsappApi.getMetaTemplates()
+    // Templates da conta do número que vai iniciar a conversa
+    whatsappApi.getMetaTemplates(phoneNumberId)
       .then(ts => {
         const approved = ts.filter(t => t.status === "APPROVED");
         setMetaTemplates(approved);
@@ -1266,7 +1311,7 @@ function NewConversationModal({ onClose, onCreated, initialPhone = "", initialNa
       })
       .catch(() => {})
       .finally(() => setLoadingTemplates(false));
-  }, []);
+  }, [phoneNumberId]);
 
   useEffect(() => {
     if (!selectedTemplate) { setVariables([]); setHeaderMediaId(""); setHeaderFileName(""); return; }
@@ -1281,7 +1326,7 @@ function NewConversationModal({ onClose, onCreated, initialPhone = "", initialNa
     setUploadingHeader(true);
     setError(null);
     try {
-      const { mediaId } = await whatsappApi.uploadMedia(file);
+      const { mediaId } = await whatsappApi.uploadMedia(file, phoneNumberId);
       setHeaderMediaId(mediaId);
       setHeaderFileName(file.name);
     } catch {
@@ -1502,35 +1547,57 @@ const LABEL_COLORS = [
 
 function LabelManager({
   labels,
+  phoneNumbers,
+  currentPhoneNumberId,
   onClose,
   onCreated,
   onDeleted,
 }: {
   labels: WaLabel[];
+  phoneNumbers: import("../api/whatsapp").WaPhoneNumber[];
+  /** Número em atendimento (null = visão de todos os números) */
+  currentPhoneNumberId: string | null;
   onClose: () => void;
   onCreated: (label: WaLabel) => void;
   onDeleted: (id: string) => void;
 }) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  // Admin gerencia todas; quem tem número atribuído cria/exclui só as do próprio número
+  const myPhone = user?.waPhoneNumberId ?? null;
+  const canCreate = isAdmin || !!myPhone;
+  const canDelete = (l: WaLabel) => isAdmin || (!!myPhone && l.phoneNumberId === myPhone);
+  const phoneLabel = (id: string | null | undefined) =>
+    id ? (phoneNumbers.find((p) => p.phoneNumberId === id)?.displayName ?? id) : "Todos os números";
+
   const [name, setName] = useState("");
   const [color, setColor] = useState(LABEL_COLORS[3]);
+  // Admin escolhe: só o número em atendimento ou etiqueta geral
+  const [scope, setScope] = useState<string>(isAdmin ? (currentPhoneNumberId ?? "") : (myPhone ?? ""));
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleCreate() {
-    if (!name.trim()) return;
-    setSaving(true);
+    if (!name.trim() || !canCreate) return;
+    setSaving(true); setError(null);
     try {
-      const created = await whatsappApi.createLabel({ name: name.trim(), color });
+      const created = await whatsappApi.createLabel({ name: name.trim(), color, phoneNumberId: scope || null });
       onCreated(created);
       setName("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível criar a etiqueta.");
     } finally { setSaving(false); }
   }
 
-  async function handleDelete(id: string) {
-    setDeletingId(id);
+  async function handleDelete(label: WaLabel) {
+    if (!confirm(`Excluir a etiqueta "${label.name}"? Ela sai de todas as conversas.`)) return;
+    setDeletingId(label.id); setError(null);
     try {
-      await whatsappApi.deleteLabel(id);
-      onDeleted(id);
+      await whatsappApi.deleteLabel(label.id);
+      onDeleted(label.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível excluir a etiqueta.");
     } finally { setDeletingId(null); }
   }
 
@@ -1555,24 +1622,40 @@ function LabelManager({
             labels.map((label) => (
               <div key={label.id} className="flex items-center gap-3 rounded-xl border border-[rgba(0,0,0,0.06)] px-3 py-2">
                 <span className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }} />
-                <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-100">{label.name}</span>
-                <button
-                  onClick={() => handleDelete(label.id)}
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">{label.name}</p>
+                  <p className="truncate text-[10.5px] text-gray-400">📱 {phoneLabel(label.phoneNumberId)}</p>
+                </div>
+                {canDelete(label) && <button
+                  onClick={() => handleDelete(label)}
                   disabled={deletingId === label.id}
+                  title="Excluir etiqueta"
                   className="text-gray-400 hover:text-red-500 disabled:opacity-40 transition-colors"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
-                </button>
+                </button>}
               </div>
             ))
           )}
         </div>
 
+        {error && <p className="mx-5 mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-900/20 dark:text-red-300">{error}</p>}
+
         {/* Create form */}
+        {canCreate ? (
         <div className="px-5 pb-5 border-t border-[rgba(0,0,0,0.06)] pt-4">
           <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">Nova etiqueta</p>
+          {isAdmin ? (
+            <select value={scope} onChange={(e) => setScope(e.target.value)} aria-label="Número da etiqueta"
+              className="mb-3 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2d32] px-3 py-2 text-sm focus:outline-none focus:border-green-400 dark:text-white">
+              {phoneNumbers.map((p) => <option key={p.phoneNumberId} value={p.phoneNumberId}>Só para: {p.displayName}</option>)}
+              <option value="">Todos os números (geral)</option>
+            </select>
+          ) : (
+            <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">Vai valer só no seu número: <b className="text-gray-700 dark:text-gray-200">{phoneLabel(myPhone)}</b></p>
+          )}
           <div className="flex gap-2 mb-3">
             {LABEL_COLORS.map((c) => (
               <button
@@ -1600,6 +1683,11 @@ function LabelManager({
             </button>
           </div>
         </div>
+        ) : (
+          <p className="px-5 pb-5 pt-4 border-t border-[rgba(0,0,0,0.06)] text-xs text-gray-500 dark:text-gray-400">
+            Para criar etiquetas, peça ao administrador para atribuir um número de WhatsApp ao seu usuário.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -2074,10 +2162,10 @@ function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
   onRefresh: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ phoneNumberId: "", displayName: "", phone: "", accessToken: "" });
+  const [form, setForm] = useState({ phoneNumberId: "", displayName: "", phone: "", accessToken: "", wabaId: "" });
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ displayName: "", phone: "", accessToken: "" });
+  const [editForm, setEditForm] = useState({ displayName: "", phone: "", accessToken: "", wabaId: "" });
 
   async function handleAdd() {
     if (!form.phoneNumberId || !form.displayName) return;
@@ -2088,8 +2176,9 @@ function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
         displayName: form.displayName,
         phone: form.phone || undefined,
         accessToken: form.accessToken || undefined,
+        wabaId: form.wabaId || undefined,
       });
-      setForm({ phoneNumberId: "", displayName: "", phone: "", accessToken: "" });
+      setForm({ phoneNumberId: "", displayName: "", phone: "", accessToken: "", wabaId: "" });
       setShowForm(false);
       onRefresh();
     } finally { setSaving(false); }
@@ -2102,6 +2191,7 @@ function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
         displayName: editForm.displayName,
         phone: editForm.phone || undefined,
         accessToken: editForm.accessToken || undefined,
+        wabaId: editForm.wabaId, // vazio = usa a conta principal
       });
       setEditId(null);
       onRefresh();
@@ -2156,6 +2246,10 @@ function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
                 <label className="block text-xs text-gray-500 mb-0.5">Token (se diferente do principal)</label>
                 <input placeholder="EAAx... (opcional)" value={form.accessToken} onChange={e => setForm(f => ({ ...f, accessToken: e.target.value }))} className={inputCls} type="password" />
               </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-gray-500 mb-0.5">ID da conta do WhatsApp (WABA) — se for de outra conta</label>
+                <input placeholder="Ex: 1473944291053586 (o waba_id). Vazio = conta principal" value={form.wabaId} onChange={e => setForm(f => ({ ...f, wabaId: e.target.value }))} className={inputCls} />
+              </div>
             </div>
             <div className="flex gap-2 justify-end pt-1">
               <button onClick={() => setShowForm(false)} className="text-sm text-gray-500 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5">Cancelar</button>
@@ -2182,6 +2276,10 @@ function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
                       <label className="block text-xs text-gray-500 mb-0.5">Token de acesso</label>
                       <input value={editForm.accessToken} onChange={e => setEditForm(f => ({ ...f, accessToken: e.target.value }))} className={inputCls} type="password" placeholder="Deixe em branco para usar o token principal" />
                     </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs text-gray-500 mb-0.5">ID da conta do WhatsApp (WABA)</label>
+                      <input value={editForm.wabaId} onChange={e => setEditForm(f => ({ ...f, wabaId: e.target.value }))} className={inputCls} placeholder="Vazio = conta principal (templates e envio de mídia)" />
+                    </div>
                   </div>
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setEditId(null)} className="text-sm text-gray-500 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10">Cancelar</button>
@@ -2196,14 +2294,14 @@ function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">{pn.displayName}</p>
                     <p className="text-xs text-gray-400">{pn.phone ?? pn.phoneNumberId}</p>
-                    <p className="text-[10px] text-gray-300 dark:text-gray-500 font-mono">ID: {pn.phoneNumberId}</p>
+                    <p className="text-[10px] text-gray-300 dark:text-gray-500 font-mono">ID: {pn.phoneNumberId}{pn.wabaId ? ` · Conta (WABA): ${pn.wabaId}` : " · Conta principal"}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button onClick={() => toggleActive(pn.id, !pn.active)}
                       className={`text-[11px] font-medium rounded-full px-2.5 py-0.5 ${pn.active ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "bg-gray-100 text-gray-500 dark:bg-white/10"}`}>
                       {pn.active ? "Ativo" : "Inativo"}
                     </button>
-                    <button onClick={() => { setEditId(pn.id); setEditForm({ displayName: pn.displayName, phone: pn.phone ?? "", accessToken: "" }); }}
+                    <button onClick={() => { setEditId(pn.id); setEditForm({ displayName: pn.displayName, phone: pn.phone ?? "", accessToken: "", wabaId: pn.wabaId ?? "" }); }}
                       className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/10">
                       Editar
                     </button>
@@ -2300,13 +2398,13 @@ export function WhatsAppPage() {
   const isFirstLoadRef = useRef(true);
   const activeConvIdRef = useRef<string | null>(null);
   const prevMsgCountRef = useRef(0);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingRef = useRef<VoiceRecording | null>(null);
+  // Se sair da conversa/tela gravando, libera o microfone
+  useEffect(() => () => recordingRef.current?.cancel(), []);
 
   // Load templates, labels, agents and phone numbers on mount
   useEffect(() => {
     whatsappApi.getTemplates().then(setTemplates).catch(() => {});
-    whatsappApi.getLabels().then(setLabels).catch(() => {});
     whatsappApi.getAgents().then(setAgents).catch(() => {});
     whatsappApi.getPhoneNumbers().then(setPhoneNumbers).catch(() => {});
     requestDesktopNotificationPermission();
@@ -2316,6 +2414,11 @@ export function WhatsAppPage() {
   useEffect(() => {
     setPhoneFilter(selectedPhoneNumberId ?? "all");
   }, [selectedPhoneNumberId]);
+
+  // Etiquetas: as gerais + as do número em atendimento (cada número tem as suas)
+  useEffect(() => {
+    whatsappApi.getLabels(phoneFilter).then(setLabels).catch(() => {});
+  }, [phoneFilter]);
 
   // When user's assigned phone loads, auto-select it (admins can still override)
   useEffect(() => {
@@ -2525,8 +2628,51 @@ export function WhatsAppPage() {
     return matchSearch && matchPhone && matchStatus && matchConv && matchAssign && matchLabel;
   });
 
+  // "Marcar todas como lidas" — vale para o número em atendimento (mesma regra de filtro da lista)
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const inPhoneView = (c: WaConversation) => phoneFilter === "all" || c.phoneNumberId === phoneFilter || !c.phoneNumberId;
+  const unreadInView = conversations.filter((c) => inPhoneView(c) && (c.unreadCount ?? 0) > 0).length;
+
+  async function markAllRead() {
+    if (unreadInView === 0 || markingAllRead) return;
+    if (!confirm(`Marcar ${unreadInView} conversa${unreadInView > 1 ? "s" : ""} como lida${unreadInView > 1 ? "s" : ""}?`)) return;
+    setMarkingAllRead(true);
+    try {
+      await whatsappApi.markAllRead(phoneFilter);
+      setConversations((cs) => cs.map((c) => (inPhoneView(c) ? { ...c, unreadCount: 0 } : c)));
+      loadConversations();
+    } catch {
+      alert("Não foi possível marcar as conversas como lidas.");
+    } finally {
+      setMarkingAllRead(false);
+    }
+  }
+
+  // Janela de 24h da Meta: mensagem livre só até 24h depois da última mensagem DO CLIENTE
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const lastInbound = useMemo(() => [...messages].reverse().find((m) => m.direction === "inbound"), [messages]);
+  const windowMsLeft = lastInbound ? new Date(lastInbound.createdAt).getTime() + 24 * 3600_000 - nowTick : null;
+  const windowClosed = windowMsLeft === null || windowMsLeft <= 0;
+  const windowClosingSoon = !windowClosed && (windowMsLeft ?? 0) < 3 * 3600_000;
+  const fmtSpan = (ms: number) => {
+    const min = Math.max(1, Math.round(Math.abs(ms) / 60_000));
+    if (min < 60) return `${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 48) return `${h}h${min % 60 ? ` ${min % 60}min` : ""}`;
+    return `${Math.floor(h / 24)} dias`;
+  };
+
   async function handleSend() {
     if (!activeConvId || sending || uploadingMedia) return;
+    // Janela fechada: a Meta recusa mensagem comum (nota interna pode)
+    if (!isNoteMode && windowClosed && !confirm(
+      "A janela de 24h desta conversa está fechada — a Meta não deve entregar esta mensagem.\n\n" +
+      "Chame o cliente pelo celular ou envie um template. Enviar mesmo assim?"
+    )) return;
     if (stagedFiles.length > 0) { await sendStagedFile(); return; }
     if (!replyText.trim()) return;
     setSending(true);
@@ -2600,7 +2746,8 @@ export function WhatsAppPage() {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const { mediaId, mimetype, localFilename, filename } = await whatsappApi.uploadMedia(file);
+        // Sobe pelo número da conversa (antes ia sempre pelo principal)
+        const { mediaId, mimetype, localFilename, filename } = await whatsappApi.uploadMedia(file, activeConv?.phoneNumberId);
         const msg = await whatsappApi.sendMediaMessage(activeConvId, {
           mediaId, mimetype, localFilename, filename,
           caption: i === 0 && caption ? caption : undefined,
@@ -2610,6 +2757,7 @@ export function WhatsAppPage() {
       loadConversations();
     } catch (err) {
       console.error("Erro ao enviar arquivo:", err);
+      alert(`O arquivo NÃO foi enviado ao cliente.\n\n${err instanceof Error ? err.message : ""}`.trim());
     } finally { setUploadingMedia(false); }
   }
 
@@ -2746,34 +2894,34 @@ export function WhatsAppPage() {
 
   async function startRecording() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
-        ? "audio/ogg;codecs=opus"
-        : "audio/webm";
-      const recorder = new MediaRecorder(stream, { mimeType });
-      audioChunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const ext = mimeType.includes("ogg") ? "ogg" : "webm";
-        const file = new File([blob], `audio.${ext}`, { type: mimeType });
-        stageFile(file);
-      };
-      recorder.start();
-      mediaRecorderRef.current = recorder;
+      recordingRef.current = await startVoiceRecording();
       setIsRecording(true);
-    } catch {
-      alert("Não foi possível acessar o microfone. Verifique as permissões do navegador.");
+    } catch (err) {
+      const kind = err instanceof MicError ? err.kind : "unknown";
+      alert(
+        kind === "insecure" ? "O microfone só funciona quando a plataforma é aberta por https (endereço seguro). Fale com o T.I."
+        : kind === "denied" ? "O navegador bloqueou o microfone. Clique no cadeado ao lado do endereço do site e permita o Microfone."
+        : kind === "notfound" ? "Nenhum microfone encontrado. Conecte um fone com microfone e tente de novo."
+        : kind === "busy" ? "O microfone está em uso por outro programa (Teams, Zoom...). Feche-o e tente de novo."
+        : "Não foi possível acessar o microfone. Verifique as permissões do navegador."
+      );
     }
   }
 
-  function stopRecording() {
-    mediaRecorderRef.current?.stop();
-    mediaRecorderRef.current = null;
+  async function stopRecording() {
+    const rec = recordingRef.current;
+    recordingRef.current = null;
     setIsRecording(false);
+    if (!rec) return;
+    try {
+      const file = await rec.stop();
+      if (file.type.includes("webm")) {
+        alert("Este navegador gravou em WebM, formato que o WhatsApp pode recusar. Prefira Chrome, Edge ou Firefox atualizados.");
+      }
+      stageFile(file);
+    } catch {
+      alert("Erro ao finalizar a gravação do áudio.");
+    }
   }
 
   // ── Phone selection screen — only shown to admins (or users without assigned number) ──
@@ -2911,13 +3059,13 @@ export function WhatsAppPage() {
       ) : tab === "automacoes" ? (
         <div className="flex-1 overflow-hidden px-8 pb-8">
           <div className="h-full rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white dark:bg-[#1c1e22] overflow-hidden">
-            <AutomationsPanel />
+            <AutomationsPanel phoneNumbers={phoneNumbers} defaultPhoneNumberId={selectedPhoneNumberId} />
           </div>
         </div>
       ) : tab === "templates" ? (
         <div className="flex-1 overflow-hidden px-8 pb-8">
           <div className="h-full rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white dark:bg-[#1c1e22] overflow-hidden">
-            <MetaTemplatesPanel onSend={(id) => { setActiveConvId(id); setTab("inbox"); loadConversations(); }} />
+            <MetaTemplatesPanel phoneNumberId={phoneFilter === "all" ? null : phoneFilter} onSend={(id) => { setActiveConvId(id); setTab("inbox"); loadConversations(); }} />
           </div>
         </div>
       ) : (
@@ -3027,6 +3175,15 @@ export function WhatsAppPage() {
                 {Notification.permission === "default" && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-400" />
                 )}
+              </button>
+              <button
+                onClick={markAllRead}
+                disabled={unreadInView === 0 || markingAllRead}
+                title={unreadInView > 0 ? `Marcar todas como lidas (${unreadInView} conversa${unreadInView > 1 ? "s" : ""})` : "Nenhuma conversa não lida"}
+                className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-green-600 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-white/10 transition-colors"
+              >
+                {/* Dois "vistos" (✓✓) */}
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2 13l4 4L16 7M10 15l2 2L22 7"/></svg>
               </button>
               <button onClick={() => setShowNewConv(true)} title="Nova conversa" className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
@@ -3181,8 +3338,12 @@ export function WhatsAppPage() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="text-xs text-gray-400">{activeConv?.contact.phone}</p>
                         {activeConv?.labels?.map(({ label }) => (
-                          <span key={label.id} className="rounded-full px-1.5 text-[9px] font-semibold text-white leading-4" style={{ backgroundColor: label.color }}>
+                          <span key={label.id} className="group/lbl inline-flex items-center gap-0.5 rounded-full pl-1.5 pr-0.5 text-[9px] font-semibold text-white leading-4" style={{ backgroundColor: label.color }}>
                             {label.name}
+                            <button type="button" onClick={() => toggleLabel(label.id)} title={`Tirar a etiqueta "${label.name}" desta conversa`}
+                              className="flex h-3.5 w-3.5 items-center justify-center rounded-full opacity-70 hover:bg-black/20 hover:opacity-100">
+                              <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
                           </span>
                         ))}
                       </div>
@@ -3480,6 +3641,35 @@ export function WhatsAppPage() {
                 {/* Reply area */}
                 {activeConv?.status === "open" && (
                   <div className="flex-shrink-0 border-t border-[rgba(0,0,0,0.06)] bg-white dark:bg-[#1c1e22]">
+                    {/* Janela de 24h da Meta */}
+                    {activeConv && windowClosed && (
+                      <div className="flex items-start gap-3 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200/70 dark:border-amber-800/40">
+                        <span className="text-base leading-5" aria-hidden>⏰</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                            {lastInbound
+                              ? `Janela de 24h fechada — o cliente não escreve há ${fmtSpan(nowTick - new Date(lastInbound.createdAt).getTime())}.`
+                              : "Janela de 24h fechada — o cliente ainda não escreveu por este número."}
+                          </p>
+                          <p className="text-[11px] text-amber-800 dark:text-amber-300">
+                            Mensagens comuns não serão entregues. Chame o cliente pelo celular ou envie um template; quando ele responder, a conversa volta a funcionar aqui.
+                          </p>
+                        </div>
+                        <button type="button"
+                          onClick={() => { setNewConvPrefill({ phone: activeConv.contact.phone, name: activeConv.contact.name }); setShowNewConv(true); }}
+                          className="flex-shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-600">
+                          Enviar template
+                        </button>
+                      </div>
+                    )}
+                    {activeConv && windowClosingSoon && (
+                      <div className="flex items-center gap-2 px-4 py-1.5 bg-yellow-50 dark:bg-yellow-900/15 border-b border-yellow-200/70 dark:border-yellow-800/30">
+                        <span className="text-sm" aria-hidden>⏳</span>
+                        <p className="text-[11px] text-yellow-900 dark:text-yellow-200">
+                          A janela de 24h fecha em <b>{fmtSpan(windowMsLeft ?? 0)}</b>. Depois disso, só com template ou chamando pelo celular.
+                        </p>
+                      </div>
+                    )}
                     {/* File size error banner */}
                     {attachError && (
                       <div className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-800/30">
@@ -3762,6 +3952,8 @@ export function WhatsAppPage() {
       {showLabelManager && (
         <LabelManager
           labels={labels}
+          phoneNumbers={phoneNumbers}
+          currentPhoneNumberId={phoneFilter === "all" ? null : phoneFilter}
           onClose={() => setShowLabelManager(false)}
           onCreated={(label) => setLabels((ls) => [...ls, label].sort((a, b) => a.name.localeCompare(b.name)))}
           onDeleted={(id) => {
