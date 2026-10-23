@@ -24,7 +24,7 @@ const TYPE_ICON: Record<string, string> = {
   service_done: "🏁",
 };
 
-export function Header() {
+export function Header({ sidebarOpen, onToggleSidebar }: { sidebarOpen?: boolean; onToggleSidebar?: () => void } = {}) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
@@ -55,6 +55,22 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 flex h-14 md:h-20 items-center justify-between border-b border-[rgba(199,198,202,0.3)] bg-white/80 px-4 md:px-10 backdrop-blur-md dark:bg-[#14161a]/90 dark:border-white/8">
       {/* Logo */}
       <div className="flex items-center gap-4">
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="-ml-2 hidden h-9 w-9 items-center justify-center rounded-lg text-[#46464a] transition-colors hover:bg-[#f3f3f5] md:flex dark:text-[#a0a0a4] dark:hover:bg-[#222426]"
+            title={sidebarOpen ? "Esconder menu lateral" : "Mostrar menu lateral"}
+            aria-label={sidebarOpen ? "Esconder menu lateral" : "Mostrar menu lateral"}
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+              {sidebarOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.5h16.5v15H3.75zM9 4.5v15M15.75 9.75 13.5 12l2.25 2.25" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              )}
+            </svg>
+          </button>
+        )}
         <img
           src={theme === "dark" ? "/assets/logo-white.png" : "/assets/logo-full.png"}
           alt="Grafinorte"
