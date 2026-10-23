@@ -19,28 +19,43 @@ function canDelete(role: string, userId: string, svc: ServiceOrder) {
   return DELETE_ROLES.includes(role) || svc.createdByUserId === userId;
 }
 function canEdit(role: string, userId: string, svc: ServiceOrder) {
+  if (svc.status === "refused") return svc.createdByUserId === userId || WRITE_ROLES.includes(role);
   return (WRITE_ROLES.includes(role) || svc.createdByUserId === userId) && svc.status === "open";
+}
+const REFUSE_ROLES = ["ADMIN", "PCP", "DESIGN", "ARTE", "ARTE_FINAL"];
+function canRefuse(role: string) { return REFUSE_ROLES.includes(role); }
+// Mesma regra do servidor: recusados podem ser reabertos também pela arte, PCP e pelo criador
+function canReopen(role: string, userId: string, svc: ServiceOrder) {
+  if (svc.status === "refused") {
+    return WRITE_ROLES.includes(role) || WORKFLOW_ROLES.includes(role) || role === "PCP" || svc.createdByUserId === userId;
+  }
+  return WRITE_ROLES.includes(role);
+}
+
+// Asterisco vermelho de campo obrigatório
+function Req() {
+  return <span className="ml-0.5 text-red-500">*</span>;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Section = "dashboard" | "servicos" | "logs" | "mockup" | "admin";
-type StatusTab = "open" | "development" | "done" | "deleted";
+type StatusTab = "open" | "development" | "done" | "deleted" | "refused";
 type Period = "today" | "7d" | "30d" | "week" | "month" | "year" | "max";
 interface PendingFile { name: string; dataUrl: string; }
-interface ItemDraft { name: string; rollSizes: string[]; notes: string; rollInput: string; pendingFiles: PendingFile[]; existingAttachments: string[]; }
+interface ItemDraft { name: string; rollSizes: string[]; reamSizes: string[]; notes: string; rollInput: string; reamInput: string; pendingFiles: PendingFile[]; existingAttachments: string[]; }
 interface FormState {
-  name: string; type: string; orderDate: string;
+  name: string; type: string; machine: string; orderDate: string;
   seller: string; requester: string; clientPhone: string; items: ItemDraft[];
 }
 function emptyForm(userName?: string): FormState {
   return {
-    name: "", type: "Criação de Faca",
+    name: "", type: "Criação de Faca", machine: "",
     orderDate: new Date().toISOString().slice(0, 10),
     seller: "", requester: userName ?? "", clientPhone: "", items: [],
   };
 }
 function emptyItem(): ItemDraft {
-  return { name: "", rollSizes: [], notes: "", rollInput: "", pendingFiles: [], existingAttachments: [] };
+  return { name: "", rollSizes: [], reamSizes: [], notes: "", rollInput: "", reamInput: "", pendingFiles: [], existingAttachments: [] };
 }
 
 // ─── Urgency helpers ──────────────────────────────────────────────────────────
@@ -152,6 +167,9 @@ function LogBadge({ action }: { action: string }) {
   let label = action;
   let cls = "bg-[#f3f3f5] text-[#46464a] dark:bg-[#222426] dark:text-[#a0a0a4]";
   if (a.includes("created") || a === "created") { label = "Criação"; cls = "bg-[#f3f3f5] text-[#46464a] dark:bg-[#222426] dark:text-[#a0a0a4]"; }
+  else if (a === "transfer") { label = "Passado"; cls = "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300"; }
+  else if (a.includes("refused")) { label = "Recusa"; cls = "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300"; }
+  else if (a === "status:open") { label = "Reabertura"; cls = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"; }
   else if (a.includes("development")) { label = "Desenvolvimento"; cls = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"; }
   else if (a.includes("done")) { label = "Conclusão"; cls = "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"; }
   else if (a.includes("attachment") || a.includes("upload")) { label = "Anexo"; cls = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"; }
@@ -207,16 +225,16 @@ const DragHandleIcon = () => (
 );
 
 // ─── SERVICE MODAL ────────────────────────────────────────────────────────────
-function ServiceModal({ initial, onClose, onSave, userName, isDuplicate }: {
+function ServiceModal({ initial, onClose, onSave, userName, isDuplicate, isEdit }: {
   initial: ServiceOrder | null; onClose: () => void;
-  onSave: (form: FormState) => Promise<void>; userName: string; isDuplicate?: boolean;
+  onSave: (form: FormState) => Promise<void>; userName: string; isDuplicate?: boolean; isEdit?: boolean;
 }) {
   const [form, setForm] = useState<FormState>(() => {
     if (!initial) return emptyForm(userName);
     return {
-      name: initial.name, type: initial.type, orderDate: initial.orderDate,
+      name: initial.name, type: initial.type, machine: initial.machine ?? "", orderDate: initial.orderDate,
       seller: initial.seller, requester: initial.requester, clientPhone: initial.clientPhone ?? "",
-      items: initial.items.map((it) => ({ name: it.name, rollSizes: [...it.rollSizes], notes: it.notes, rollInput: "", pendingFiles: [], existingAttachments: [...it.attachments] })),
+      items: initial.items.map((it) => ({ name: it.name, rollSizes: [...it.rollSizes], reamSizes: [...(it.reamSizes ?? [])], notes: it.notes, rollInput: "", reamInput: "", pendingFiles: [], existingAttachments: [...it.attachments] })),
     };
   });
   const [saving, setSaving] = useState(false);
@@ -228,13 +246,38 @@ function ServiceModal({ initial, onClose, onSave, userName, isDuplicate }: {
     const val = form.items[idx].rollInput.trim(); if (!val) return;
     setItem(idx, { rollSizes: [...form.items[idx].rollSizes, val], rollInput: "" });
   }
+  function addReamSize(idx: number) {
+    const val = form.items[idx].reamInput.trim(); if (!val) return;
+    setItem(idx, { reamSizes: [...form.items[idx].reamSizes, val], reamInput: "" });
+  }
+
+  const [triedSubmit, setTriedSubmit] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const missing = { name: !form.name.trim(), type: !form.type, machine: !form.machine };
+  const isValid = !missing.name && !missing.type && !missing.machine;
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); if (!form.name.trim()) return;
-    setSaving(true); try { await onSave(form); } finally { setSaving(false); }
+    e.preventDefault();
+    setTriedSubmit(true);
+    if (!isValid) return;
+    // Tamanho/formato digitado mas não "adicionado" também entra (antes era descartado ao salvar)
+    const toSave: FormState = {
+      ...form,
+      items: form.items.map((it) => ({
+        ...it,
+        rollSizes: it.rollInput.trim() ? [...it.rollSizes, it.rollInput.trim()] : it.rollSizes,
+        reamSizes: it.reamInput.trim() ? [...it.reamSizes, it.reamInput.trim()] : it.reamSizes,
+        rollInput: "", reamInput: "",
+      })),
+    };
+    setSaving(true); setSaveError(null);
+    try { await onSave(toSave); }
+    catch (err) { setSaveError(err instanceof Error ? err.message : "Não foi possível salvar o serviço"); }
+    finally { setSaving(false); }
   }
 
   const inputCls = "w-full rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-sm text-[#1a1c1d] outline-none focus:border-[#005cba] focus:ring-2 focus:ring-[#005cba]/10 dark:bg-[#23252a] dark:text-white dark:border-white/10";
+  const errCls = (bad: boolean) => (triedSubmit && bad ? " !border-red-500 ring-2 ring-red-500/15" : "");
   const labelCls = "block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-1";
 
   return (
@@ -248,17 +291,31 @@ function ServiceModal({ initial, onClose, onSave, userName, isDuplicate }: {
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {isEdit && initial?.status === "refused" && (
+              <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 dark:border-orange-900/50 dark:bg-orange-900/20">
+                <p className="text-[12px] font-semibold text-orange-700 dark:text-orange-300">Motivo da recusa</p>
+                <p className="mt-0.5 whitespace-pre-wrap text-[13px] text-orange-900 dark:text-orange-200">{initial.refusalReason || "Não informado"}</p>
+                <p className="mt-1.5 text-[11px] text-orange-700/80 dark:text-orange-300/80">Ao salvar, o serviço volta para a fila de Abertos.</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Nome do serviço *</label>
+                <label className={labelCls}>Nome do serviço<Req /></label>
                 <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="Ex.: Pedido do cliente Alfa" className={inputCls} autoFocus />
+                  placeholder="Ex.: Pedido do cliente Alfa" className={inputCls + errCls(missing.name)} autoFocus />
               </div>
               <div>
-                <label className={labelCls}>Tipo de serviço</label>
-                <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className={inputCls}>
+                <label className={labelCls}>Tipo de serviço<Req /></label>
+                <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className={inputCls + errCls(missing.type)}>
                   <option value="">Selecione</option>
                   {["Criação de Faca", "Mockup", "Outros"].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Máquina<Req /></label>
+                <select value={form.machine} onChange={(e) => setForm((f) => ({ ...f, machine: e.target.value }))} className={inputCls + errCls(missing.machine)}>
+                  <option value="">Selecione</option>
+                  {["KOMORI", "SM", "DIGITAL"].map((m) => <option key={m}>{m}</option>)}
                 </select>
               </div>
               <div>
@@ -340,6 +397,34 @@ function ServiceModal({ initial, onClose, onSave, userName, isDuplicate }: {
                             </button>
                           </div>
                         </div>
+                        {/* Formato em Resma */}
+                        <div>
+                          <div className="flex items-center gap-1 mb-1">
+                            <label className="text-[11px] font-semibold text-[#77767b]">Formato em Resma</label>
+                          </div>
+                          {item.reamSizes.map((r, rIdx) => (
+                            <div key={rIdx} className="flex items-center gap-1.5 mb-1">
+                              <input value={r} onChange={(e) => {
+                                const updated = [...item.reamSizes]; updated[rIdx] = e.target.value;
+                                setItem(idx, { reamSizes: updated });
+                              }} className="flex-1 rounded-lg border border-[rgba(199,198,202,0.3)] bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-[#005cba] dark:bg-[#1c1e22] dark:text-white dark:border-white/10" />
+                              <button type="button" onClick={() => setItem(idx, { reamSizes: item.reamSizes.filter((_, i) => i !== rIdx) })}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg border border-[rgba(199,198,202,0.3)] text-[#77767b] hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20">
+                                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                              </button>
+                            </div>
+                          ))}
+                          <div className="flex gap-1.5 mt-1">
+                            <input placeholder="Ex.: 450×640 mm" value={item.reamInput}
+                              onChange={(e) => setItem(idx, { reamInput: e.target.value })}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addReamSize(idx); } }}
+                              className="flex-1 rounded-lg border border-[rgba(199,198,202,0.3)] bg-white px-2.5 py-1.5 text-[12px] outline-none focus:border-[#005cba] dark:bg-[#1c1e22] dark:text-white dark:border-white/10" />
+                            <button type="button" onClick={() => addReamSize(idx)}
+                              className="rounded-lg border border-[rgba(199,198,202,0.3)] px-3 py-1.5 text-[11px] font-semibold text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-[#222426]">
+                              + Adicionar formato
+                            </button>
+                          </div>
+                        </div>
                         {/* Observações */}
                         <div>
                           <label className="block text-[11px] font-semibold text-[#77767b] mb-1">Observações</label>
@@ -418,16 +503,22 @@ function ServiceModal({ initial, onClose, onSave, userName, isDuplicate }: {
               </button>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-[rgba(0,0,0,0.06)] pt-4 dark:border-white/8">
+            <div className="flex items-center justify-end gap-2 border-t border-[rgba(0,0,0,0.06)] pt-4 dark:border-white/8">
+              {triedSubmit && !isValid && (
+                <p className="mr-auto text-[12px] font-medium text-red-600 dark:text-red-400">
+                  Preencha os campos obrigatórios marcados com <span className="font-bold">*</span>
+                </p>
+              )}
+              {saveError && <p className="mr-auto text-[12px] font-medium text-red-600 dark:text-red-400">{saveError}</p>}
               <button type="button" onClick={onClose}
                 className="flex items-center gap-1.5 rounded-xl border border-[rgba(199,198,202,0.5)] px-4 py-2 text-sm text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-[#222426]">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
                 Cancelar
               </button>
-              <button type="submit" disabled={saving || !form.name.trim()}
-                className="flex items-center gap-1.5 rounded-xl bg-[#030304] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a1c1d] disabled:opacity-50 dark:bg-white dark:text-[#030304]">
+              <button type="submit" disabled={saving}
+                className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">
                 <CheckIcon />
-                {saving ? "Salvando..." : "Salvar serviço"}
+                {saving ? "Salvando..." : isEdit && initial?.status === "refused" ? "Salvar e reenviar" : "Salvar serviço"}
               </button>
             </div>
           </form>
@@ -438,43 +529,57 @@ function ServiceModal({ initial, onClose, onSave, userName, isDuplicate }: {
 }
 
 // ─── START DEV MODAL ──────────────────────────────────────────────────────────
-function StartDevModal({ svc, users, defaultDevUserId, onClose, onConfirm }: {
+function StartDevModal({ svc, users, defaultDevUserId, onClose, onConfirm, transfer }: {
   svc: ServiceOrder; users: { id: string; name: string; role?: string }[];
   defaultDevUserId?: string;
   onClose: () => void; onConfirm: (devUserId: string) => Promise<void>;
+  /** Passar um serviço em desenvolvimento para outro desenvolvedor */
+  transfer?: boolean;
 }) {
+  const options = transfer ? users.filter((u) => u.id !== svc.developerUserId) : users;
   const [devUserId, setDevUserId] = useState(() => {
+    if (transfer) return "";
     if (svc.developerUserId) return svc.developerUserId;
     const inList = users.some((u) => u.id === defaultDevUserId);
     return inList ? (defaultDevUserId ?? "") : "";
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); if (!devUserId) return;
-    setSaving(true); try { await onConfirm(devUserId); } finally { setSaving(false); }
+    setSaving(true); setError(null);
+    try { await onConfirm(devUserId); }
+    catch (err) { setError(err instanceof Error ? err.message : "Não foi possível salvar"); }
+    finally { setSaving(false); }
   }
   const inputCls = "w-full rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-sm outline-none focus:border-[#005cba] dark:bg-[#23252a] dark:text-white dark:border-white/10";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl dark:bg-[#1c1e22]">
         <div className="border-b border-[rgba(0,0,0,0.06)] px-6 py-4 dark:border-white/8">
-          <h2 className="text-[16px] font-semibold dark:text-white">Iniciar Desenvolvimento</h2>
+          <h2 className="text-[16px] font-semibold dark:text-white">{transfer ? "Passar para outro desenvolvedor" : "Iniciar Desenvolvimento"}</h2>
           <p className="mt-0.5 text-[12px] text-[#77767b]">#{String(svc.serviceNumber).padStart(4, "0")} — {svc.name}</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+          {transfer && (
+            <p className="text-[12px] text-[#46464a] dark:text-[#a0a0a4]">
+              Hoje com: <span className="font-semibold">{svc.developerUser?.name ?? "—"}</span>. O novo responsável recebe um aviso e a troca fica no histórico.
+            </p>
+          )}
           <div>
-            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-1">Desenvolvedor *</label>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-1">{transfer ? "Novo desenvolvedor" : "Desenvolvedor"}<Req /></label>
             <select value={devUserId} onChange={(e) => setDevUserId(e.target.value)} className={inputCls}>
               <option value="">Selecione...</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {options.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
+          {error && <p className="text-[12px] font-medium text-red-600 dark:text-red-400">{error}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onClose}
               className="rounded-xl border border-[rgba(199,198,202,0.5)] px-4 py-2 text-sm text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-[#222426]">Cancelar</button>
             <button type="submit" disabled={saving || !devUserId}
               className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50">
-              {saving ? "Salvando..." : "Iniciar"}
+              {saving ? "Salvando..." : transfer ? "Passar" : "Iniciar"}
             </button>
           </div>
         </form>
@@ -729,6 +834,44 @@ function DeleteModal({ svc, onClose, onConfirm }: {
   );
 }
 
+// ─── REFUSE MODAL ─────────────────────────────────────────────────────────────
+function RefuseModal({ svc, onClose, onConfirm }: {
+  svc: ServiceOrder; onClose: () => void; onConfirm: (reason: string) => Promise<void>;
+}) {
+  const [reason, setReason] = useState(""); const [saving, setSaving] = useState(false);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault(); if (!reason.trim()) return;
+    setSaving(true); try { await onConfirm(reason); } finally { setSaving(false); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl dark:bg-[#1c1e22]">
+        <div className="border-b border-[rgba(0,0,0,0.06)] px-6 py-4 dark:border-white/8">
+          <h2 className="text-[16px] font-semibold text-orange-600 dark:text-orange-400">Recusar Serviço</h2>
+          <p className="mt-0.5 text-[12px] text-[#77767b]">#{String(svc.serviceNumber).padStart(4, "0")} — {svc.name}</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] mb-1">Motivo da recusa<Req /></label>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={4}
+              placeholder="Descreva o motivo da recusa para o criador do pedido..."
+              className="w-full rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-sm outline-none focus:border-orange-500 resize-none dark:bg-[#23252a] dark:text-white dark:border-white/10" />
+          </div>
+          <p className="text-[11px] text-[#77767b]">O criador será notificado e poderá editar o pedido para reenviar.</p>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={onClose}
+              className="rounded-xl border border-[rgba(199,198,202,0.5)] px-4 py-2 text-sm text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-[#222426]">Cancelar</button>
+            <button type="submit" disabled={saving || !reason.trim()}
+              className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50">
+              {saving ? "Recusando..." : "Confirmar recusa"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── UPLOAD MODAL ─────────────────────────────────────────────────────────────
 function UploadModal({ svc, onClose, onUpload }: {
   svc: ServiceOrder; onClose: () => void;
@@ -782,9 +925,12 @@ function UploadModal({ svc, onClose, onUpload }: {
 }
 
 // ─── SERVICE DETAIL MODAL ────────────────────────────────────────────────────
-function ServiceDetailModal({ svc, logs, onClose }: {
+function ServiceDetailModal({ svc, logs, onClose, onEdit, onReopen }: {
   svc: ServiceOrder; logs: ServiceLog[]; onClose: () => void;
+  /** Presentes só quando o usuário tem permissão */
+  onEdit?: () => void; onReopen?: () => Promise<void>;
 }) {
+  const [reopening, setReopening] = useState(false);
   const svcLogs = logs.filter((l) => l.serviceOrderId === svc.id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -793,13 +939,14 @@ function ServiceDetailModal({ svc, logs, onClose }: {
   }
 
   const statusLabels: Record<string, string> = {
-    open: "Aberto", development: "Em desenvolvimento", done: "Concluído", deleted: "Excluído",
+    open: "Aberto", development: "Em desenvolvimento", done: "Concluído", deleted: "Excluído", refused: "Recusado",
   };
   const statusColors: Record<string, string> = {
     open: "text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300",
     development: "text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300",
     done: "text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300",
     deleted: "text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-300",
+    refused: "text-orange-600 bg-orange-50 dark:bg-orange-900/30 dark:text-orange-300",
   };
 
   return (
@@ -813,18 +960,41 @@ function ServiceDetailModal({ svc, logs, onClose }: {
               {" · "}{svc.name}
             </h2>
           </div>
-          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-[#77767b] hover:bg-[#f3f3f5] dark:hover:bg-[#222426]">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <button onClick={onEdit}
+                className="flex items-center gap-1.5 rounded-lg border border-[rgba(199,198,202,0.5)] px-3 py-1.5 text-[12px] font-semibold text-[#1a1c1d] hover:bg-[#f3f3f5] dark:border-white/10 dark:text-white dark:hover:bg-[#222426]">
+                <PencilIcon />
+                {svc.status === "refused" ? "Editar e reenviar" : "Editar"}
+              </button>
+            )}
+            {onReopen && (
+              <button disabled={reopening}
+                onClick={async () => { setReopening(true); try { await onReopen(); } finally { setReopening(false); } }}
+                className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-1.5 text-[12px] font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300">
+                {reopening ? "Reabrindo..." : "Reabrir"}
+              </button>
+            )}
+            <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-[#77767b] hover:bg-[#f3f3f5] dark:hover:bg-[#222426]">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {svc.status === "refused" && (
+            <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 dark:border-orange-900/50 dark:bg-orange-900/20">
+              <p className="text-[12px] font-semibold text-orange-700 dark:text-orange-300">Motivo da recusa</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-[13px] text-orange-900 dark:text-orange-200">{svc.refusalReason || "Não informado"}</p>
+            </div>
+          )}
           {/* Metadata grid */}
           <div className="grid grid-cols-3 gap-0 rounded-xl border border-[rgba(199,198,202,0.3)] overflow-hidden dark:border-white/8">
             {[
               { label: "Status", value: <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusColors[svc.status]}`}>{statusLabels[svc.status]}</span> },
-              { label: "Tipo", value: svc.type },
+              { label: "Tipo", value: svc.type || "—" },
+              { label: "Máquina", value: svc.machine || "—" },
               { label: "Data do pedido", value: fmtDate(svc.orderDate) },
               { label: "Cadastro", value: fmtDate(svc.createdAt) },
               { label: "Solicitante", value: svc.requester || "—" },
@@ -1135,9 +1305,10 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
     | { type: "detail"; svc: ServiceOrder }
     | { type: "edit"; svc: ServiceOrder }
     | { type: "duplicate"; svc: ServiceOrder }
-    | { type: "startDev"; svc: ServiceOrder }
+    | { type: "transfer"; svc: ServiceOrder }
     | { type: "complete"; svc: ServiceOrder }
     | { type: "delete"; svc: ServiceOrder }
+    | { type: "refuse"; svc: ServiceOrder }
     | { type: "upload"; svc: ServiceOrder }
     | null>(null);
 
@@ -1154,6 +1325,7 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
     { key: "development", label: "Desenvolvimento", color: { border: "border-amber-500",   text: "text-amber-600 dark:text-amber-400",  activeBadge: "bg-amber-500 text-white",                                     inactiveBadge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300" } },
     { key: "done",        label: "Concluídos",      color: { border: "border-emerald-500", text: "text-emerald-600 dark:text-emerald-400", activeBadge: "bg-emerald-500 text-white",                                 inactiveBadge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" } },
     { key: "deleted",     label: "Deletados",       color: { border: "border-red-400",     text: "text-red-500 dark:text-red-400",      activeBadge: "bg-red-400 text-white",                                       inactiveBadge: "bg-red-100 text-red-500 dark:bg-red-900/40 dark:text-red-300" } },
+    { key: "refused",     label: "Recusados",       color: { border: "border-orange-400",  text: "text-orange-600 dark:text-orange-400", activeBadge: "bg-orange-500 text-white",                                     inactiveBadge: "bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300" } },
   ];
 
   const filtered = services
@@ -1161,7 +1333,10 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
     .filter((s) => !search || s.name.toLowerCase().includes(search.toLowerCase()) || String(s.serviceNumber).includes(search));
 
   const sorted = [...filtered].sort((a, b) =>
-    tab === "open" ? ((a.queuePosition ?? 999) - (b.queuePosition ?? 999)) : (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    tab === "open" ? ((a.queuePosition ?? 999) - (b.queuePosition ?? 999))
+    // Concluídos: os terminados por último primeiro
+    : tab === "done" ? (new Date(b.completedAt ?? b.createdAt).getTime() - new Date(a.completedAt ?? a.createdAt).getTime())
+    : (new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   );
 
   const thCls = "px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-[#77767b]";
@@ -1169,9 +1344,9 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
 
   async function handleDuplicate(form: FormState) {
     await servicesApi.create({
-      name: form.name, type: form.type, orderDate: form.orderDate,
+      name: form.name, type: form.type, machine: form.machine, orderDate: form.orderDate,
       seller: form.seller, requester: form.requester, clientPhone: form.clientPhone,
-      items: form.items.map(({ name, rollSizes, notes }) => ({ name, rollSizes, notes })),
+      items: form.items.map(({ name, rollSizes, reamSizes, notes }) => ({ name, rollSizes, reamSizes, notes })),
     });
     setModal(null); onReload();
   }
@@ -1179,9 +1354,10 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
   async function handleEdit(form: FormState) {
     if (modal?.type !== "edit") return;
     const svc = await servicesApi.update(modal.svc.id, {
-      name: form.name, type: form.type, orderDate: form.orderDate,
+      name: form.name, type: form.type, machine: form.machine, orderDate: form.orderDate,
       seller: form.seller, requester: form.requester, clientPhone: form.clientPhone,
-      items: form.items.map(({ name, rollSizes, notes }) => ({ name, rollSizes, notes })),
+      items: form.items.map(({ name, rollSizes, reamSizes, notes }) => ({ name, rollSizes, reamSizes, notes })),
+      expectedUpdatedAt: modal.svc.updatedAt,
     });
     // Delete attachments the user removed from the list
     for (let i = 0; i < form.items.length; i++) {
@@ -1209,8 +1385,22 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
     setModal(null); onReload();
   }
 
+  // "Iniciar desenvolvimento" já assume quem clicou como desenvolvedor (para passar a outro, use "Passar para outro desenvolvedor")
+  const [startingId, setStartingId] = useState<string | null>(null);
+  async function handleStartMine(svc: ServiceOrder) {
+    setStartingId(svc.id);
+    try {
+      await servicesApi.changeStatus(svc.id, { newStatus: "development", developerUserId: userId });
+      onReload();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível iniciar o desenvolvimento");
+    } finally {
+      setStartingId(null);
+    }
+  }
+
   async function handleStartDev(devUserId: string) {
-    if (modal?.type !== "startDev") return;
+    if (modal?.type !== "transfer") return;
     await servicesApi.changeStatus(modal.svc.id, { newStatus: "development", developerUserId: devUserId });
     setModal(null); onReload();
   }
@@ -1232,8 +1422,20 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
     setModal(null); onReload();
   }
 
+  async function handleRefuse(reason: string) {
+    if (modal?.type !== "refuse") return;
+    await servicesApi.changeStatus(modal.svc.id, { newStatus: "refused", refusalReason: reason });
+    setModal(null); onReload();
+  }
+
   async function handleReopen(svc: ServiceOrder) {
-    await servicesApi.changeStatus(svc.id, { newStatus: "open" }); onReload();
+    try {
+      await servicesApi.changeStatus(svc.id, { newStatus: "open" });
+      if (modal?.type === "detail") setModal(null);
+      onReload();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Não foi possível reabrir o serviço");
+    }
   }
 
   async function handleQueueDrop(targetId: string) {
@@ -1315,6 +1517,7 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
                 <th className={thCls + " w-36"}>Serviço</th>
                 <th className={thCls + " w-32"}>Data do pedido</th>
                 <th className={thCls + " w-28"}>Cadastro</th>
+                {tab === "done" && <th className={thCls + " w-36"}>Concluído em</th>}
                 <th className={thCls + " w-32"}>Solicitante</th>
                 <th className={thCls + " w-28"}>Vendedor</th>
                 <th className={thCls + " w-32"}>Desenvolvedor</th>
@@ -1324,8 +1527,8 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
             <tbody>
               {sorted.length === 0 ? (
                 <tr>
-                  <td colSpan={tab === "open" ? 10 : 9} className="py-16 text-center text-[14px] text-[#77767b]">
-                    Nenhum serviço {tab === "open" ? "aberto" : tab === "development" ? "em desenvolvimento" : tab === "done" ? "concluído" : "excluído"}
+                  <td colSpan={tab === "open" || tab === "done" ? 10 : 9} className="py-16 text-center text-[14px] text-[#77767b]">
+                    Nenhum serviço {tab === "open" ? "aberto" : tab === "development" ? "em desenvolvimento" : tab === "done" ? "concluído" : tab === "refused" ? "recusado" : "excluído"}
                   </td>
                 </tr>
               ) : sorted.map((svc, qIdx) => {
@@ -1373,6 +1576,11 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
                     <td className={tdCls}><TypeBadge type={svc.type} /></td>
                     <td className={tdCls}>{fmtDate(svc.orderDate)}</td>
                     <td className={tdCls}>{fmtDate(svc.createdAt)}</td>
+                    {tab === "done" && (
+                      <td className={tdCls + " whitespace-nowrap font-medium text-emerald-700 dark:text-emerald-400"}>
+                        {svc.completedAt ? fmtDateTime(svc.completedAt) : "—"}
+                      </td>
+                    )}
                     <td className={tdCls + " truncate max-w-[120px]"}>{svc.requester || "—"}</td>
                     <td className={tdCls + " truncate max-w-[100px]"}>{svc.seller || "—"}</td>
                     <td className={tdCls + " truncate max-w-[120px]"}>{svc.developerUser?.name ?? "—"}</td>
@@ -1392,7 +1600,8 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
                         )}
                         {svc.status === "open" && canWorkflow(role) && (
                           <button
-                            onClick={() => setModal({ type: "startDev", svc })}
+                            onClick={() => handleStartMine(svc)}
+                            disabled={startingId === svc.id}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
                             <PlayIcon />
                             Iniciar desenvolvimento
@@ -1408,6 +1617,9 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
                             <IconBtn onClick={() => setModal({ type: "upload", svc })} title="Upload arquivo" className="text-blue-600 border-blue-300 hover:bg-blue-50 dark:text-blue-400">
                               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>
                             </IconBtn>
+                            <IconBtn onClick={() => setModal({ type: "transfer", svc })} title="Passar para outro desenvolvedor" className="text-cyan-700 border-cyan-300 hover:bg-cyan-50 dark:text-cyan-300 dark:border-cyan-800 dark:hover:bg-cyan-900/20">
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                            </IconBtn>
                             <button
                               onClick={() => setModal({ type: "complete", svc })}
                               className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
@@ -1416,13 +1628,18 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
                             </button>
                           </>
                         )}
-                        {(svc.status === "done" || svc.status === "deleted") && (
+                        {(svc.status === "open" || svc.status === "development") && canRefuse(role) && (
+                          <IconBtn onClick={() => setModal({ type: "refuse", svc })} title="Recusar" className="text-orange-600 border-orange-300 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-700 dark:hover:bg-orange-900/20">
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                          </IconBtn>
+                        )}
+                        {(svc.status === "done" || svc.status === "deleted" || svc.status === "refused") && canReopen(role, userId, svc) && (
                           <button onClick={() => handleReopen(svc)} title="Reabrir"
                             className="rounded-lg border border-[rgba(199,198,202,0.5)] px-2.5 py-1 text-[11px] font-medium text-[#46464a] hover:bg-[#f3f3f5] dark:border-white/10 dark:text-[#a0a0a4] dark:hover:bg-[#222426]">
                             Reabrir
                           </button>
                         )}
-                        {svc.status !== "deleted" && canDelete(role, userId, svc) && (
+                        {svc.status !== "deleted" && svc.status !== "refused" && canDelete(role, userId, svc) && (
                           <IconBtn onClick={() => setModal({ type: "delete", svc })} title="Excluir" className="text-red-500 border-red-200 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/20">
                             <TrashIcon />
                           </IconBtn>
@@ -1437,14 +1654,20 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
         </div>
       </div>
 
-      {modal?.type === "detail" && <ServiceDetailModal svc={modal.svc} logs={logs} onClose={() => setModal(null)} />}
-      {modal?.type === "edit" && <ServiceModal initial={modal.svc} onClose={() => setModal(null)} onSave={handleEdit} userName="" />}
+      {modal?.type === "detail" && (
+        <ServiceDetailModal svc={modal.svc} logs={logs} onClose={() => setModal(null)}
+          onEdit={canEdit(role, userId, modal.svc) ? () => setModal({ type: "edit", svc: services.find((s) => s.id === modal.svc.id) ?? modal.svc }) : undefined}
+          onReopen={modal.svc.status === "refused" && canReopen(role, userId, modal.svc) ? () => handleReopen(modal.svc) : undefined}
+        />
+      )}
+      {modal?.type === "transfer" && <StartDevModal transfer svc={modal.svc} users={users.filter(u => ["ADMIN", "DESIGN", "ARTE", "ARTE_FINAL"].includes(u.role ?? ""))} onClose={() => setModal(null)} onConfirm={handleStartDev} />}
+      {modal?.type === "edit" && <ServiceModal initial={modal.svc} onClose={() => setModal(null)} onSave={handleEdit} userName="" isEdit />}
       {modal?.type === "duplicate" && <ServiceModal initial={modal.svc} onClose={() => setModal(null)} onSave={handleDuplicate} userName="" isDuplicate />}
-      {modal?.type === "startDev" && <StartDevModal svc={modal.svc} users={users.filter(u => ["ADMIN", "DESIGN", "ARTE", "ARTE_FINAL"].includes(u.role ?? ""))} defaultDevUserId={userId} onClose={() => setModal(null)} onConfirm={handleStartDev} />}
       {modal?.type === "complete" && (
         <CompleteModal svc={modal.svc} onClose={() => setModal(null)} onConfirm={handleComplete} />
       )}
       {modal?.type === "delete" && <DeleteModal svc={modal.svc} onClose={() => setModal(null)} onConfirm={handleDelete} />}
+      {modal?.type === "refuse" && <RefuseModal svc={modal.svc} onClose={() => setModal(null)} onConfirm={handleRefuse} />}
       {modal?.type === "upload" && <UploadModal svc={modal.svc} onClose={() => setModal(null)} onUpload={handleUpload} />}
 
       {/* Notificação pós-conclusão */}
@@ -1722,9 +1945,9 @@ export function ServicesPage() {
 
   async function handleCreate(form: FormState) {
     const svc = await servicesApi.create({
-      name: form.name, type: form.type, orderDate: form.orderDate,
+      name: form.name, type: form.type, machine: form.machine, orderDate: form.orderDate,
       seller: form.seller, requester: form.requester, clientPhone: form.clientPhone,
-      items: form.items.map(({ name, rollSizes, notes }) => ({ name, rollSizes, notes })),
+      items: form.items.map(({ name, rollSizes, reamSizes, notes }) => ({ name, rollSizes, reamSizes, notes })),
     });
     // Upload pending files for each item
     for (let i = 0; i < form.items.length; i++) {

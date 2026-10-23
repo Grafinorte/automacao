@@ -57,17 +57,18 @@ export async function listLogs() {
 interface CreateServiceInput {
   name: string;
   type: string;
+  machine: string;
   orderDate: string;
   seller: string;
   requester: string;
   clientPhone?: string;
-  items: Array<{ name: string; rollSizes: string[]; notes: string }>;
+  items: Array<{ name: string; rollSizes: string[]; reamSizes: string[]; notes: string }>;
   actorId: string;
   actorName: string;
 }
 
 export async function createService(input: CreateServiceInput) {
-  const { name, type, orderDate, seller, requester, clientPhone, items, actorId, actorName } = input;
+  const { name, type, machine, orderDate, seller, requester, clientPhone, items, actorId, actorName } = input;
 
   const serviceNumber = await nextServiceNumber();
 
@@ -79,6 +80,7 @@ export async function createService(input: CreateServiceInput) {
       serviceNumber,
       name,
       type,
+      machine,
       orderDate,
       seller,
       requester,
@@ -90,6 +92,7 @@ export async function createService(input: CreateServiceInput) {
         create: items.map((item, idx) => ({
           name: item.name,
           rollSizes: JSON.stringify(item.rollSizes ?? []),
+          reamSizes: JSON.stringify(item.reamSizes ?? []),
           notes: item.notes ?? "",
           itemOrder: idx,
         })),
@@ -118,11 +121,12 @@ export async function createService(input: CreateServiceInput) {
 interface UpdateServiceInput {
   name?: string;
   type?: string;
+  machine?: string;
   orderDate?: string;
   seller?: string;
   requester?: string;
   clientPhone?: string;
-  items?: Array<{ name: string; rollSizes: string[]; notes: string }>;
+  items?: Array<{ name: string; rollSizes: string[]; reamSizes: string[]; notes: string }>;
   actorId: string;
   actorName: string;
 }
@@ -131,8 +135,8 @@ export async function updateService(id: string, input: UpdateServiceInput) {
   const { actorId, actorName, items, ...fields } = input;
 
   const existing = await prisma.serviceOrder.findUniqueOrThrow({ where: { id } });
-  if (existing.status !== "open") {
-    throw Object.assign(new Error("Apenas serviços abertos podem ser editados"), { statusCode: 400 });
+  if (existing.status !== "open" && existing.status !== "refused") {
+    throw Object.assign(new Error("Apenas serviços abertos ou recusados podem ser editados"), { statusCode: 400 });
   }
 
   const svc = await prisma.$transaction(async (tx) => {
@@ -153,6 +157,7 @@ export async function updateService(id: string, input: UpdateServiceInput) {
             serviceOrderId: id,
             name: it.name,
             rollSizes: JSON.stringify(it.rollSizes ?? []),
+            reamSizes: JSON.stringify(it.reamSizes ?? []),
             notes: it.notes ?? "",
             itemOrder: i,
             attachments: prev?.attachments ?? "[]",
@@ -162,9 +167,14 @@ export async function updateService(id: string, input: UpdateServiceInput) {
       }
     }
 
+    // Editing a refused order sends it back to open
+    const statusPatch = existing.status === "refused"
+      ? { status: "open", refusalReason: null, queuePosition: (await tx.serviceOrder.count({ where: { status: "open" } })) + 1 }
+      : {};
+
     return tx.serviceOrder.update({
       where: { id },
-      data: fields,
+      data: { ...fields, ...statusPatch },
       include: {
         items: { orderBy: { itemOrder: "asc" } },
         createdByUser: { select: { id: true, name: true, avatarUrl: true } },
@@ -187,17 +197,18 @@ export async function updateService(id: string, input: UpdateServiceInput) {
 }
 
 interface ChangeStatusInput {
-  newStatus: "open" | "development" | "done" | "deleted";
+  newStatus: "open" | "development" | "done" | "deleted" | "refused";
   developerUserId?: string;
   completionMessage?: string;
   itemCompletions?: Array<{ id: string; completed: boolean; completionNote: string }>;
   deletedReason?: string;
+  refusalReason?: string;
   actorId: string;
   actorName: string;
 }
 
 export async function changeStatus(id: string, input: ChangeStatusInput) {
-  const { newStatus, developerUserId, completionMessage, itemCompletions, deletedReason, actorId, actorName } = input;
+  const { newStatus, developerUserId, completionMessage, itemCompletions, deletedReason, refusalReason, actorId, actorName } = input;
 
   const existing = await prisma.serviceOrder.findUniqueOrThrow({
     where: { id },
@@ -233,6 +244,11 @@ export async function changeStatus(id: string, input: ChangeStatusInput) {
     updateData.queuePosition = null;
   }
 
+  if (newStatus === "refused") {
+    updateData.refusalReason = refusalReason ?? "";
+    updateData.queuePosition = null;
+  }
+
   if (newStatus === "open" && existing.status !== "open") {
     // Reopen — put back at end of queue
     const openCount = await prisma.serviceOrder.count({ where: { status: "open" } });
@@ -241,6 +257,7 @@ export async function changeStatus(id: string, input: ChangeStatusInput) {
     updateData.completionMessage = null;
     updateData.deletedAt = null;
     updateData.deletedReason = null;
+    updateData.refusalReason = null;
     updateData.developerUserId = null;
   }
 
@@ -260,26 +277,66 @@ export async function changeStatus(id: string, input: ChangeStatusInput) {
     done: "Concluído",
     deleted: "Excluído",
     open: "Reaberto",
+    refused: "Recusado",
   };
 
   let logSummary = `Serviço #${existing.serviceNumber} — ${actionLabels[newStatus] ?? newStatus}`;
   let logDetails: Record<string, unknown> = { from: existing.status, to: newStatus };
+  let logAction = `status:${newStatus}`;
+
+  if (newStatus === "refused") {
+    logDetails = { from: existing.status, to: newStatus, reason: refusalReason ?? "" };
+  }
+
+  const isTransfer = newStatus === "development" && existing.status === "development"
+    && !!existing.developerUserId && existing.developerUserId !== developerUserId;
 
   if (newStatus === "development") {
     const dev = await prisma.user.findUnique({ where: { id: developerUserId! }, select: { name: true } });
-    logSummary = `Serviço #${existing.serviceNumber} — Iniciado por ${dev?.name ?? actorName}`;
-    logDetails = { from: existing.status, to: newStatus, developer: dev?.name ?? actorName };
+    if (isTransfer) {
+      const prevDev = await prisma.user.findUnique({ where: { id: existing.developerUserId! }, select: { name: true } });
+      logAction = "transfer";
+      logSummary = `Serviço #${existing.serviceNumber} — Passado de ${prevDev?.name ?? "—"} para ${dev?.name ?? "—"}`;
+      logDetails = { from: prevDev?.name ?? null, to: dev?.name ?? null };
+    } else {
+      logSummary = `Serviço #${existing.serviceNumber} — Iniciado por ${dev?.name ?? actorName}`;
+      logDetails = { from: existing.status, to: newStatus, developer: dev?.name ?? actorName };
+    }
   }
 
   await prisma.serviceOrderLog.create({
     data: {
       serviceOrderId: id,
-      action: `status:${newStatus}`,
+      action: logAction,
       summary: logSummary,
       actor: JSON.stringify({ id: actorId, name: actorName }),
       details: JSON.stringify(logDetails),
     },
   });
+
+  // Avisar o novo desenvolvedor quando o serviço for passado para ele
+  if (isTransfer && developerUserId !== actorId) {
+    const svcNum = String(existing.serviceNumber).padStart(4, "0");
+    await createNotification(
+      developerUserId!,
+      "service_transfer",
+      `Serviço #${svcNum} passado para você`,
+      `${actorName} passou "${existing.name}" para você desenvolver.`,
+      `/servicos?id=${id}`
+    );
+  }
+
+  // Notificar criador quando serviço for recusado
+  if (newStatus === "refused" && existing.createdByUserId) {
+    const svcNum = String(existing.serviceNumber).padStart(4, "0");
+    await createNotification(
+      existing.createdByUserId,
+      "service_refused",
+      `Serviço #${svcNum} recusado por ${actorName}`,
+      `"${existing.name}" foi recusado. Motivo: ${refusalReason ?? "não informado"}. Edite o pedido para reenviar.`,
+      `/servicos?id=${id}`
+    );
+  }
 
   // Notificar orçamentistas quando serviço for concluído
   if (newStatus === "done") {
@@ -444,6 +501,7 @@ type ServiceWithItems = Awaited<ReturnType<typeof prisma.serviceOrder.findUnique
     id: string;
     name: string;
     rollSizes: string;
+    reamSizes: string;
     notes: string;
     completed: boolean;
     completionNote: string;
@@ -462,6 +520,7 @@ function deserializeService(svc: ServiceWithItems) {
     items: svc.items.map((item) => ({
       ...item,
       rollSizes: JSON.parse(item.rollSizes) as string[],
+      reamSizes: JSON.parse(item.reamSizes) as string[],
       attachments: JSON.parse(item.attachments) as string[],
       completionAttachments: JSON.parse(item.completionAttachments) as string[],
     })),

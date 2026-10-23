@@ -4,6 +4,7 @@ export interface ServiceItem {
   id: string;
   name: string;
   rollSizes: string[];
+  reamSizes: string[];
   notes: string;
   completed: boolean;
   completionNote: string;
@@ -32,12 +33,14 @@ export interface ServiceOrder {
   seller: string;
   requester: string;
   clientPhone: string | null;
-  status: "open" | "development" | "done" | "deleted";
+  machine: string;
+  status: "open" | "development" | "done" | "deleted" | "refused";
   queuePosition: number | null;
   completedAt: string | null;
   completionMessage: string | null;
   deletedReason: string | null;
   deletedAt: string | null;
+  refusalReason: string | null;
   developerUserId: string | null;
   developerUser: { id: string; name: string; avatarUrl: string | null } | null;
   createdByUserId: string;
@@ -51,21 +54,25 @@ export interface ServiceOrder {
 export interface CreateServiceInput {
   name: string;
   type: string;
+  machine: string;
   orderDate: string;
   seller: string;
   requester: string;
   clientPhone?: string;
-  items: Array<{ name: string; rollSizes: string[]; notes: string }>;
+  items: Array<{ name: string; rollSizes: string[]; reamSizes: string[]; notes: string }>;
 }
 
 export interface UpdateServiceInput {
   name?: string;
   type?: string;
+  machine?: string;
   orderDate?: string;
   seller?: string;
   requester?: string;
   clientPhone?: string;
-  items?: Array<{ name: string; rollSizes: string[]; notes: string }>;
+  items?: Array<{ name: string; rollSizes: string[]; reamSizes: string[]; notes: string }>;
+  /** updatedAt da versão que o usuário abriu — o servidor recusa se outra pessoa salvou depois */
+  expectedUpdatedAt?: string;
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -107,6 +114,7 @@ export const servicesApi = {
       completionMessage?: string;
       itemCompletions?: Array<{ id: string; completed: boolean; completionNote: string }>;
       deletedReason?: string;
+      refusalReason?: string;
     }
   ) => request<ServiceOrder>(`${BASE}/${id}/status`, json("PUT", payload)),
 
