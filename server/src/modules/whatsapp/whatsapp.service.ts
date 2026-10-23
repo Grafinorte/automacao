@@ -390,10 +390,12 @@ function normalizeForMatch(s: string | null | undefined): string {
 async function runAutomations(conversationId: string, phone: string, text: string, phoneNumberId?: string | null): Promise<void> {
   // Automações do número que recebeu a mensagem + as gerais (sem número); as do número têm prioridade
   const automations = await prisma.waAutomation.findMany({
-    where: { active: true, OR: [{ phoneNumberId: null }, ...(phoneNumberId ? [{ phoneNumberId }] : [])] },
+    // "all" = automações salvas pela tela com o filtro "todos os números" (bug corrigido) — valem como gerais
+    where: { active: true, OR: [{ phoneNumberId: null }, { phoneNumberId: "all" }, ...(phoneNumberId ? [{ phoneNumberId }] : [])] },
     orderBy: { createdAt: "asc" },
   });
-  automations.sort((a, b) => Number(!a.phoneNumberId) - Number(!b.phoneNumberId));
+  const isGeneral = (p: string | null) => !p || p === "all";
+  automations.sort((a, b) => Number(isGeneral(a.phoneNumberId)) - Number(isGeneral(b.phoneNumberId)));
   const msg = normalizeForMatch(text);
   if (!msg) return;
 
@@ -694,7 +696,7 @@ export async function updateContact(id: string, data: { name?: string; notes?: s
 /** Sem número: todas. Com número: as gerais + as daquele número. */
 export function listLabels(phoneNumberId?: string) {
   return prisma.waLabel.findMany({
-    where: phoneNumberId ? { OR: [{ phoneNumberId: null }, { phoneNumberId }] } : undefined,
+    where: phoneNumberId ? { OR: [{ phoneNumberId: null }, { phoneNumberId: "all" }, { phoneNumberId }] } : undefined,
     orderBy: { name: "asc" },
   });
 }
@@ -744,7 +746,7 @@ export function listAgents() {
 /** Sem filtro: todas. Com número: as gerais + as daquele número. */
 export async function listAutomations(phoneNumberId?: string) {
   return prisma.waAutomation.findMany({
-    where: phoneNumberId ? { OR: [{ phoneNumberId: null }, { phoneNumberId }] } : undefined,
+    where: phoneNumberId ? { OR: [{ phoneNumberId: null }, { phoneNumberId: "all" }, { phoneNumberId }] } : undefined,
     orderBy: { createdAt: "desc" },
   });
 }

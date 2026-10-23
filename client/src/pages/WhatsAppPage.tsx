@@ -853,11 +853,13 @@ function AutomationsPanel({ phoneNumbers, defaultPhoneNumberId }: {
   const canCreate = isAdmin || !!myPhone;
   const canManage = (auto: WaAutomation) => isAdmin || (!!myPhone && auto.phoneNumberId === myPhone);
   const phoneLabel = (id: string | null) =>
-    id ? (phoneNumbers.find((p) => p.phoneNumberId === id)?.displayName ?? id) : "Todos os números";
+    id && id !== "all" ? (phoneNumbers.find((p) => p.phoneNumberId === id)?.displayName ?? id) : "Todos os números";
 
+  // O filtro da caixa de entrada usa "all" para "todos os números" — aqui isso vira automação geral (vazio)
+  const adminDefault = defaultPhoneNumberId && phoneNumbers.some((p) => p.phoneNumberId === defaultPhoneNumberId) ? defaultPhoneNumberId : "";
   const emptyForm = () => ({
     name: "", keyword: "", matchType: "contains", response: "", active: true,
-    phoneNumberId: isAdmin ? (defaultPhoneNumberId ?? "") : (myPhone ?? ""),
+    phoneNumberId: isAdmin ? adminDefault : (myPhone ?? ""),
   });
   const [automations, setAutomations] = useState<WaAutomation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1579,12 +1581,13 @@ function LabelManager({
   const canCreate = isAdmin || !!myPhone;
   const canDelete = (l: WaLabel) => isAdmin || (!!myPhone && l.phoneNumberId === myPhone);
   const phoneLabel = (id: string | null | undefined) =>
-    id ? (phoneNumbers.find((p) => p.phoneNumberId === id)?.displayName ?? id) : "Todos os números";
+    id && id !== "all" ? (phoneNumbers.find((p) => p.phoneNumberId === id)?.displayName ?? id) : "Todos os números";
 
   const [name, setName] = useState("");
   const [color, setColor] = useState(LABEL_COLORS[3]);
-  // Admin escolhe: só o número em atendimento ou etiqueta geral
-  const [scope, setScope] = useState<string>(isAdmin ? (currentPhoneNumberId ?? "") : (myPhone ?? ""));
+  // Admin escolhe: só o número em atendimento ou etiqueta geral ("all" do filtro = geral)
+  const adminScope = currentPhoneNumberId && phoneNumbers.some((p) => p.phoneNumberId === currentPhoneNumberId) ? currentPhoneNumberId : "";
+  const [scope, setScope] = useState<string>(isAdmin ? adminScope : (myPhone ?? ""));
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -213,7 +213,8 @@ export async function postAutomation(req: Request, res: Response) {
     res.status(400).json({ error: "Nome, keyword e resposta são obrigatórios." });
     return;
   }
-  let targetPhone: string | null = phoneNumberId || null;
+  // "all" é o filtro "todos os números" da tela — vira automação geral
+  let targetPhone: string | null = phoneNumberId && phoneNumberId !== "all" ? phoneNumberId : null;
   if (req.user!.role !== "ADMIN") {
     const mine = await assignedPhoneOf(req.user!.sub);
     if (!mine) {
@@ -242,7 +243,7 @@ export async function patchAutomation(req: Request, res: Response) {
     phoneNumberId?: string | null;
   };
   // Só o admin troca o número de uma automação
-  const phonePatch = req.user!.role === "ADMIN" && phoneNumberId !== undefined ? { phoneNumberId: phoneNumberId || null } : {};
+  const phonePatch = req.user!.role === "ADMIN" && phoneNumberId !== undefined ? { phoneNumberId: phoneNumberId && phoneNumberId !== "all" ? phoneNumberId : null } : {};
   res.json(await waService.updateAutomation(id, { name, keyword, matchType, response, active, ...phonePatch }));
 }
 
@@ -383,7 +384,7 @@ export async function getLabels(req: Request, res: Response) {
 export async function postLabel(req: Request, res: Response) {
   const { name, color, phoneNumberId } = req.body as { name?: string; color?: string; phoneNumberId?: string | null };
   if (!name?.trim()) { res.status(400).json({ error: "Nome é obrigatório." }); return; }
-  let target: string | null = phoneNumberId || null;
+  let target: string | null = phoneNumberId && phoneNumberId !== "all" ? phoneNumberId : null;
   if (req.user!.role !== "ADMIN") {
     const mine = await assignedPhoneOf(req.user!.sub);
     if (!mine) {
@@ -420,7 +421,7 @@ export async function postConversationLabel(req: Request, res: Response) {
   ]);
   if (!label) { res.status(404).json({ error: "Etiqueta não encontrada." }); return; }
   // Etiqueta de um número não pode ser usada em conversa de outro número
-  if (label.phoneNumberId && conversation.phoneNumberId && label.phoneNumberId !== conversation.phoneNumberId) {
+  if (label.phoneNumberId && label.phoneNumberId !== "all" && conversation.phoneNumberId && label.phoneNumberId !== conversation.phoneNumberId) {
     res.status(400).json({ error: "Esta etiqueta é de outro número de WhatsApp." });
     return;
   }
