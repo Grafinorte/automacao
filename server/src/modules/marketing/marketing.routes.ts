@@ -4,6 +4,7 @@ import * as campaignsController from "./campaigns.controller";
 import * as contentController from "./content.controller";
 import * as metaController from "../meta/meta.controller";
 import * as competitorController from "./competitor.controller";
+import * as analyticsController from "../analytics/analytics.controller";
 import { requireAuth, requireRole } from "../../middleware/auth";
 import { asyncHandler } from "../../utils/asyncHandler";
 
@@ -31,6 +32,10 @@ marketingRouter.patch("/content/:id/move", asyncHandler(contentController.moveCo
 // Meta / Instagram
 marketingRouter.get("/meta/accounts", asyncHandler(metaController.getAccounts));
 marketingRouter.get("/meta/summary", asyncHandler(metaController.getSummary));
+
+// Google Analytics (sites Grafinorte e Pluspack)
+marketingRouter.get("/analytics/sites", asyncHandler(analyticsController.getSites));
+marketingRouter.get("/analytics/:site", asyncHandler(analyticsController.getSiteReport));
 marketingRouter.get("/meta/:account/profile", asyncHandler(metaController.getProfile));
 marketingRouter.get("/meta/:account/posts", asyncHandler(metaController.getPosts));
 marketingRouter.get("/meta/:account/insights", asyncHandler(metaController.getInsights));
