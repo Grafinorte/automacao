@@ -1,5 +1,6 @@
 import { prisma } from "../../db/prisma";
 import { createNotification } from "../notifications/notifications.service";
+import { leadSourceFromWebhook } from "../crm/lead-sources";
 
 function normalize(v?: string | null) {
   return v ? v.trim().toLowerCase() : "";
@@ -62,6 +63,8 @@ export async function ingestLead(data: {
       value: 0,
       notes: data.message?.trim() || null,
       company: "GRAFINORTE",
+      source: leadSourceFromWebhook(data.source),
+      sourceDetail: data.source?.trim() || null,
       ownerId: adminUser.id,
       createdById: adminUser.id,
       order: (last?.order ?? -1) + 1,

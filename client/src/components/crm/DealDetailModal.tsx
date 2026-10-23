@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { crmApi } from "../../api/crm";
 import { quotesApi } from "../../api/quotes";
-import type { Contact, DealActivity, DealDetail, QuoteListItem, TaskUserRef } from "../../types";
+import type { Contact, DealActivity, DealDetail, LeadSource, QuoteListItem, TaskUserRef } from "../../types";
+import { LEAD_SOURCE_LABELS } from "../../types";
 import { Button } from "../common/Button";
 import { Avatar } from "../common/Avatar";
 
@@ -15,6 +16,8 @@ export interface DealFormValues {
   nextFollowUp: string;
   lossReason: string;
   company: string;
+  source: LeadSource | "";
+  sourceDetail: string;
 }
 
 const CRM_COMPANIES = [
@@ -52,7 +55,7 @@ export function DealDetailModal({
   const isNew = deal === "new";
   const [values, setValues] = useState<DealFormValues>(
     isNew
-      ? { title: "", contactId: "", value: 0, expectedCloseDate: "", ownerId: "", notes: "", nextFollowUp: "", lossReason: "", company: "GRAFINORTE" }
+      ? { title: "", contactId: "", value: 0, expectedCloseDate: "", ownerId: "", notes: "", nextFollowUp: "", lossReason: "", company: "GRAFINORTE", source: "", sourceDetail: "" }
       : {
           title: deal.title,
           contactId: deal.contact.id,
@@ -63,6 +66,8 @@ export function DealDetailModal({
           nextFollowUp: deal.nextFollowUp ? deal.nextFollowUp.slice(0, 10) : "",
           lossReason: deal.lossReason ?? "",
           company: deal.company ?? "GRAFINORTE",
+          source: deal.source ?? "",
+          sourceDetail: deal.sourceDetail ?? "",
         }
   );
   const [saving, setSaving] = useState(false);
@@ -173,6 +178,32 @@ export function DealDetailModal({
                 placeholder="Ex: Empresa ABC — Banners"
                 className={inputCls}
               />
+            </div>
+
+            {/* Origem do lead */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Origem do lead</label>
+                <select
+                  value={values.source}
+                  onChange={(e) => setValues((v) => ({ ...v, source: e.target.value as LeadSource | "" }))}
+                  className={inputCls}
+                >
+                  <option value="">Selecione...</option>
+                  {Object.entries(LEAD_SOURCE_LABELS).map(([id, label]) => (
+                    <option key={id} value={id}>{label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Detalhe da origem</label>
+                <input
+                  value={values.sourceDetail}
+                  onChange={(e) => setValues((v) => ({ ...v, sourceDetail: e.target.value }))}
+                  placeholder="Ex: LP Cartões, indicação do João"
+                  className={inputCls}
+                />
+              </div>
             </div>
 
             {/* Contato + Responsável */}

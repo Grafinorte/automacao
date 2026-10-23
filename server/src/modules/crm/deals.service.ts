@@ -10,6 +10,8 @@ const DEAL_SELECT = {
   nextFollowUp: true,
   lossReason: true,
   company: true,
+  source: true,
+  sourceDetail: true,
   order: true,
   stageId: true,
   createdAt: true,
@@ -56,6 +58,8 @@ export async function createDeal(data: {
   nextFollowUp?: string | null;
   lossReason?: string | null;
   company?: string;
+  source?: string | null;
+  sourceDetail?: string | null;
   ownerId: string;
   createdById: string;
 }) {
@@ -74,6 +78,8 @@ export async function createDeal(data: {
       nextFollowUp: data.nextFollowUp ? new Date(data.nextFollowUp) : null,
       lossReason: data.lossReason || null,
       company: data.company ?? "GRAFINORTE",
+      source: data.source || null,
+      sourceDetail: data.sourceDetail?.trim() || null,
       ownerId: data.ownerId,
       createdById: data.createdById,
       order: (last?.order ?? -1) + 1,
@@ -95,6 +101,8 @@ export async function updateDeal(
     nextFollowUp?: string | null;
     lossReason?: string | null;
     company?: string;
+    source?: string | null;
+    sourceDetail?: string | null;
   }
 ) {
   const updateData: Record<string, unknown> = {};
@@ -112,6 +120,8 @@ export async function updateDeal(
   }
   if (data.lossReason !== undefined) updateData.lossReason = data.lossReason || null;
   if (data.company !== undefined) updateData.company = data.company;
+  if (data.source !== undefined) updateData.source = data.source || null;
+  if (data.sourceDetail !== undefined) updateData.sourceDetail = data.sourceDetail?.trim() || null;
 
   return prisma.deal.update({ where: { id }, data: updateData, select: DEAL_SELECT });
 }
@@ -131,10 +141,18 @@ export function listDealsForExport(ownerId?: string) {
       expectedCloseDate: true,
       nextFollowUp: true,
       lossReason: true,
+      source: true,
+      sourceDetail: true,
+      notes: true,
       createdAt: true,
-      stage: { select: { name: true } },
+      updatedAt: true,
+      stage: { select: { name: true, isClosed: true, isWon: true } },
       contact: { select: { name: true, company: true, email: true, phone: true } },
       owner: { select: { name: true } },
+      createdBy: { select: { name: true } },
+      quote: { select: { number: true } },
+      activities: { orderBy: { createdAt: "desc" }, take: 1, select: { body: true, createdAt: true } },
+      _count: { select: { activities: true } },
     },
   });
 }

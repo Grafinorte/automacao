@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { crmApi } from "../api/crm";
 import { usersApi } from "../api/users";
-import type { Contact, CrmStageBase, DealActivity, DealDetail, TaskUserRef } from "../types";
+import { useAuth } from "../context/AuthContext";
+import type { Contact, CrmStageBase, DealActivity, DealDetail, LeadSource, TaskUserRef } from "../types";
+import { LEAD_SOURCE_LABELS } from "../types";
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
@@ -34,6 +36,8 @@ const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-wider 
 export function DealPage() {
   const { dealId } = useParams<{ dealId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   const [deal, setDeal] = useState<DealDetail | null>(null);
   const [stages, setStages] = useState<CrmStageBase[]>([]);
@@ -51,6 +55,8 @@ export function DealPage() {
   const [notes, setNotes] = useState("");
   const [lossReason, setLossReason] = useState("");
   const [company, setCompany] = useState("GRAFINORTE");
+  const [source, setSource] = useState<LeadSource | "">("");
+  const [sourceDetail, setSourceDetail] = useState("");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -75,6 +81,8 @@ export function DealPage() {
     setNotes(d.notes ?? "");
     setLossReason(d.lossReason ?? "");
     setCompany(d.company ?? "GRAFINORTE");
+    setSource(d.source ?? "");
+    setSourceDetail(d.sourceDetail ?? "");
     setDirty(false);
   }
 
@@ -113,6 +121,8 @@ export function DealPage() {
         notes: notes || null,
         lossReason: lossReason || null,
         company,
+        source: source || null,
+        sourceDetail: sourceDetail || null,
       });
       // Refresh deal to get updated data
       const updated = await crmApi.getDeal(deal.id);
@@ -172,6 +182,17 @@ export function DealPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!deal) return;
+    if (!confirm(`Excluir o negócio "${deal.title}"?\n\nO card e todo o histórico de anotações serão apagados. Essa ação não pode ser desfeita.`)) return;
+    try {
+      await crmApi.deleteDeal(deal.id);
+      navigate("/comercial/funil");
+    } catch {
+      alert("Não foi possível excluir o negócio.");
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-full items-center justify-center p-8">
@@ -211,6 +232,18 @@ export function DealPage() {
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={handleDelete}
+              title="Excluir negócio (somente administrador)"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-medium text-[#77767b] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+              </svg>
+              Excluir
+            </button>
+          )}
           {!isLost && lostStage && (
             <button
               onClick={() => { setPendingLossStageId(lostStage.id); setShowLossModal(true); }}
@@ -313,6 +346,25 @@ export function DealPage() {
                   );
                 })}
               </div>
+            </div>
+            <div>
+              <label className={labelCls}>Origem do lead</label>
+              <select
+                value={source}
+                onChange={(e) => { setSource(e.target.value as LeadSource | ""); setDirty(true); }}
+                className={`${inputCls} ${!source ? "border-amber-400 bg-amber-50" : ""}`}
+              >
+                <option value="">Não informado — selecione</option>
+                {Object.entries(LEAD_SOURCE_LABELS).map(([id, label]) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
+              <input
+                value={sourceDetail}
+                onChange={(e) => { setSourceDetail(e.target.value); setDirty(true); }}
+                placeholder="Detalhe (ex: LP Cartões, indicação do João)"
+                className={`${inputCls} mt-1.5`}
+              />
             </div>
             <div>
               <label className={labelCls}>Nome</label>

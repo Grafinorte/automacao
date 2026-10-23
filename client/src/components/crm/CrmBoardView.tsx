@@ -181,6 +181,8 @@ export function CrmBoardView() {
         nextFollowUp: values.nextFollowUp || null,
         lossReason: values.lossReason || null,
         company: values.company,
+        source: values.source || null,
+        sourceDetail: values.sourceDetail || null,
       });
     }
     setActiveDeal(null);
@@ -217,6 +219,7 @@ export function CrmBoardView() {
         {/* Scroll arrows + sub-nav pills */}
         <div className="flex items-center gap-2">
           <CrmSubNav compact />
+          {isAdmin && (
           <button
             onClick={handleExport}
             className="flex items-center gap-1.5 rounded-lg border border-[rgba(199,198,202,0.4)] bg-white px-3 py-1.5 text-[12px] font-medium text-[#46464a] transition-colors hover:bg-[#f3f3f5] dark:border-white/10 dark:bg-[#222426] dark:text-[#a0a0a4] dark:hover:bg-[#2a2c30]"
@@ -227,6 +230,7 @@ export function CrmBoardView() {
             </svg>
             Exportar
           </button>
+          )}
 
           <div className="flex items-center gap-1 border-l border-[rgba(199,198,202,0.4)] pl-3 dark:border-white/8">
             <button

@@ -123,6 +123,7 @@ model User {
   waConversations      WaConversation[] @relation("WaConversationAssignee")
   waMessagesSent       WaMessage[]      @relation("WaMessageSentBy")
   socialPosts          SocialPost[]
+  prospectSearches     ProspectSearch[]
 
   @@map("users")
 }
@@ -372,6 +373,54 @@ model CrmStage {
   @@map("crm_stages")
 }
 
+// Prospecção: cada busca no Google Maps (via treg) e as empresas que ela trouxe
+model ProspectSearch {
+  id          String   @id @default(cuid())
+  segmento    String
+  regiao      String
+  query       String
+  // GRAFINORTE ou PLUSPACK — empresa dos negócios criados a partir desta busca
+  company     String   @default("GRAFINORTE")
+  resultCount Int      @default(0)
+  // Custo cobrado pelo treg, em milionésimos de dólar (150 = US$ 0,00015)
+  costMicro   Int      @default(0)
+  provider    String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  leads ProspectLead[]
+
+  @@index([createdAt])
+  @@map("prospect_searches")
+}
+
+model ProspectLead {
+  id          String    @id @default(cuid())
+  searchId    String
+  search      ProspectSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  placeId     String?
+  name        String
+  phone       String?
+  website     String?
+  address     String?
+  category    String?
+  rating      Float?
+  reviewCount Int?
+  mapsUrl     String?
+  // NOVO, ADICIONADO (foi para o CRM), DESCARTADO
+  status      String    @default("NOVO")
+  contactId   String?
+  dealId      String?
+  addedById   String?
+  addedAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([searchId])
+  @@index([placeId])
+  @@map("prospect_leads")
+}
+
 model Contact {
   id        String   @id @default(cuid())
   name      String
@@ -413,6 +462,10 @@ model Deal {
   nextFollowUp  DateTime?
   lossReason    String?
   company       String    @default("GRAFINORTE")
+  // Origem do lead: SITE, LANDING_PAGE, PROSPECCAO_ATIVA, CLIENTE_PROCUROU, INDICACAO, OUTRO
+  source        String?
+  // Detalhe livre da origem (ex.: nome da landing page, quem indicou)
+  sourceDetail  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -720,11 +773,13 @@ model ServiceOrder {
   requester         String
   clientPhone       String?
   status            String    @default("open")
+  machine           String    @default("")
   queuePosition     Int?
   completedAt       DateTime?
   completionMessage String?
   deletedReason     String?
   deletedAt         DateTime?
+  refusalReason     String?
 
   developerUserId String?
   developerUser   User?   @relation("ServiceDeveloper", fields: [developerUserId], references: [id], onDelete: SetNull)
@@ -746,6 +801,7 @@ model ServiceOrderItem {
   id                    String @id @default(cuid())
   name                  String
   rollSizes             String @default("[]")
+  reamSizes             String @default("[]")
   notes                 String @default("")
   completed             Boolean @default(false)
   completionNote        String @default("")
@@ -790,6 +846,8 @@ model WaContact {
   id           String   @id @default(cuid())
   phone        String   @unique
   name         String
+  // true quando alguém da equipe renomeou o contato — aí o nome do perfil do WhatsApp não sobrescreve mais
+  nameLocked   Boolean  @default(false)
   notes        String?
   crmContactId String?
   createdAt    DateTime @default(now())
@@ -849,11 +907,14 @@ model WaMessage {
 
 model WaLabel {
   id            String               @id @default(cuid())
-  name          String               @unique
+  name          String
   color         String               @default("#22c55e")
+  // Número de WhatsApp dono da etiqueta; vazio = etiqueta geral (aparece em todos os números)
+  phoneNumberId String?
   createdAt     DateTime             @default(now())
   conversations WaConversationLabel[]
 
+  @@index([phoneNumberId])
   @@map("wa_labels")
 }
 
@@ -873,6 +934,8 @@ model WaPhoneNumber {
   displayName   String
   phone         String?
   accessToken   String?
+  // Conta do WhatsApp Business (WABA) deste número — onde ficam os templates; vazio = conta principal (.env)
+  wabaId        String?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -887,6 +950,8 @@ model WaAutomation {
   matchType  String   @default("contains")
   response   String
   active     Boolean  @default(true)
+  // Número de WhatsApp (phoneNumberId) ao qual a automação pertence; vazio = vale para todos os números
+  phoneNumberId String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -968,3 +1033,4 @@ model EmployeeDocument {
 
   @@map("hr_documents")
 }
+
