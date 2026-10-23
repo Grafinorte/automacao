@@ -378,6 +378,15 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
 
 // ─── Automations ──────────────────────────────────────────────────────────────
 
+/** "Olá, BOM dia!!" → "ola bom dia": ignora maiúsculas, acentos, pontuação e espaços extras */
+function normalizeForMatch(s: string | null | undefined): string {
+  return (s ?? "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
 async function runAutomations(conversationId: string, phone: string, text: string, phoneNumberId?: string | null): Promise<void> {
   // Automações do número que recebeu a mensagem + as gerais (sem número); as do número têm prioridade
   const automations = await prisma.waAutomation.findMany({
@@ -385,16 +394,19 @@ async function runAutomations(conversationId: string, phone: string, text: strin
     orderBy: { createdAt: "asc" },
   });
   automations.sort((a, b) => Number(!a.phoneNumberId) - Number(!b.phoneNumberId));
-  const lower = text.toLowerCase();
+  const msg = normalizeForMatch(text);
+  if (!msg) return;
 
   for (const auto of automations) {
-    const kw = auto.keyword.toLowerCase();
-    const matches =
+    // Várias palavras-chave separadas por vírgula: basta uma bater
+    const keywords = auto.keyword.split(",").map(normalizeForMatch).filter(Boolean);
+    const matches = keywords.some((kw) =>
       auto.matchType === "exact"
-        ? lower === kw
+        ? msg === kw
         : auto.matchType === "starts_with"
-          ? lower.startsWith(kw)
-          : lower.includes(kw);
+          ? msg.startsWith(kw)
+          : msg.includes(kw)
+    );
 
     if (!matches) continue;
 

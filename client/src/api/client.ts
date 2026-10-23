@@ -7,6 +7,8 @@ export class ApiError extends Error {
   }
 }
 
+export const SESSION_EXPIRED_EVENT = "auth:session-expired";
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     credentials: "include",
@@ -15,6 +17,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
+    // Sessão expirou no meio do uso: avisa o AuthContext para voltar ao login.
+    if (res.status === 401 && !path.startsWith("/auth/")) {
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+    }
     const body = await res.json().catch(() => ({ error: "Erro desconhecido" }));
     throw new ApiError(res.status, body.error ?? "Erro desconhecido");
   }

@@ -212,9 +212,20 @@ function renderMessageText(text: string | null | undefined, isOut: boolean) {
 // ─── Message ticks ────────────────────────────────────────────────────────────
 
 function MessageTicks({ status }: { status: string }) {
+  if (status === "sending") {
+    // Relógio: mensagem já aparece na tela enquanto vai para a Meta
+    return (
+      <span title="Enviando..." style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, flexShrink: 0 }}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <circle cx="6" cy="6" r="4.8" stroke="#667781" strokeWidth="1.3" />
+          <path d="M6 3.4V6l1.7 1.1" stroke="#667781" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+      </span>
+    );
+  }
   if (status === "failed") {
     return (
-      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: "rgba(0,0,0,0.25)", flexShrink: 0 }}>
+      <span title="Não enviada — copie o texto e envie de novo" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 16, height: 16, borderRadius: "50%", background: "rgba(0,0,0,0.25)", flexShrink: 0 }}>
         <span style={{ color: "#fca5a5", fontSize: 10, fontWeight: 700, lineHeight: 1 }}>!</span>
       </span>
     );
@@ -919,7 +930,7 @@ function AutomationsPanel({ phoneNumbers, defaultPhoneNumberId }: {
           <input placeholder="Nome da automação" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             className="w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e2024] px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
           <div className="flex gap-2">
-            <input placeholder="Palavra-chave" value={form.keyword} onChange={(e) => setForm((f) => ({ ...f, keyword: e.target.value }))}
+            <input placeholder="Palavra-chave (várias: oi, olá, bom dia)" title="Pode colocar várias separadas por vírgula. Maiúsculas, acentos e pontuação não importam." value={form.keyword} onChange={(e) => setForm((f) => ({ ...f, keyword: e.target.value }))}
               className="flex-1 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e2024] px-3 py-2 text-sm focus:outline-none focus:border-green-400" />
             <select value={form.matchType} onChange={(e) => setForm((f) => ({ ...f, matchType: e.target.value }))}
               className="rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e2024] px-3 py-2 text-sm focus:outline-none focus:border-green-400">
@@ -2332,7 +2343,8 @@ export function WhatsAppPage() {
   const [activeConv, setActiveConv] = useState<WaConversation | null>(null);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const [sending, setSending] = useState(false);
+  // Fila de envio: garante a ordem das mensagens mesmo digitando uma atrás da outra
+  const sendChainRef = useRef<Promise<void>>(Promise.resolve());
   const [stats, setStats] = useState<{ open: number; unread: number } | null>(null);
   const [statusFilter, setStatusFilter] = useState<"open" | "closed">("open");
   const [convFilter, setConvFilter] = useState<"all" | "unread" | "pinned">("all");
@@ -2515,12 +2527,15 @@ export function WhatsAppPage() {
       whatsappApi.getConversationMessages(activeConvId)
         .then(({ messages: newMsgs }) => {
           setMessages(prev => {
+            // Mensagens ainda indo (relógio) ou que falharam continuam na tela até o envio terminar
+            const pending = prev.filter((m) => m.id.startsWith("tmp-"));
             if (
+              pending.length === 0 &&
               newMsgs.length === prev.length &&
               newMsgs[newMsgs.length - 1]?.id === prev[prev.length - 1]?.id &&
               newMsgs[newMsgs.length - 1]?.status === prev[prev.length - 1]?.status
             ) return prev;
-            return newMsgs;
+            return [...newMsgs, ...pending];
           });
         })
         .catch(() => {});
@@ -2667,26 +2682,50 @@ export function WhatsAppPage() {
   };
 
   async function handleSend() {
-    if (!activeConvId || sending || uploadingMedia) return;
+    if (!activeConvId || uploadingMedia) return;
     // Janela fechada: a Meta recusa mensagem comum (nota interna pode)
     if (!isNoteMode && windowClosed && !confirm(
       "A janela de 24h desta conversa está fechada — a Meta não deve entregar esta mensagem.\n\n" +
       "Chame o cliente pelo celular ou envie um template. Enviar mesmo assim?"
     )) return;
     if (stagedFiles.length > 0) { await sendStagedFile(); return; }
-    if (!replyText.trim()) return;
-    setSending(true);
-    const currentReplyId = replyingTo?.id;
-    const currentNoteMode = isNoteMode;
-    try {
-      const msg = await whatsappApi.sendMessage(activeConvId, replyText.trim(), currentReplyId, currentNoteMode);
-      setMessages((ms) => [...ms, msg]);
-      setReplyText("");
-      setReplyingTo(null);
-      if (!currentNoteMode) loadConversations();
-    } catch (err) {
-      console.error("Erro ao enviar:", err);
-    } finally { setSending(false); }
+    const text = replyText.trim();
+    if (!text) return;
+
+    // Envio "otimista": a mensagem aparece na hora com o relógio e a caixa já fica livre
+    // para a próxima; os envios vão para o servidor em fila, na ordem em que foram digitados.
+    const convId = activeConvId;
+    const replyTo = replyingTo;
+    const noteMode = isNoteMode;
+    const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const temp: WaMessage = {
+      id: tempId,
+      conversationId: convId,
+      direction: "outbound",
+      isInternal: noteMode,
+      text,
+      status: "sending",
+      sentById: user?.id ?? null,
+      sentBy: user ? { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null } : null,
+      replyToId: replyTo?.id ?? null,
+      replyTo: replyTo ? { id: replyTo.id, text: replyTo.text, direction: replyTo.direction, mediaType: replyTo.mediaType, mediaUrl: replyTo.mediaUrl, filename: replyTo.filename, sentBy: replyTo.sentBy } : null,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((ms) => [...ms, temp]);
+    setReplyText("");
+    setReplyingTo(null);
+
+    sendChainRef.current = sendChainRef.current.then(async () => {
+      try {
+        const msg = await whatsappApi.sendMessage(convId, text, replyTo?.id, noteMode);
+        // Se a atualização automática já trouxe a mensagem real, só some com a provisória
+        setMessages((ms) => ms.some((m) => m.id === msg.id) ? ms.filter((m) => m.id !== tempId) : ms.map((m) => (m.id === tempId ? msg : m)));
+        if (!noteMode) loadConversations();
+      } catch (err) {
+        console.error("Erro ao enviar:", err);
+        setMessages((ms) => ms.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
+      }
+    });
   }
 
   function stageFile(file: File) {
@@ -3899,7 +3938,7 @@ export function WhatsAppPage() {
                       {/* Green circular button — send when text/file staged, mic/stop when recording */}
                       <button
                         onClick={(replyText.trim() || stagedFiles.length > 0) ? handleSend : isRecording ? stopRecording : startRecording}
-                        disabled={sending || uploadingMedia}
+                        disabled={uploadingMedia}
                         title={replyText.trim() ? "Enviar" : isRecording ? "Parar gravação" : "Gravar áudio"}
                         className={`flex-shrink-0 flex h-11 w-11 items-center justify-center rounded-full shadow-md transition-all active:scale-95 disabled:opacity-40 ${
                           isRecording

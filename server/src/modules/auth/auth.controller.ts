@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import * as authService from "./auth.service";
-import { COOKIE_MAX_AGE_MS } from "../../utils/jwt";
+import { setAuthCookie } from "../../utils/jwt";
 
 export async function postLogin(req: Request, res: Response) {
   const { email, password } = req.body ?? {};
@@ -9,13 +9,7 @@ export async function postLogin(req: Request, res: Response) {
     return;
   }
   const { token, user } = await authService.login(email, password);
-  res.cookie("token", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false,
-    maxAge: COOKIE_MAX_AGE_MS,
-    path: "/",
-  });
+  setAuthCookie(res, token);
   res.json(user);
 }
 

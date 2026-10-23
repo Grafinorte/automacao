@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../api/client";
 
 export function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, sessionMessage } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
@@ -89,6 +89,10 @@ export function LoginPage() {
                 </button>
               </div>
             </div>
+
+            {sessionMessage && !error && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">{sessionMessage}</div>
+            )}
 
             {error && (
               <div className="rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-700">{error}</div>
