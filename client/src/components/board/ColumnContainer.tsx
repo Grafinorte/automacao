@@ -21,7 +21,7 @@ export function ColumnContainer({
   onTaskClick: (task: Task) => void;
 }) {
   return (
-    <div className="flex w-72 flex-shrink-0 flex-col rounded-xl bg-gray-50/80 p-3">
+    <div className="flex w-72 flex-shrink-0 flex-col rounded-xl bg-gray-50/80 p-3 dark:bg-[#1c1e22]">
       <ColumnHeader
         name={column.name}
         taskCount={column.tasks.length}

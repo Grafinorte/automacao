@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { verifyToken, type JwtPayload } from "../utils/jwt";
+import { setAuthCookie, shouldRenew, signToken, verifyToken, type JwtPayload } from "../utils/jwt";
 import type { Role } from "../generated/prisma/client";
 
 declare global {
@@ -17,12 +17,19 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     res.status(401).json({ error: "Não autenticado" });
     return;
   }
+  let payload: JwtPayload;
   try {
-    req.user = verifyToken(token);
-    next();
+    payload = verifyToken(token);
   } catch {
     res.status(401).json({ error: "Sessão inválida ou expirada" });
+    return;
   }
+  req.user = payload;
+  // Sessão deslizante: enquanto o usuário estiver ativo, o prazo é renovado.
+  if (shouldRenew(payload)) {
+    setAuthCookie(res, signToken(payload));
+  }
+  next();
 }
 
 export function requireRole(...roles: Role[]) {
