@@ -31,11 +31,6 @@ export interface WaContact {
   name: string;
   notes?: string | null;
   crmContactId?: string | null;
-  /** Site da empresa (a logo vem dele) */
-  website?: string | null;
-  /** Logo da empresa salva no servidor (servida em /wa-avatars) */
-  avatarFile?: string | null;
-  avatarDomain?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -154,7 +149,7 @@ export const whatsappApi = {
 
   getContacts: () => api.get<WaContact[]>("/whatsapp/contacts"),
 
-  patchContact: (id: string, data: { name?: string; notes?: string; crmContactId?: string | null; website?: string | null }) =>
+  patchContact: (id: string, data: { name?: string; notes?: string; crmContactId?: string | null }) =>
     api.patch<WaContact>(`/whatsapp/contacts/${id}`, data),
 
   getAutomations: () => api.get<WaAutomation[]>("/whatsapp/automations"),
