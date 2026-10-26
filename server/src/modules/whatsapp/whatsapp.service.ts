@@ -106,24 +106,37 @@ export interface StatusUpdate {
 
 const MEDIA_TYPES = ["image", "audio", "video", "document", "sticker"];
 
-export function parseIncomingMessage(body: unknown): IncomingMessage | null {
-  try {
-    const b = body as Record<string, unknown>;
-    const entry = (b.entry as unknown[])?.[0] as Record<string, unknown>;
-    const change = (entry?.changes as unknown[])?.[0] as Record<string, unknown>;
-    const value = change?.value as Record<string, unknown>;
-    const messages = value?.messages as unknown[];
-    if (!messages?.length) return null;
+/** Todos os "value" do webhook — a Meta pode juntar vários eventos (entries/changes) num único aviso */
+function webhookValues(body: unknown): Record<string, unknown>[] {
+  const values: Record<string, unknown>[] = [];
+  for (const entry of ((body as Record<string, unknown>)?.entry as Record<string, unknown>[] | undefined) ?? []) {
+    for (const change of (entry?.changes as Record<string, unknown>[] | undefined) ?? []) {
+      if (change?.value) values.push(change.value as Record<string, unknown>);
+    }
+  }
+  return values;
+}
 
-    const msg = messages[0] as Record<string, unknown>;
+/** Todas as mensagens do aviso (antes só a primeira era salva: áudio + textos em sequência perdiam os textos) */
+export function parseIncomingMessages(body: unknown): IncomingMessage[] {
+  const result: IncomingMessage[] = [];
+  for (const value of webhookValues(body)) {
+    const contacts = (value.contacts as Record<string, unknown>[] | undefined) ?? [];
+    for (const msg of (value.messages as Record<string, unknown>[] | undefined) ?? []) {
+      const contact = contacts.find((c) => c.wa_id === msg.from) ?? contacts[0];
+      const parsed = parseOneMessage(msg, contact, value.metadata as Record<string, unknown> | undefined);
+      if (parsed) result.push(parsed);
+    }
+  }
+  return result;
+}
+
+function parseOneMessage(msg: Record<string, unknown>, contact: Record<string, unknown> | undefined, metadata: Record<string, unknown> | undefined): IncomingMessage | null {
+  try {
     const msgType = msg.type as string;
     const context = msg.context as Record<string, unknown> | undefined;
-
-    const contacts = value?.contacts as unknown[];
-    const contact = (contacts?.[0] ?? {}) as Record<string, unknown>;
     const profile = (contact?.profile ?? {}) as Record<string, unknown>;
 
-    const metadata = value?.metadata as Record<string, unknown> | undefined;
     const base = {
       from: msg.from as string,
       name: (profile?.name as string) ?? (msg.from as string),
@@ -195,28 +208,22 @@ export function parseIncomingMessage(body: unknown): IncomingMessage | null {
   }
 }
 
-export function parseStatusUpdate(body: unknown): StatusUpdate | null {
-  try {
-    const b = body as Record<string, unknown>;
-    const entry = (b.entry as unknown[])?.[0] as Record<string, unknown>;
-    const change = (entry?.changes as unknown[])?.[0] as Record<string, unknown>;
-    const value = change?.value as Record<string, unknown>;
-    const statuses = value?.statuses as unknown[];
-    if (!statuses?.length) return null;
+export function parseStatusUpdates(body: unknown): StatusUpdate[] {
+  const result: StatusUpdate[] = [];
+  for (const value of webhookValues(body)) {
+    for (const s of (value.statuses as Record<string, unknown>[] | undefined) ?? []) {
+      const status = s.status as string;
+      if (!["sent", "delivered", "read", "failed"].includes(status)) continue;
 
-    const s = statuses[0] as Record<string, unknown>;
-    const status = s.status as string;
-    if (!["sent", "delivered", "read", "failed"].includes(status)) return null;
-
-    if (status === "failed") {
-      // Motivo da falha (ex.: mídia inválida para este número, janela de 24h fechada) — fica no log do servidor
-      const e = (s.errors as Record<string, unknown>[] | undefined)?.[0];
-      console.warn(`[WhatsApp] Mensagem ${s.id} falhou para ${s.recipient_id}: ${e?.code ?? "?"} ${e?.title ?? ""} ${JSON.stringify(e?.error_data ?? "")}`);
+      if (status === "failed") {
+        // Motivo da falha (ex.: mídia inválida para este número, janela de 24h fechada) — fica no log do servidor
+        const e = (s.errors as Record<string, unknown>[] | undefined)?.[0];
+        console.warn(`[WhatsApp] Mensagem ${s.id} falhou para ${s.recipient_id}: ${e?.code ?? "?"} ${e?.title ?? ""} ${JSON.stringify(e?.error_data ?? "")}`);
+      }
+      result.push({ waMessageId: s.id as string, status: status as StatusUpdate["status"] });
     }
-    return { waMessageId: s.id as string, status: status as StatusUpdate["status"] };
-  } catch {
-    return null;
   }
+  return result;
 }
 
 export async function handleStatusUpdate(update: StatusUpdate): Promise<void> {
@@ -260,15 +267,45 @@ async function downloadMediaFromMeta(mediaId: string, mimeType: string, phoneNum
 
 // ─── Incoming message handler ─────────────────────────────────────────────────
 
-export async function handleIncomingMessage(msg: IncomingMessage): Promise<void> {
+/**
+ * Celular brasileiro com e sem o nono dígito: a Meta costuma mandar "554399998888" para um número
+ * salvo como "+5543999998888" — sem isso, as respostas do cliente caíam num contato/conversa à parte.
+ */
+function brPhoneVariants(phone: string): string[] {
+  const digits = phone.replace(/\D/g, "");
+  const variants = [digits];
+  if (digits.startsWith("55")) {
+    const ddd = digits.slice(2, 4), local = digits.slice(4);
+    if (local.length === 9 && local[0] === "9") variants.push("55" + ddd + local.slice(1));
+    if (local.length === 8 && /[6-9]/.test(local[0])) variants.push("55" + ddd + "9" + local);
+  }
+  return variants;
+}
+
+// Mensagens do mesmo cliente são tratadas uma de cada vez, na ordem de chegada. Antes, áudio (que demora
+// para baixar) e textos enviados logo em seguida eram processados ao mesmo tempo e podiam criar conversas
+// duplicadas ou falhar ao criar o contato.
+const incomingQueues = new Map<string, Promise<void>>();
+
+export function handleIncomingMessage(msg: IncomingMessage): Promise<void> {
+  const key = brPhoneVariants(msg.from).sort()[0];
+  const prev = incomingQueues.get(key) ?? Promise.resolve();
+  const next = prev.catch(() => {}).then(() => processIncomingMessage(msg));
+  incomingQueues.set(key, next);
+  next.catch(() => {}).finally(() => { if (incomingQueues.get(key) === next) incomingQueues.delete(key); });
+  return next;
+}
+
+async function processIncomingMessage(msg: IncomingMessage): Promise<void> {
   // Normalize phone: WhatsApp webhooks send without "+", but startConversation stores with "+"
   const rawPhone = msg.from;
   const normalizedPhone = rawPhone.replace(/^00/, "+").replace(/^(?!\+)/, "+");
 
-  // Find contact by either format (handles legacy records stored without "+")
+  // Find contact by either format (handles legacy records stored without "+"), com ou sem o nono dígito
   // Prefer older record (has the conversation history)
+  const phoneOptions = brPhoneVariants(rawPhone).flatMap((d) => [d, "+" + d]);
   let contact = await prisma.waContact.findFirst({
-    where: { OR: [{ phone: normalizedPhone }, { phone: rawPhone }] },
+    where: { phone: { in: phoneOptions } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -276,7 +313,8 @@ export async function handleIncomingMessage(msg: IncomingMessage): Promise<void>
     // Fix phone format if stored in old format, and update name
     // Nome editado pela equipe (nameLocked) não é sobrescrito pelo nome do perfil do WhatsApp
     const updates: { name?: string; phone?: string } = contact.nameLocked ? {} : { name: msg.name };
-    if (contact.phone !== normalizedPhone) {
+    // Só corrige o "+"; se o salvo difere pelo nono dígito, mantém o número que a equipe cadastrou
+    if (contact.phone !== normalizedPhone && contact.phone.replace(/\D/g, "") === rawPhone.replace(/\D/g, "")) {
       const conflict = await prisma.waContact.findUnique({ where: { phone: normalizedPhone } });
       if (!conflict) updates.phone = normalizedPhone;
     }
@@ -466,6 +504,15 @@ async function runAutomations(conversationId: string, phone: string, text: strin
 
 // ─── Start conversation (outbound-initiated) ──────────────────────────────────
 
+/** Contato já existente com o mesmo celular (com ou sem o nono dígito), senão cria — evita conversa duplicada */
+async function findOrCreateOutboundContact(normalized: string, name: string) {
+  const existing = await prisma.waContact.findFirst({
+    where: { phone: { in: brPhoneVariants(normalized).flatMap((d) => [d, "+" + d]) } },
+    orderBy: { createdAt: "asc" },
+  });
+  return existing ?? prisma.waContact.create({ data: { phone: normalized, name: name || normalized } });
+}
+
 export async function startConversation(phone: string, name: string, text: string, sentById: string, explicitPhoneNumberId?: string) {
   // Normalize phone: remove spaces, dashes, parens; ensure starts with +
   const normalized = phone.replace(/[\s\-().]/g, "").replace(/^00/, "+").replace(/^(?!\+)/, "+");
@@ -474,11 +521,7 @@ export async function startConversation(phone: string, name: string, text: strin
   const sender = await prisma.user.findUnique({ where: { id: sentById }, select: { waPhoneNumberId: true } });
   const phoneNumberId = explicitPhoneNumberId ?? sender?.waPhoneNumberId ?? undefined;
 
-  const contact = await prisma.waContact.upsert({
-    where: { phone: normalized },
-    update: {},
-    create: { phone: normalized, name: name || normalized },
-  });
+  const contact = await findOrCreateOutboundContact(normalized, name);
 
   let conversation = await prisma.waConversation.findFirst({
     where: { contactId: contact.id, ...(phoneNumberId ? { phoneNumberId } : {}) },
@@ -912,11 +955,7 @@ export async function startConversationWithTemplate(
   const sender = await prisma.user.findUnique({ where: { id: sentById }, select: { waPhoneNumberId: true } });
   const phoneNumberId = explicitPhoneNumberId ?? sender?.waPhoneNumberId ?? undefined;
 
-  const contact = await prisma.waContact.upsert({
-    where: { phone: normalized },
-    update: {},
-    create: { phone: normalized, name: name || normalized },
-  });
+  const contact = await findOrCreateOutboundContact(normalized, name);
 
   // Reuse the most recent conversation regardless of status — reopen if closed
   let conversation = await prisma.waConversation.findFirst({

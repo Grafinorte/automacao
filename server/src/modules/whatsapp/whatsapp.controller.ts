@@ -21,35 +21,21 @@ export function verifyWebhook(req: Request, res: Response) {
 export async function receiveWebhook(req: Request, res: Response) {
   res.sendStatus(200);
 
-  // Log raw webhook for debugging
-  try {
-    const entry = (req.body as Record<string, unknown>)?.entry as unknown[];
-    const change = ((entry?.[0] as Record<string, unknown>)?.changes as unknown[])?.[0] as Record<string, unknown>;
-    const value = change?.value as Record<string, unknown>;
-    if (value?.messages) {
-      const msgs = value.messages as Record<string, unknown>[];
-      console.log("[WhatsApp webhook] incoming:", JSON.stringify(msgs[0]).slice(0, 400));
-    }
-  } catch { /* ignore log errors */ }
-
   // Handle delivery/read status updates
-  const statusUpdate = waService.parseStatusUpdate(req.body);
-  if (statusUpdate) {
+  for (const statusUpdate of waService.parseStatusUpdates(req.body)) {
     await waService.handleStatusUpdate(statusUpdate).catch((err) =>
       console.error("[WhatsApp] Erro ao atualizar status:", err)
     );
   }
 
-  // Handle incoming messages
-  const msg = waService.parseIncomingMessage(req.body);
-  if (!msg) return;
-
-  console.log("[WhatsApp] parsed msg type=%s from=%s mediaType=%s text=%s", msg.mediaType ?? "text", msg.from, msg.mediaType, msg.text?.slice(0, 80));
-
-  try {
-    await waService.handleIncomingMessage(msg);
-  } catch (err) {
-    console.error("[WhatsApp] Erro ao processar mensagem:", err);
+  // Handle incoming messages — o mesmo aviso pode trazer várias mensagens
+  for (const msg of waService.parseIncomingMessages(req.body)) {
+    console.log("[WhatsApp] parsed msg id=%s type=%s from=%s text=%s", msg.messageId, msg.mediaType ?? "text", msg.from, msg.text?.slice(0, 80));
+    try {
+      await waService.handleIncomingMessage(msg);
+    } catch (err) {
+      console.error("[WhatsApp] Erro ao processar mensagem:", err);
+    }
   }
 }
 
