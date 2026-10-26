@@ -26,6 +26,7 @@ whatsappRouter.post("/conversations/start", asyncHandler(ctrl.startConversation)
 whatsappRouter.get("/conversations", asyncHandler(ctrl.getConversations));
 whatsappRouter.post("/conversations/read-all", asyncHandler(ctrl.postReadAll));
 whatsappRouter.get("/conversations/:id/messages", asyncHandler(ctrl.getConversationMessages));
+whatsappRouter.post("/conversations/:id/typing", asyncHandler(ctrl.postTyping));
 whatsappRouter.post("/conversations/:id/messages", asyncHandler(ctrl.postMessage));
 whatsappRouter.post("/conversations/:id/media", asyncHandler(ctrl.postMediaMessage));
 whatsappRouter.patch("/conversations/:id", asyncHandler(ctrl.patchConversation));

@@ -850,6 +850,13 @@ model WaContact {
   nameLocked   Boolean  @default(false)
   notes        String?
   crmContactId String?
+  // Site da empresa do cliente (digitado pela equipe) — usado para buscar a logo
+  website         String?
+  // Logo da empresa salva em data/wa-avatars (a API do WhatsApp não entrega a foto de perfil do cliente)
+  avatarFile      String?
+  // Domínio de onde a logo veio e quando foi verificado pela última vez
+  avatarDomain    String?
+  avatarCheckedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

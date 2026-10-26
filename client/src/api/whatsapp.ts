@@ -31,6 +31,11 @@ export interface WaContact {
   name: string;
   notes?: string | null;
   crmContactId?: string | null;
+  /** Site da empresa (a logo vem dele) */
+  website?: string | null;
+  /** Logo da empresa salva no servidor (servida em /wa-avatars) */
+  avatarFile?: string | null;
+  avatarDomain?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -135,6 +140,10 @@ export const whatsappApi = {
   markAllRead: (phoneNumberId: string) =>
     api.post<{ count: number }>("/whatsapp/conversations/read-all", { phoneNumberId }),
 
+  /** Mostra "digitando…" no celular do cliente */
+  sendTyping: (conversationId: string) =>
+    api.post<{ ok: boolean }>(`/whatsapp/conversations/${conversationId}/typing`, {}),
+
   getConversationMessages: (id: string) =>
     api.get<{ conversation: WaConversation; messages: WaMessage[] }>(
       `/whatsapp/conversations/${id}/messages`
@@ -145,7 +154,7 @@ export const whatsappApi = {
 
   getContacts: () => api.get<WaContact[]>("/whatsapp/contacts"),
 
-  patchContact: (id: string, data: { name?: string; notes?: string; crmContactId?: string | null }) =>
+  patchContact: (id: string, data: { name?: string; notes?: string; crmContactId?: string | null; website?: string | null }) =>
     api.patch<WaContact>(`/whatsapp/contacts/${id}`, data),
 
   getAutomations: () => api.get<WaAutomation[]>("/whatsapp/automations"),

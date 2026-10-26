@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { env } from "../../config/env";
 import * as waService from "./whatsapp.service";
+import { refreshContactLogo, refreshMissingLogosInBackground } from "./contact-logo";
 
 // ─── Webhook ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,8 @@ export async function getConversations(req: Request, res: Response) {
     if (dbUser?.waPhoneNumberId) filterPhoneNumberId = dbUser.waPhoneNumberId;
   }
   res.json(await waService.listConversations(status, filterPhoneNumberId));
+  // Logos das empresas dos contatos que ainda não foram buscadas (não atrasa a resposta)
+  refreshMissingLogosInBackground();
 }
 
 export async function postReadAll(req: Request, res: Response) {
@@ -86,6 +89,14 @@ export async function getConversationMessages(req: Request, res: Response) {
   ]);
   await waService.markConversationRead(id);
   res.json({ conversation, messages });
+  // ✓✓ azul para o cliente (só envia se houver mensagem dele ainda não confirmada)
+  waService.sendReadReceipt(id).catch((err) => console.error("[WhatsApp] Erro na confirmação de leitura:", err));
+}
+
+/** Vendedor está digitando: mostra "digitando…" no celular do cliente */
+export async function postTyping(req: Request, res: Response) {
+  res.json({ ok: true });
+  waService.sendReadReceipt(req.params.id, true).catch((err) => console.error("[WhatsApp] Erro no aviso de digitação:", err));
 }
 
 export async function postMessage(req: Request, res: Response) {
@@ -150,12 +161,20 @@ export async function getContacts(_req: Request, res: Response) {
 
 export async function patchContact(req: Request, res: Response) {
   const { id } = req.params;
-  const { name, notes, crmContactId } = req.body as {
+  const { name, notes, crmContactId, website } = req.body as {
     name?: string;
     notes?: string;
     crmContactId?: string | null;
+    website?: string | null;
   };
-  res.json(await waService.updateContact(id, { name, notes, crmContactId }));
+  const before = await waService.getContact(id);
+  const updated = await waService.updateContact(id, { name, notes, crmContactId, website: website === undefined ? undefined : website?.trim() || null });
+  // Site ou vínculo com o CRM mudou: busca a logo da empresa na hora
+  if ((website !== undefined && updated.website !== before?.website) || (crmContactId !== undefined && updated.crmContactId !== before?.crmContactId)) {
+    res.json((await refreshContactLogo(id, true).catch(() => null)) ?? updated);
+    return;
+  }
+  res.json(updated);
 }
 
 // ─── Automations ──────────────────────────────────────────────────────────────

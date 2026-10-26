@@ -604,6 +604,38 @@ export async function markConversationRead(conversationId: string) {
   });
 }
 
+/**
+ * Avisa o WhatsApp que a conversa foi lida (✓✓ azul no celular do cliente). Com `typing`, também mostra
+ * "digitando…" para o cliente por até 25 s ou até a próxima mensagem. Só envia leitura quando há
+ * mensagem do cliente ainda não confirmada, então pode ser chamada a cada atualização da conversa.
+ */
+export async function sendReadReceipt(conversationId: string, typing = false): Promise<void> {
+  const last = await prisma.waMessage.findFirst({
+    where: { conversationId, direction: "inbound", waMessageId: { not: null } },
+    orderBy: { createdAt: "desc" },
+    select: { waMessageId: true, status: true, conversation: { select: { phoneNumberId: true } } },
+  });
+  if (!last?.waMessageId || (!typing && last.status === "read")) return;
+
+  try {
+    const cfg = await getPhoneConfig(last.conversation.phoneNumberId);
+    await metaPost(`${GRAPH_URL}/${cfg.phoneNumberId}/messages`, {
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: last.waMessageId,
+      ...(typing ? { typing_indicator: { type: "text" } } : {}),
+    }, cfg.accessToken, 1);
+  } catch (err) {
+    // Ex.: mensagem antiga demais para a Meta aceitar. Marca como lida mesmo assim para não repetir a cada atualização.
+    console.warn("[WhatsApp] Não foi possível enviar a confirmação de leitura:", (err as Error)?.message ?? err);
+  }
+  // Ler a última confirma todas as anteriores
+  await prisma.waMessage.updateMany({
+    where: { conversationId, direction: "inbound", status: { not: "read" } },
+    data: { status: "read" },
+  });
+}
+
 /** Zera as não lidas de todas as conversas (de um número, quando informado). Só local — não envia nada ao cliente. */
 export async function markAllConversationsRead(phoneNumberId?: string) {
   const result = await prisma.waConversation.updateMany({
@@ -753,7 +785,11 @@ export async function listContacts() {
   return prisma.waContact.findMany({ orderBy: { name: "asc" } });
 }
 
-export async function updateContact(id: string, data: { name?: string; notes?: string; crmContactId?: string | null }) {
+export async function getContact(id: string) {
+  return prisma.waContact.findUnique({ where: { id } });
+}
+
+export async function updateContact(id: string, data: { name?: string; notes?: string; crmContactId?: string | null; website?: string | null }) {
   // Se a equipe mudou o nome, trava para o nome do perfil do WhatsApp não voltar na próxima mensagem
   const current = await prisma.waContact.findUnique({ where: { id }, select: { name: true } });
   const renamed = data.name !== undefined && data.name.trim() !== "" && data.name.trim() !== current?.name;

@@ -11,6 +11,31 @@ import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import { startVoiceRecording, MicError, type VoiceRecording } from "../lib/voiceRecorder";
 
+// ─── Foto do contato ──────────────────────────────────────────────────────────
+
+/** Logo da empresa do cliente (buscada pelo site) ou, sem logo, as iniciais com cor */
+function ContactAvatar({ contact, size = "sm", fallback }: {
+  contact?: Pick<WaContact, "name" | "avatarFile"> | null;
+  size?: "sm" | "xl";
+  /** O que mostrar sem logo (padrão: iniciais pequenas) */
+  fallback?: React.ReactNode;
+}) {
+  const [broken, setBroken] = useState(false);
+  const name = contact?.name ?? "";
+  useEffect(() => setBroken(false), [contact?.avatarFile]);
+  if (!contact?.avatarFile || broken) return <>{fallback ?? <Avatar name={name} size="sm" />}</>;
+  const dim = size === "sm" ? "h-6 w-6 p-[2px]" : "h-14 w-14 p-1.5";
+  return (
+    <img
+      src={`/wa-avatars/${contact.avatarFile}`}
+      alt={name}
+      title={name}
+      onError={() => setBroken(true)}
+      className={`inline-block flex-shrink-0 rounded-full bg-white object-scale-down ring-1 ring-black/10 ${dim}`}
+    />
+  );
+}
+
 // ─── Desktop (OS) notification ────────────────────────────────────────────────
 
 function sendDesktopNotification(name: string, text: string, onClick?: () => void) {
@@ -117,7 +142,7 @@ function ConversationItem({ conv, active, onClick, onTogglePin, phoneNumbers }: 
       active ? "bg-green-50 dark:bg-green-950/30" : "hover:bg-gray-50 dark:hover:bg-white/5"
     }`} onClick={onClick}>
       <div className="flex-shrink-0 mt-0.5">
-        <Avatar name={conv.contact.name} size="sm" />
+        <ContactAvatar contact={conv.contact} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
@@ -1723,6 +1748,7 @@ function ContactPanel({
   const navigate = useNavigate();
   const [name, setName] = useState(contact.name);
   const [notes, setNotes] = useState(contact.notes ?? "");
+  const [website, setWebsite] = useState(contact.website ?? "");
   const [saving, setSaving] = useState(false);
   const [savingCrm, setSavingCrm] = useState(false);
   const [crmContact, setCrmContact] = useState<ContactWithDeals | null>(null);
@@ -1738,6 +1764,7 @@ function ContactPanel({
   useEffect(() => {
     setName(contact.name);
     setNotes(contact.notes ?? "");
+    setWebsite(contact.website ?? "");
     setCrmContact(null);
     setCrmError(null);
     if (contact.crmContactId) {
@@ -1755,6 +1782,7 @@ function ContactPanel({
       const updated = await whatsappApi.patchContact(contact.id, {
         name: name.trim() || contact.name,
         notes: notes.trim(),
+        website: website.trim() || null,
       });
       onUpdated(updated);
     } finally {
@@ -1887,9 +1915,11 @@ function ContactPanel({
         {contactTab === "info" && (<>
         {/* Avatar + identity */}
         <div className="flex items-center gap-3 px-4 py-4 border-b border-[rgba(0,0,0,0.06)] dark:border-white/[0.06]">
-          <div className="h-14 w-14 flex-shrink-0 rounded-full flex items-center justify-center text-white text-lg font-bold" style={{ backgroundColor: avatarBg }}>
-            {initials}
-          </div>
+          <ContactAvatar contact={contact} size="xl" fallback={
+            <div className="h-14 w-14 flex-shrink-0 rounded-full flex items-center justify-center text-white text-lg font-bold" style={{ backgroundColor: avatarBg }}>
+              {initials}
+            </div>
+          } />
           <div className="min-w-0">
             <p className="text-[15px] font-semibold text-gray-900 dark:text-white leading-tight truncate">{contact.name}</p>
             <p className="text-xs text-gray-400 mt-0.5">{contact.phone}</p>
@@ -1910,6 +1940,18 @@ function ContactPanel({
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               placeholder="Observações sobre este contato..."
               className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2d32] px-3 py-2.5 text-sm focus:outline-none focus:border-green-400 dark:text-white resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Site da empresa</label>
+            <input value={website} onChange={e => setWebsite(e.target.value)} placeholder="ex.: empresa.com.br"
+              className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2d32] px-3 py-2.5 text-sm focus:outline-none focus:border-green-400 dark:text-white" />
+            <p className="mt-1 text-[11px] text-gray-400">
+              {contact.avatarFile && contact.avatarDomain
+                ? <>Foto: logo de <b className="font-medium text-gray-500 dark:text-gray-300">{contact.avatarDomain}</b></>
+                : contact.avatarDomain
+                  ? <>Não foi encontrada uma logo em {contact.avatarDomain}.</>
+                  : "A foto do contato vira a logo do site da empresa."}
+            </p>
           </div>
           <button onClick={handleSave} disabled={saving}
             className="w-full rounded-xl bg-[#00a884] py-2.5 text-sm font-semibold text-white hover:bg-[#00956e] disabled:opacity-50 transition-colors active:scale-[0.98]">
@@ -2114,7 +2156,7 @@ function ForwardModal({ msg, conversations, onClose }: {
                 disabled={!!forwarding}
                 className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-50 transition-colors text-left"
               >
-                <Avatar name={conv.contact.name} size="sm" />
+                <ContactAvatar contact={conv.contact} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{conv.contact.name}</p>
                   <p className="text-xs text-gray-400 truncate">{conv.contact.phone}</p>
@@ -2380,6 +2422,7 @@ export function WhatsAppPage() {
   const [forwardingMsg, setForwardingMsg] = useState<WaMessage | null>(null);
   const [showContactPanel, setShowContactPanel] = useState(false);
   const [isNoteMode, setIsNoteMode] = useState(false);
+  const typingSentRef = useRef<{ convId: string | null; at: number }>({ convId: null, at: 0 });
   const [labels, setLabels] = useState<WaLabel[]>([]);
   const [agents, setAgents] = useState<WaUser[]>([]);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
@@ -2694,6 +2737,8 @@ export function WhatsAppPage() {
     if (stagedFiles.length > 0) { await sendStagedFile(); return; }
     const text = replyText.trim();
     if (!text) return;
+    // Enviar encerra o "digitando…" no celular do cliente; a próxima digitação avisa de novo
+    typingSentRef.current.at = 0;
 
     // Envio "otimista": a mensagem aparece na hora com o relógio e a caixa já fica livre
     // para a próxima; os envios vão para o servidor em fila, na ordem em que foram digitados.
@@ -3374,7 +3419,7 @@ export function WhatsAppPage() {
                   </button>
                   {/* Left: avatar + identity + labels */}
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Avatar name={activeConv?.contact.name ?? ""} size="sm" />
+                    <ContactAvatar contact={activeConv?.contact} />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{activeConv?.contact.name}</p>
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -3831,6 +3876,13 @@ export function WhatsAppPage() {
                           value={replyText}
                           onChange={(e) => {
                             setReplyText(e.target.value);
+                            // "digitando…" no celular do cliente (o aviso dura ~25 s, então renova a cada 20 s)
+                            const now = Date.now();
+                            if (activeConvId && !isNoteMode && !windowClosed && e.target.value.trim()
+                              && (typingSentRef.current.convId !== activeConvId || now - typingSentRef.current.at > 20_000)) {
+                              typingSentRef.current = { convId: activeConvId, at: now };
+                              whatsappApi.sendTyping(activeConvId).catch(() => {});
+                            }
                             const ta = e.currentTarget;
                             ta.style.height = "auto";
                             ta.style.height = `${ta.scrollHeight}px`;
