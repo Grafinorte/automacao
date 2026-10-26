@@ -387,6 +387,35 @@ function normalizeForMatch(s: string | null | undefined): string {
     .trim();
 }
 
+// Palavras que não precisam aparecer na mensagem ("tabela DE preços" → tabela + preços)
+const MATCH_STOPWORDS = new Set(["a", "o", "e", "de", "da", "do", "das", "dos", "um", "uma", "em", "no", "na", "pra", "para", "por", "com", "que"]);
+
+/** Plural simples do português: cartoes→cartao, paes→pao, copos→copo, folders→folder */
+function singularForMatch(w: string): string {
+  if (w.length <= 3) return w;
+  return w
+    .replace(/oes$|aes$/, "ao")
+    .replace(/ais$/, "al")
+    .replace(/eis$/, "el")
+    .replace(/ns$/, "m")
+    .replace(/(?<=[aeiou])s$/, "");
+}
+
+/**
+ * Modo "Contém": cada palavra da chave aparece na mensagem, em qualquer ordem, aceitando
+ * singular/plural, palavra com final a mais ("orcamento" ↔ "orcamentos") e palavra digitada
+ * pela metade (mín. 4 letras, "orcam" → "orcamento"). Não pega pedaço no meio ("oi" ≠ "noite").
+ */
+function containsKeyword(msg: string, kw: string): boolean {
+  const msgWords = msg.split(" ").map(singularForMatch);
+  let kwWords = kw.split(" ");
+  const significant = kwWords.filter((w) => !MATCH_STOPWORDS.has(w));
+  if (significant.length) kwWords = significant;
+  return kwWords.map(singularForMatch).every((k) =>
+    msgWords.some((m) => m.startsWith(k) || (m.length >= 4 && k.startsWith(m)))
+  );
+}
+
 async function runAutomations(conversationId: string, phone: string, text: string, phoneNumberId?: string | null): Promise<void> {
   // Automações do número que recebeu a mensagem + as gerais (sem número); as do número têm prioridade
   const automations = await prisma.waAutomation.findMany({
@@ -407,7 +436,7 @@ async function runAutomations(conversationId: string, phone: string, text: strin
         ? msg === kw
         : auto.matchType === "starts_with"
           ? msg.startsWith(kw)
-          : msg.includes(kw)
+          : containsKeyword(msg, kw)
     );
 
     if (!matches) continue;
