@@ -46,6 +46,8 @@ export const env = {
   tregBaseUrl: process.env.TREG_BASE_URL || "https://treg.to",
   // Limite de buscas por usuário por dia (proteção do saldo)
   tregDailyLimitPerUser: Number(process.env.TREG_DAILY_LIMIT_PER_USER) || 50,
+  // Marketing (anúncios dos concorrentes e buscas no Google): pesquisas por usuário por dia
+  tregMarketingDailyLimit: Number(process.env.TREG_MARKETING_DAILY_LIMIT) || 40,
 };
 
 export interface GaSiteConfig {

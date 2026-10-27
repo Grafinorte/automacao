@@ -10,6 +10,10 @@ export interface IgPost {
   id: string; caption?: string; media_type: string; media_url?: string;
   thumbnail_url?: string; permalink: string; timestamp: string;
   like_count?: number; comments_count?: number;
+  /** FEED, REELS ou STORY */
+  media_product_type?: string;
+  /** Alcance, visualizações, salvamentos e compartilhamentos (só dos posts mais recentes) */
+  insights?: { reach?: number; views?: number; saved?: number; shares?: number; total_interactions?: number } | null;
 }
 
 export interface IgInsight {
@@ -19,6 +23,8 @@ export interface IgInsight {
 
 export interface IgAccountSummary {
   account: string; profile: IgProfile | null; posts: IgPost[]; insights: IgInsight[];
+  /** Totais dos últimos 28 dias (current) e dos 28 anteriores (previous): views, reach, profile_views, accounts_engaged, total_interactions, website_clicks */
+  totals?: { current: Record<string, number>; previous: Record<string, number> };
 }
 
 export interface SocialPost {

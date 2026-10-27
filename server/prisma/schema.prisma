@@ -124,6 +124,7 @@ model User {
   waMessagesSent       WaMessage[]      @relation("WaMessageSentBy")
   socialPosts          SocialPost[]
   prospectSearches     ProspectSearch[]
+  marketingResearch    MarketingResearch[]
 
   @@map("users")
 }
@@ -393,6 +394,26 @@ model ProspectSearch {
 
   @@index([createdAt])
   @@map("prospect_searches")
+}
+
+// Pesquisas de Marketing feitas pelo treg: anúncios dos concorrentes (Biblioteca de Anúncios da Meta)
+// e buscas no Google (volume de pesquisa). Guarda o resultado para histórico e para não pagar de novo no mesmo dia.
+model MarketingResearch {
+  id          String   @id @default(cuid())
+  // ADS_ADVERTISER (anúncios de uma empresa), ADS_KEYWORD (anúncios com uma palavra) ou KEYWORDS (buscas no Google)
+  kind        String
+  query       String
+  // Resultado já resumido, em JSON
+  result      String
+  itemCount   Int      @default(0)
+  // Custo cobrado pelo treg, em milionésimos de dólar
+  costMicro   Int      @default(0)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@index([kind, createdAt])
+  @@map("marketing_research")
 }
 
 model ProspectLead {

@@ -4,6 +4,7 @@ import * as campaignsController from "./campaigns.controller";
 import * as contentController from "./content.controller";
 import * as metaController from "../meta/meta.controller";
 import * as competitorController from "./competitor.controller";
+import * as researchController from "./research.controller";
 import * as analyticsController from "../analytics/analytics.controller";
 import { requireAuth, requireRole } from "../../middleware/auth";
 import { asyncHandler } from "../../utils/asyncHandler";
@@ -45,6 +46,11 @@ marketingRouter.post("/meta/upload", upload.single("file"), asyncHandler(metaCon
 marketingRouter.get("/meta/schedule", asyncHandler(metaController.getScheduledPosts));
 marketingRouter.post("/meta/schedule", asyncHandler(metaController.schedulePost));
 marketingRouter.delete("/meta/schedule/:id", asyncHandler(metaController.deleteScheduledPost));
+
+// Pesquisas pelo treg: anúncios dos concorrentes e buscas no Google
+marketingRouter.post("/research", asyncHandler(researchController.postResearch));
+marketingRouter.get("/research", asyncHandler(researchController.getResearchList));
+marketingRouter.get("/research/:id", asyncHandler(researchController.getResearchById));
 
 // Competitor analysis
 marketingRouter.get("/competitor", asyncHandler(competitorController.getProfiles));

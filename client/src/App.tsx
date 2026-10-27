@@ -26,6 +26,8 @@ import { MarketingContentPage } from "./pages/MarketingContentPage";
 import { MarketingCampaignsPage } from "./pages/MarketingCampaignsPage";
 import { SocialPlannerPage } from "./pages/SocialPlannerPage";
 import { CompetitorAnalysisPage } from "./pages/CompetitorAnalysisPage";
+import { MarketingAdsPage } from "./pages/MarketingAdsPage";
+import { MarketingSearchPage } from "./pages/MarketingSearchPage";
 import { MarketingSitePage } from "./pages/MarketingSitePage";
 import { MarketingLayout } from "./components/marketing/MarketingLayout";
 import { HrDashboardPage } from "./pages/HrDashboardPage";
@@ -128,6 +130,8 @@ export function App() {
                   <Route path="/marketing/planner" element={<SocialPlannerPage />} />
                   <Route path="/marketing/concorrentes" element={<CompetitorAnalysisPage />} />
                   <Route path="/marketing/site" element={<MarketingSitePage />} />
+                  <Route path="/marketing/anuncios" element={<MarketingAdsPage />} />
+                  <Route path="/marketing/buscas" element={<MarketingSearchPage />} />
                 </Route>
               </Route>
               <Route element={<ProtectedRoute moduleId="rh" />}>

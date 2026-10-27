@@ -53,27 +53,29 @@ export async function getProfile(account: IgAccount) {
 export async function getPosts(account: IgAccount, limit = 20) {
   const res = await igGet<{
     data: {
-      id: string; caption?: string; media_type: string; media_url?: string;
+      id: string; caption?: string; media_type: string; media_product_type?: string; media_url?: string;
       thumbnail_url?: string; permalink: string; timestamp: string;
       like_count?: number; comments_count?: number;
     }[];
   }>(`${account.id}/media`, account.token, {
-    fields: "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
+    fields: "id,caption,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count",
     limit: String(limit),
   });
   return res.data ?? [];
 }
 
 // ─── Insights ─────────────────────────────────────────────────────────────────
+// A Meta aposentou "impressions" em 2025: pedir essa métrica fazia a chamada inteira falhar (tudo zerado).
+// Série por dia só existe para reach e follower_count; o resto vem como total do período.
 
 export async function getAccountInsights(account: IgAccount, days = 30) {
   const until = Math.floor(Date.now() / 1000);
-  const since = until - days * 86400;
+  const since = until - Math.min(days, 30) * 86400;
   try {
     const res = await igGet<{
       data: { name: string; period: string; values: { value: number; end_time: string }[] }[];
     }>(`${account.id}/insights`, account.token, {
-      metric: "impressions,reach,profile_views,follower_count",
+      metric: "reach,follower_count",
       period: "day",
       since: String(since),
       until: String(until),
@@ -82,15 +84,38 @@ export async function getAccountInsights(account: IgAccount, days = 30) {
   } catch { return []; }
 }
 
+const TOTAL_METRICS = ["reach", "views", "profile_views", "accounts_engaged", "total_interactions", "website_clicks"];
+
+/** Totais da conta num período (até 30 dias): visualizações, alcance, visitas ao perfil, cliques no site... */
+export async function getAccountTotals(account: IgAccount, sinceSec: number, untilSec: number): Promise<Record<string, number>> {
+  try {
+    const res = await igGet<{ data: { name: string; total_value?: { value: number } }[] }>(`${account.id}/insights`, account.token, {
+      metric: TOTAL_METRICS.join(","),
+      period: "day",
+      metric_type: "total_value",
+      since: String(sinceSec),
+      until: String(untilSec),
+    });
+    return Object.fromEntries((res.data ?? []).map((m) => [m.name, m.total_value?.value ?? 0]));
+  } catch { return {}; }
+}
+
 export async function getPostInsights(account: IgAccount, mediaId: string) {
   try {
     const res = await igGet<{
       data: { name: string; values: { value: number }[]; title: string }[];
     }>(`${mediaId}/insights`, account.token, {
-      metric: "impressions,reach,likes,comments,shares,saved,total_interactions",
+      metric: "reach,views,likes,comments,shares,saved,total_interactions",
     });
     return res.data ?? [];
   } catch { return []; }
+}
+
+/** Alcance, visualizações, salvamentos e compartilhamentos de um post, num objeto simples */
+async function postMetrics(account: IgAccount, mediaId: string): Promise<Record<string, number> | null> {
+  const data = await getPostInsights(account, mediaId);
+  if (!data.length) return null;
+  return Object.fromEntries(data.map((m) => [m.name, m.values?.[0]?.value ?? 0]));
 }
 
 // ─── Publish ──────────────────────────────────────────────────────────────────
@@ -142,23 +167,39 @@ export async function publishStory(account: IgAccount, mediaUrl: string, isVideo
 export interface AccountSummary {
   account: string;
   profile: Awaited<ReturnType<typeof getProfile>> | null;
-  posts: Awaited<ReturnType<typeof getPosts>>;
+  posts: (Awaited<ReturnType<typeof getPosts>>[number] & { insights?: Record<string, number> | null })[];
   insights: Awaited<ReturnType<typeof getAccountInsights>>;
+  /** Totais dos últimos 28 dias e dos 28 dias anteriores (para mostrar a variação) */
+  totals: { current: Record<string, number>; previous: Record<string, number> };
 }
 
+const PERIOD_DAYS = 28;
+const POSTS_WITH_INSIGHTS = 12;
+
 export async function getAllAccountsSummary(): Promise<AccountSummary[]> {
+  const now = Math.floor(Date.now() / 1000);
+  const period = PERIOD_DAYS * 86400;
   const results = await Promise.allSettled(
     getAccounts().map(async (acc): Promise<AccountSummary> => {
-      const [profile, posts, insights] = await Promise.allSettled([
+      const [profile, posts, insights, current, previous] = await Promise.allSettled([
         getProfile(acc),
-        getPosts(acc, 12),
+        getPosts(acc, 30),
         getAccountInsights(acc, 30),
+        getAccountTotals(acc, now - period, now),
+        getAccountTotals(acc, now - 2 * period, now - period),
       ]);
+      const postList = posts.status === "fulfilled" ? posts.value : [];
+      // Métricas por post (salvamentos, compartilhamentos...) dos mais recentes
+      const metrics = await Promise.all(postList.slice(0, POSTS_WITH_INSIGHTS).map((p) => postMetrics(acc, p.id)));
       return {
         account: acc.name,
         profile: profile.status === "fulfilled" ? profile.value : null,
-        posts: posts.status === "fulfilled" ? posts.value : [],
+        posts: postList.map((p, i) => ({ ...p, insights: metrics[i] ?? null })),
         insights: insights.status === "fulfilled" ? insights.value : [],
+        totals: {
+          current: current.status === "fulfilled" ? current.value : {},
+          previous: previous.status === "fulfilled" ? previous.value : {},
+        },
       };
     })
   );

@@ -190,3 +190,60 @@ html.dark select {
 }
 html.dark input::placeholder,
 html.dark textarea::placeholder { color: #5a5a60 !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MARKETING — entrada dos blocos, brilhos do topo, carregamento e minigráficos
+   ══════════════════════════════════════════════════════════════════════════ */
+@keyframes mkt-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.mkt-rise { animation: mkt-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0ms); }
+
+@keyframes mkt-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(36px, -24px) scale(1.1); }
+}
+.mkt-blob   { animation: mkt-float 16s ease-in-out infinite; }
+.mkt-blob-2 { animation: mkt-float 21s ease-in-out infinite reverse; }
+
+@keyframes mkt-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+.mkt-shimmer {
+  background-image: linear-gradient(90deg, rgba(0,0,0,0.04) 25%, rgba(0,0,0,0.085) 37%, rgba(0,0,0,0.04) 63%);
+  background-size: 400% 100%;
+  animation: mkt-shimmer 1.5s ease infinite;
+}
+html.dark .mkt-shimmer {
+  background-image: linear-gradient(90deg, rgba(255,255,255,0.035) 25%, rgba(255,255,255,0.08) 37%, rgba(255,255,255,0.035) 63%);
+}
+
+/* Linha que se desenha (o path usa pathLength="1") */
+@keyframes mkt-draw { to { stroke-dashoffset: 0; } }
+.mkt-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: mkt-draw 1.2s ease-out 0.15s forwards; }
+
+/* Brilho que segue o mouse nos cartões (usa --mx / --my definidos no onMouseMove) */
+.mkt-spot { position: relative; isolation: isolate; }
+.mkt-spot::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1; opacity: 0; transition: opacity 0.3s;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(0, 92, 186, 0.10), transparent 65%);
+}
+.mkt-spot:hover::before { opacity: 1; }
+html.dark .mkt-spot::before { background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(61, 142, 240, 0.16), transparent 65%); }
+
+/* Anel do avatar do Instagram girando devagar */
+@keyframes mkt-spin { to { transform: rotate(360deg); } }
+.mkt-ring { background: conic-gradient(from 0deg, #f58529, #dd2a7b, #8134af, #515bd4, #f58529); animation: mkt-spin 8s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-rise, .mkt-blob, .mkt-blob-2, .mkt-shimmer, .mkt-ring { animation: none !important; }
+  .mkt-draw { animation: none !important; stroke-dashoffset: 0; }
+}
+
+/* Campo de pesquisa sobre o topo escuro do Marketing: vence a regra global dos inputs no tema escuro */
+html.dark input.mkt-hero-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  background-color: transparent !important;
+  color: #ffffff !important;
+}
