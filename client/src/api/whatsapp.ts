@@ -113,7 +113,11 @@ export interface MetaTemplate {
   status: "APPROVED" | "PENDING" | "REJECTED" | string;
   category: string;
   language: string;
-  components: { type: string; format?: string; text?: string }[];
+  components: {
+    type: string; format?: string; text?: string;
+    /** Botões do template (BUTTONS); os de link podem ter {{1}} no fim do endereço */
+    buttons?: { type: string; text?: string; url?: string; phone_number?: string }[];
+  }[];
 }
 
 export interface WaTemplate {
@@ -173,7 +177,14 @@ export const whatsappApi = {
   createMetaTemplate: (data: { name: string; category?: string; language?: string; bodyText: string; exampleValues?: string[]; phoneNumberId?: string | null }) =>
     api.post<{ id: string; status: string }>("/whatsapp/meta-templates", data),
 
-  sendTemplateMessage: (data: { phone: string; name?: string; templateName: string; language?: string; variables?: string[]; headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string; phoneNumberId?: string }) =>
+  /** Envia um template aprovado: para uma conversa existente (conversationId) ou para um número novo (phone) */
+  sendTemplateMessage: (data: {
+    conversationId?: string; phone?: string; name?: string; templateName: string; language?: string;
+    variables?: string[]; headerVariables?: string[]; buttonVariables?: { index: number; value: string }[];
+    headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string; phoneNumberId?: string;
+    /** Texto final com as variáveis, para aparecer no chat da plataforma */
+    previewText?: string;
+  }) =>
     api.post<{ conversation: WaConversation; message: WaMessage }>("/whatsapp/meta-templates/send", data),
 
   // Templates

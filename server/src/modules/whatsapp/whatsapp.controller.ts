@@ -280,24 +280,34 @@ export async function postMetaTemplate(req: Request, res: Response) {
 }
 
 export async function postTemplateMessage(req: Request, res: Response) {
-  const { phone, name, templateName, language, variables, headerMediaUrl, headerMediaType, headerFileName, phoneNumberId } = req.body as {
-    phone?: string; name?: string; templateName?: string; language?: string;
-    variables?: string[]; headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string; phoneNumberId?: string;
+  const {
+    conversationId, phone, name, templateName, language, variables, headerVariables, buttonVariables,
+    headerMediaUrl, headerMediaType, headerFileName, phoneNumberId, previewText,
+  } = req.body as {
+    conversationId?: string; phone?: string; name?: string; templateName?: string; language?: string;
+    variables?: string[]; headerVariables?: string[]; buttonVariables?: { index: number; value: string }[];
+    headerMediaUrl?: string; headerMediaType?: string; headerFileName?: string; phoneNumberId?: string; previewText?: string;
   };
-  if (!phone || !templateName) {
+  if ((!phone && !conversationId) || !templateName) {
     res.status(400).json({ error: "Número e template são obrigatórios." });
     return;
   }
+  // Variável em branco fazia a Meta recusar (ia uma a menos do que o template pede)
+  if ([...(variables ?? []), ...(headerVariables ?? []), ...(buttonVariables ?? []).map((b) => b.value)].some((v) => !String(v ?? "").trim())) {
+    res.status(400).json({ error: "Preencha todas as variáveis do template." });
+    return;
+  }
   try {
-    const result = await waService.startConversationWithTemplate(
-      phone, name ?? phone, templateName, language ?? "pt_BR", variables ?? [],
-      req.user!.sub, headerMediaUrl, headerMediaType, headerFileName, phoneNumberId
-    );
+    const result = await waService.startConversationWithTemplate({
+      conversationId, phone, name, templateName, language: language ?? "pt_BR",
+      params: { variables: variables ?? [], headerVariables, buttonVariables, headerMediaUrl, headerMediaType, headerFileName },
+      previewText, sentById: req.user!.sub, phoneNumberId: phoneNumberId && phoneNumberId !== "all" ? phoneNumberId : undefined,
+    });
     res.status(201).json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erro ao enviar template";
     console.error("[WhatsApp] Erro ao enviar template:", msg);
-    res.status(500).json({ error: msg });
+    res.status(400).json({ error: msg });
   }
 }
 

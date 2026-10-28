@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import { startVoiceRecording, MicError, type VoiceRecording } from "../lib/voiceRecorder";
+import { TemplateSendForm, prettyTemplateName } from "../components/whatsapp/TemplateSendForm";
 
 // ─── Desktop (OS) notification ────────────────────────────────────────────────
 
@@ -733,113 +734,6 @@ function ChatBubble({ msg, onReply, onEdit, onForward, onDelete, onStar, onScrol
   );
 }
 
-// ─── Templates panel ──────────────────────────────────────────────────────────
-
-function TemplatesManager({ onClose, onSelect }: { onClose: () => void; onSelect?: (text: string) => void }) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
-  const [templates, setTemplates] = useState<WaTemplate[]>([]);
-  const [form, setForm] = useState({ name: "", text: "" });
-  const [saving, setSaving] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-
-  const load = useCallback(() => {
-    whatsappApi.getTemplates().then(setTemplates).catch(() => {});
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  async function handleSave() {
-    if (!form.name || !form.text) return;
-    setSaving(true);
-    try {
-      await whatsappApi.createTemplate(form);
-      setForm({ name: "", text: "" });
-      setShowForm(false);
-      load();
-    } finally { setSaving(false); }
-  }
-
-  async function handleDelete(id: string) {
-    if (!confirm("Excluir este template?")) return;
-    await whatsappApi.deleteTemplate(id);
-    load();
-  }
-
-  return (
-    <div className="fixed bottom-[80px] right-8 w-80 rounded-2xl border border-[rgba(0,0,0,0.08)] bg-white dark:bg-[#1e2024] shadow-xl z-50">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[rgba(0,0,0,0.06)]">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white">Templates</p>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
-            <button onClick={() => setShowForm((v) => !v)} className="text-xs text-green-600 font-medium hover:underline">
-              + Novo
-            </button>
-          )}
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      {showForm && isAdmin && (
-        <div className="px-4 py-3 border-b border-[rgba(0,0,0,0.06)] bg-gray-50 dark:bg-white/3 space-y-2">
-          <input
-            placeholder="Nome do template"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            className="w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e2024] px-3 py-1.5 text-sm focus:outline-none"
-          />
-          <textarea
-            placeholder="Texto da mensagem..."
-            rows={3}
-            value={form.text}
-            onChange={(e) => setForm((f) => ({ ...f, text: e.target.value }))}
-            className="w-full rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1e2024] px-3 py-1.5 text-sm focus:outline-none resize-none"
-          />
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setShowForm(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
-            <button onClick={handleSave} disabled={saving} className="rounded-lg bg-green-500 px-3 py-1 text-xs font-semibold text-white hover:bg-green-600 disabled:opacity-50">
-              {saving ? "..." : "Salvar"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="max-h-64 overflow-y-auto divide-y divide-[rgba(0,0,0,0.05)]">
-        {templates.length === 0 ? (
-          <p className="text-center text-xs text-gray-400 py-6">Nenhum template cadastrado.</p>
-        ) : (
-          templates.map((t) => (
-            <div
-              key={t.id}
-              className="px-4 py-3 flex items-start gap-2 group cursor-pointer hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors"
-              onClick={() => { if (onSelect) { onSelect(t.text); onClose(); } }}
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 truncate">{t.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{t.text}</p>
-              </div>
-              {isAdmin && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }}
-                  className="flex-shrink-0 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Automations panel ────────────────────────────────────────────────────────
 
 function AutomationsPanel({ phoneNumbers, defaultPhoneNumberId }: {
@@ -1164,126 +1058,64 @@ function SendTemplateModal({ template, onClose, onSent, phoneNumberId }: {
   /** Número que envia o template (o da conta do template) */
   phoneNumberId?: string | null;
 }) {
-  const body = template.components.find(c => c.type === "BODY");
-  const headerComp = template.components.find(c => c.type === "HEADER");
-  const headerMediaType = headerComp?.format && ["IMAGE","VIDEO","DOCUMENT"].includes(headerComp.format)
-    ? headerComp.format.toLowerCase() : null;
-  const varCount = (body?.text?.match(/\{\{\d+\}\}/g) ?? []).length;
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
-  const [variables, setVariables] = useState<string[]>(Array(varCount).fill(""));
-  const [headerMediaId, setHeaderMediaId] = useState("");
-  const [headerFileName, setHeaderFileName] = useState("");
-  const [uploadingHeader, setUploadingHeader] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const headerFileRef = useRef<HTMLInputElement>(null);
-
-  const preview = body?.text?.replace(/\{\{(\d+)\}\}/g, (_, i) => variables[Number(i) - 1] || `{{${i}}}`) ?? "";
-
-  const inputCls = "w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2d32] px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 dark:text-white";
-  const labelCls = "block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1";
-
-  const canSend = !!phone.trim() && (!headerMediaType || !!headerMediaId);
-
-  async function handleHeaderUpload(file: File) {
-    setUploadingHeader(true);
-    setError(null);
-    try {
-      const { mediaId } = await whatsappApi.uploadMedia(file, phoneNumberId);
-      setHeaderMediaId(mediaId);
-      setHeaderFileName(file.name);
-    } catch {
-      setError("Erro ao fazer upload da mídia. Tente novamente.");
-    } finally {
-      setUploadingHeader(false);
-    }
-  }
-
-  async function handleSend() {
-    if (!canSend) return;
-    setSaving(true); setError(null);
-    try {
-      const result = await whatsappApi.sendTemplateMessage({
-        phone: phone.trim(), name: name.trim() || undefined,
-        templateName: template.name, language: template.language,
-        variables: variables.filter(Boolean),
-        ...(headerMediaType && headerMediaId ? { headerMediaUrl: headerMediaId, headerMediaType, headerFileName: headerFileName || undefined } : {}),
-        ...(phoneNumberId ? { phoneNumberId } : {}),
-      });
-      onSent(result.conversation.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao enviar.");
-    } finally { setSaving(false); }
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2024] shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Enviar template</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        <ModalTitle title={`Enviar “${prettyTemplateName(template.name)}”`} onClose={onClose} />
+        <ContactFields phone={phone} name={name} onPhone={setPhone} onName={setName} />
+        <TemplateSendForm target={{ phone, name }} phoneNumberId={phoneNumberId} fixedTemplate={template}
+          onSent={(r) => onSent(r.conversation.id)} onCancel={onClose} />
+      </div>
+    </div>
+  );
+}
 
-        {preview && (
-          <div className="mb-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 p-3">
-            <p className="text-xs font-medium text-green-700 dark:text-green-400 mb-1">Prévia da mensagem:</p>
-            <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{preview}</p>
-          </div>
-        )}
+function ModalTitle({ title, subtitle, onClose }: { title: string; subtitle?: string; onClose: () => void }) {
+  return (
+    <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="min-w-0">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>}
+      </div>
+      <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Fechar">
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
 
-        <div className="space-y-3">
-          <div>
-            <label className={labelCls}>Número (com DDI)</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+5511999998888" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Nome do contato (opcional)</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: João Silva" className={inputCls} />
-          </div>
-          {headerMediaType && (
-            <div>
-              <label className={labelCls}>
-                {headerMediaType === "image" ? "Imagem" : headerMediaType === "video" ? "Vídeo" : "Documento"} do cabeçalho *
-              </label>
-              <input ref={headerFileRef} type="file"
-                accept={headerMediaType === "image" ? "image/*" : headerMediaType === "video" ? "video/*" : "*/*"}
-                className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; if (f) handleHeaderUpload(f); }} />
-              <button type="button" onClick={() => headerFileRef.current?.click()}
-                disabled={uploadingHeader}
-                className="flex w-full items-center gap-2 rounded-xl border border-dashed border-gray-300 dark:border-white/20 bg-gray-50 dark:bg-[#2a2d32] px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-600 disabled:opacity-50 transition-colors">
-                {uploadingHeader ? (
-                  <><svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Enviando...</>
-                ) : headerFileName ? (
-                  <><svg className="h-4 w-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg><span className="truncate text-green-600 dark:text-green-400">{headerFileName}</span><span className="ml-auto text-[10px] text-gray-400 flex-shrink-0">Trocar</span></>
-                ) : (
-                  <><svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Clique para selecionar o arquivo</>
-                )}
-              </button>
-            </div>
-          )}
-          {variables.map((v, i) => (
-            <div key={i}>
-              <label className={labelCls}>Variável {`{{${i + 1}}}`}</label>
-              <input value={v} onChange={e => setVariables(vs => vs.map((x, j) => j === i ? e.target.value : x))}
-                placeholder={`Valor para {{${i + 1}}}`} className={inputCls} />
-            </div>
-          ))}
-          {error && <p className="text-xs text-red-500">{error}</p>}
-        </div>
+/** Número (sem DDI = Brasil) e nome do contato */
+function ContactFields({ phone, name, onPhone, onName }: { phone: string; name: string; onPhone: (v: string) => void; onName: (v: string) => void }) {
+  const cls = "w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2d32] px-3.5 py-2.5 text-sm focus:outline-none focus:border-green-400 dark:text-white";
+  return (
+    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Número com DDD</label>
+        <input value={phone} onChange={(e) => onPhone(e.target.value)} placeholder="43 99999-8888" inputMode="tel" className={cls} />
+        <p className="mt-1 text-[10.5px] text-gray-400">De outro país? Comece com + e o código.</p>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Nome do contato (opcional)</label>
+        <input value={name} onChange={(e) => onName(e.target.value)} placeholder="Ex.: João Silva" className={cls} />
+      </div>
+    </div>
+  );
+}
 
-        <div className="flex gap-2 mt-5 justify-end">
-          <button onClick={onClose} className="rounded-xl border border-gray-200 dark:border-white/10 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50">Cancelar</button>
-          <button onClick={handleSend} disabled={saving || !canSend}
-            className="rounded-xl bg-green-500 px-5 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-40">
-            {saving ? "Enviando..." : "Enviar"}
-          </button>
-        </div>
+/** Template de dentro do chat: vai para o cliente desta conversa, pelo número dela */
+function ChatTemplateModal({ conversation, onClose, onSent }: {
+  conversation: WaConversation; onClose: () => void; onSent: (message: WaMessage) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2024] shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <ModalTitle title="Enviar template" subtitle={`Para ${conversation.contact.name} · ${conversation.contact.phone}`} onClose={onClose} />
+        <TemplateSendForm target={{ conversationId: conversation.id }} phoneNumberId={conversation.phoneNumberId}
+          onSent={(r) => onSent(r.message)} onCancel={onClose} />
       </div>
     </div>
   );
@@ -1305,246 +1137,54 @@ function NewConversationModal({ onClose, onCreated, initialPhone = "", initialNa
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [metaTemplates, setMetaTemplates] = useState<MetaTemplate[]>([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(true);
-  const [selectedTemplate, setSelectedTemplate] = useState<MetaTemplate | null>(null);
-  const [variables, setVariables] = useState<string[]>([]);
-  const [headerMediaId, setHeaderMediaId] = useState("");
-  const [headerFileName, setHeaderFileName] = useState("");
-  const [uploadingHeader, setUploadingHeader] = useState(false);
-  const headerFileRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Templates da conta do número que vai iniciar a conversa
-    whatsappApi.getMetaTemplates(phoneNumberId)
-      .then(ts => {
-        const approved = ts.filter(t => t.status === "APPROVED");
-        setMetaTemplates(approved);
-        if (approved.length > 0) setSelectedTemplate(approved[0]);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingTemplates(false));
-  }, [phoneNumberId]);
-
-  useEffect(() => {
-    if (!selectedTemplate) { setVariables([]); setHeaderMediaId(""); setHeaderFileName(""); return; }
-    const body = selectedTemplate.components.find(c => c.type === "BODY");
-    const varCount = (body?.text?.match(/\{\{\d+\}\}/g) ?? []).length;
-    setVariables(Array(varCount).fill(""));
-    setHeaderMediaId("");
-    setHeaderFileName("");
-  }, [selectedTemplate]);
-
-  async function handleHeaderUpload(file: File) {
-    setUploadingHeader(true);
-    setError(null);
+  async function sendFree() {
+    if (!phone.trim() || !text.trim()) return;
+    setSaving(true); setError(null);
     try {
-      const { mediaId } = await whatsappApi.uploadMedia(file, phoneNumberId);
-      setHeaderMediaId(mediaId);
-      setHeaderFileName(file.name);
-    } catch {
-      setError("Erro ao fazer upload da mídia. Tente novamente.");
-    } finally {
-      setUploadingHeader(false);
-    }
-  }
-
-  const headerComp = selectedTemplate?.components.find(c => c.type === "HEADER");
-  const headerMediaType = headerComp?.format && ["IMAGE","VIDEO","DOCUMENT"].includes(headerComp.format)
-    ? headerComp.format.toLowerCase()
-    : null;
-
-  const preview = (() => {
-    if (!selectedTemplate) return "";
-    const body = selectedTemplate.components.find(c => c.type === "BODY");
-    return body?.text?.replace(/\{\{(\d+)\}\}/g, (_, i) => variables[Number(i) - 1] || `{{${i}}}`) ?? "";
-  })();
-
-  const canSend = mode === "template"
-    ? !!phone.trim() && !!selectedTemplate && (!headerMediaType || !!headerMediaId)
-    : !!phone.trim() && !!text.trim();
-
-  async function handleSend() {
-    if (!canSend) return;
-    setSaving(true);
-    setError(null);
-    try {
-      if (mode === "template" && selectedTemplate) {
-        const result = await whatsappApi.sendTemplateMessage({
-          phone: phone.trim(),
-          name: name.trim() || undefined,
-          templateName: selectedTemplate.name,
-          language: selectedTemplate.language,
-          variables: variables.filter(Boolean),
-          phoneNumberId: phoneNumberId ?? undefined,
-          ...(headerMediaType && headerMediaId ? {
-            headerMediaUrl: headerMediaId,
-            headerMediaType,
-          } : {}),
-        });
-        onCreated(result.conversation.id);
-      } else {
-        const result = await whatsappApi.startConversation({ phone: phone.trim(), name: name.trim() || undefined, text: text.trim(), phoneNumberId: phoneNumberId ?? undefined });
-        onCreated(result.conversation.id);
-      }
+      const result = await whatsappApi.startConversation({ phone: phone.trim(), name: name.trim() || undefined, text: text.trim(), phoneNumberId: phoneNumberId ?? undefined });
+      onCreated(result.conversation.id);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao enviar mensagem.");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
-  const inputCls = "w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2d32] px-4 py-2.5 text-sm focus:outline-none focus:border-green-400 dark:text-white";
-  const labelCls = "block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1";
+  const tab = (m: "template" | "free", label: string) => (
+    <button className={`flex-1 py-2 font-medium transition-colors ${mode === m ? "bg-green-500 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"}`} onClick={() => setMode(m)}>{label}</button>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1e2024] shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Nova conversa</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Mode toggle */}
+        <ModalTitle title="Nova conversa" onClose={onClose} />
         <div className="flex rounded-xl border border-gray-200 dark:border-white/10 overflow-hidden mb-4 text-sm">
-          <button
-            className={`flex-1 py-2 font-medium transition-colors ${mode === "template" ? "bg-green-500 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"}`}
-            onClick={() => setMode("template")}
-          >
-            Template
-          </button>
-          <button
-            className={`flex-1 py-2 font-medium transition-colors ${mode === "free" ? "bg-green-500 text-white" : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"}`}
-            onClick={() => setMode("free")}
-          >
-            Texto livre
-          </button>
+          {tab("template", "Template")}
+          {tab("free", "Texto livre")}
         </div>
+        <ContactFields phone={phone} name={name} onPhone={setPhone} onName={setName} />
 
-        <div className="space-y-3">
-          <div>
-            <label className={labelCls}>Número (com DDI, ex: +5511999998888)</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+5511999998888" className={inputCls} />
+        {mode === "template" ? (
+          <TemplateSendForm target={{ phone, name }} phoneNumberId={phoneNumberId}
+            onSent={(r) => { onCreated(r.conversation.id); onClose(); }} onCancel={onClose} />
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-3">
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                ⚠ Texto livre só é entregue se o cliente escreveu para este número nas últimas 24h. Para chamar quem não escreveu, use um <strong>Template</strong>.
+              </p>
+            </div>
+            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder="Digite a mensagem..."
+              className="w-full rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#2a2d32] px-3.5 py-2.5 text-sm focus:outline-none focus:border-green-400 dark:text-white resize-none" />
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={onClose} className="rounded-xl border border-gray-200 dark:border-white/10 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">Cancelar</button>
+              <button onClick={sendFree} disabled={saving || !phone.trim() || !text.trim()}
+                className="rounded-xl bg-green-500 px-5 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-40">
+                {saving ? "Enviando..." : "Enviar"}
+              </button>
+            </div>
           </div>
-          <div>
-            <label className={labelCls}>Nome do contato (opcional)</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: João Silva" className={inputCls} />
-          </div>
-
-          {mode === "template" ? (
-            loadingTemplates ? (
-              <p className="text-xs text-gray-400 py-2">Carregando templates...</p>
-            ) : metaTemplates.length === 0 ? (
-              <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-3">
-                <p className="text-xs text-amber-700 dark:text-amber-400">Nenhum template aprovado encontrado. Crie um template na aba <strong>Templates</strong> e aguarde aprovação da Meta.</p>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className={labelCls}>Template</label>
-                  <select
-                    value={selectedTemplate?.name ?? ""}
-                    onChange={e => setSelectedTemplate(metaTemplates.find(t => t.name === e.target.value) ?? null)}
-                    className={inputCls}
-                  >
-                    {metaTemplates.map(t => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Header media upload — shown only when template requires it */}
-                {headerMediaType && (
-                  <div>
-                    <label className={labelCls}>
-                      {headerMediaType === "image" ? "Imagem" : headerMediaType === "video" ? "Vídeo" : "Documento"} do cabeçalho *
-                    </label>
-                    <input ref={headerFileRef} type="file"
-                      accept={headerMediaType === "image" ? "image/*" : headerMediaType === "video" ? "video/*" : "*/*"}
-                      className="hidden"
-                      onChange={e => { const f = e.target.files?.[0]; if (f) handleHeaderUpload(f); }} />
-                    <button type="button" onClick={() => headerFileRef.current?.click()}
-                      disabled={uploadingHeader}
-                      className="flex w-full items-center gap-2 rounded-xl border border-dashed border-gray-300 dark:border-white/20 bg-gray-50 dark:bg-[#2a2d32] px-4 py-3 text-sm text-gray-500 dark:text-gray-400 hover:border-green-400 hover:text-green-600 disabled:opacity-50 transition-colors">
-                      {uploadingHeader ? (
-                        <><svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Enviando...</>
-                      ) : headerFileName ? (
-                        <><svg className="h-4 w-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg><span className="truncate text-green-600 dark:text-green-400">{headerFileName}</span><span className="ml-auto text-[10px] text-gray-400 flex-shrink-0">Trocar</span></>
-                      ) : (
-                        <><svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Clique para selecionar o arquivo</>
-                      )}
-                    </button>
-                  </div>
-                )}
-
-                {preview && (
-                  <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800 p-3">
-                    <p className="text-[10px] font-semibold text-green-700 dark:text-green-400 mb-1">Prévia da mensagem:</p>
-                    <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{preview}</p>
-                  </div>
-                )}
-
-                {variables.map((v, i) => (
-                  <div key={i}>
-                    <label className={labelCls}>Variável {`{{${i + 1}}}`}</label>
-                    <input
-                      value={v}
-                      onChange={e => setVariables(vs => vs.map((x, j) => j === i ? e.target.value : x))}
-                      placeholder={`Valor para {{${i + 1}}}`}
-                      className={inputCls}
-                    />
-                  </div>
-                ))}
-              </>
-            )
-          ) : (
-            <>
-              <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-3">
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  ⚠ Texto livre só funciona se o contato já conversou com você nas últimas 24h. Para iniciar conversa com novos contatos, use um <strong>Template</strong>.
-                </p>
-              </div>
-              <div>
-                <label className={labelCls}>Mensagem</label>
-                <textarea
-                  value={text}
-                  onChange={e => setText(e.target.value)}
-                  rows={4}
-                  placeholder="Digite a mensagem..."
-                  className={`${inputCls} resize-none`}
-                />
-              </div>
-            </>
-          )}
-
-          {error && <p className="text-xs text-red-500">{error}</p>}
-        </div>
-
-        <div className="flex gap-2 mt-5 justify-end">
-          <button onClick={onClose} className="rounded-xl border border-gray-200 dark:border-white/10 px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5">
-            Cancelar
-          </button>
-          <button
-            onClick={handleSend}
-            disabled={saving || !canSend}
-            className="flex items-center gap-2 rounded-xl bg-green-500 px-5 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-40 transition-colors"
-          >
-            {saving ? (
-              <>
-                <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
-                Enviando...
-              </>
-            ) : "Enviar"}
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -2376,6 +2016,8 @@ export function WhatsAppPage() {
   const [dragOver, setDragOver] = useState(false);
   const [templates, setTemplates] = useState<WaTemplate[]>([]);
   const [showNewConv, setShowNewConv] = useState(false);
+  // Envio de template para a conversa aberta (botão no chat e aviso de janela de 24h fechada)
+  const [showChatTemplate, setShowChatTemplate] = useState(false);
   const [replyingTo, setReplyingTo] = useState<WaMessage | null>(null);
   const [forwardingMsg, setForwardingMsg] = useState<WaMessage | null>(null);
   const [showContactPanel, setShowContactPanel] = useState(false);
@@ -3124,6 +2766,14 @@ export function WhatsAppPage() {
               phoneNumberId={selectedPhoneNumberId}
             />
           )}
+          {showChatTemplate && activeConv && (
+            <ChatTemplateModal conversation={activeConv} onClose={() => setShowChatTemplate(false)}
+              onSent={(msg) => {
+                setShowChatTemplate(false);
+                setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
+                loadConversations();
+              }} />
+          )}
 
           {/* Conversation list — full screen on mobile when no active conv */}
           <div
@@ -3701,7 +3351,7 @@ export function WhatsAppPage() {
                           </p>
                         </div>
                         <button type="button"
-                          onClick={() => { setNewConvPrefill({ phone: activeConv.contact.phone, name: activeConv.contact.name }); setShowNewConv(true); }}
+                          onClick={() => setShowChatTemplate(true)}
                           className="flex-shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-600">
                           Enviar template
                         </button>
@@ -3767,22 +3417,19 @@ export function WhatsAppPage() {
 
                       {/* Desktop-only: Templates + Note mode */}
                       <div className="hidden md:flex items-center gap-1.5 flex-shrink-0 pb-1">
-                        <div className="relative" data-templates-panel>
-                          <button
-                            onClick={() => setShowTemplates((v) => !v)}
-                            title="Templates de mensagem"
-                            className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
-                              showTemplates
-                                ? "border-green-400 bg-green-50 dark:bg-green-900/20 text-green-600"
-                                : "border-[rgba(0,0,0,0.08)] dark:border-white/10 text-gray-500 hover:text-green-600 hover:border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
-                            }`}
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                          </button>
-                          {showTemplates && <TemplatesManager onClose={() => setShowTemplates(false)} onSelect={(text) => { setReplyText(text); setTimeout(() => textareaRef.current?.focus(), 50); }} />}
-                        </div>
+                        <button
+                          onClick={() => setShowChatTemplate(true)}
+                          title="Enviar template aprovado pela Meta (funciona mesmo com a janela de 24h fechada)"
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
+                            showChatTemplate
+                              ? "border-green-400 bg-green-50 dark:bg-green-900/20 text-green-600"
+                              : "border-[rgba(0,0,0,0.08)] dark:border-white/10 text-gray-500 hover:text-green-600 hover:border-green-300 hover:bg-green-50 dark:hover:bg-green-900/20"
+                          }`}
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        </button>
                         <button
                           onClick={() => setIsNoteMode((v) => !v)}
                           title={isNoteMode ? "Modo nota — clique para voltar ao modo resposta" : "Nota interna (só para a equipe)"}

@@ -504,41 +504,67 @@ async function runAutomations(conversationId: string, phone: string, text: strin
 
 // ─── Start conversation (outbound-initiated) ──────────────────────────────────
 
-/** Contato já existente com o mesmo celular (com ou sem o nono dígito), senão cria — evita conversa duplicada */
-async function findOrCreateOutboundContact(normalized: string, name: string) {
-  const existing = await prisma.waContact.findFirst({
+/**
+ * "43 99999-8888" → "+5543999998888". Número digitado sem DDI é do Brasil — antes virava "+43…"
+ * (código de outro país): a Meta recusava e ficava um contato duplicado com o número errado.
+ */
+export function normalizeOutboundPhone(phone: string): string {
+  const raw = phone.trim();
+  const digits = raw.replace(/\D/g, "");
+  if (raw.startsWith("+")) return "+" + digits;
+  if (raw.startsWith("00")) return "+" + digits.slice(2);
+  const local = digits.replace(/^0+/, ""); // "043 9…" (com zero de operadora)
+  if (local.length === 10 || local.length === 11) return "+55" + local;
+  return "+" + digits;
+}
+
+/** Contato que já existe com o mesmo celular (com ou sem "+", com ou sem o nono dígito) */
+async function findOutboundContact(normalized: string) {
+  return prisma.waContact.findFirst({
     where: { phone: { in: brPhoneVariants(normalized).flatMap((d) => [d, "+" + d]) } },
     orderBy: { createdAt: "asc" },
   });
-  return existing ?? prisma.waContact.create({ data: { phone: normalized, name: name || normalized } });
+}
+
+/** Contato já existente com o mesmo celular (com ou sem o nono dígito), senão cria — evita conversa duplicada */
+async function findOrCreateOutboundContact(normalized: string, name: string) {
+  return (await findOutboundContact(normalized)) ?? prisma.waContact.create({ data: { phone: normalized, name: name || normalized } });
+}
+
+/**
+ * Conversa do contato neste número; se não houver, aproveita uma "sem número" (dá o número a ela);
+ * só cria uma nova quando não existe nenhuma das duas. Reabre se estiver encerrada.
+ */
+async function pickOutboundConversation(contactId: string, phoneNumberId?: string | null) {
+  let conversation = await prisma.waConversation.findFirst({
+    where: { contactId, ...(phoneNumberId ? { phoneNumberId } : {}) },
+    orderBy: { updatedAt: "desc" },
+  });
+  if (!conversation && phoneNumberId) {
+    const unassigned = await prisma.waConversation.findFirst({ where: { contactId, phoneNumberId: null }, orderBy: { updatedAt: "desc" } });
+    if (unassigned) conversation = await prisma.waConversation.update({ where: { id: unassigned.id }, data: { phoneNumberId } });
+  }
+  if (!conversation) {
+    return prisma.waConversation.create({ data: { contactId, phoneNumberId: phoneNumberId ?? null } });
+  }
+  if (conversation.status === "closed") {
+    return prisma.waConversation.update({ where: { id: conversation.id }, data: { status: "open" } });
+  }
+  return conversation;
 }
 
 export async function startConversation(phone: string, name: string, text: string, sentById: string, explicitPhoneNumberId?: string) {
-  // Normalize phone: remove spaces, dashes, parens; ensure starts with +
-  const normalized = phone.replace(/[\s\-().]/g, "").replace(/^00/, "+").replace(/^(?!\+)/, "+");
+  const normalized = normalizeOutboundPhone(phone);
 
   // Priority: explicit phoneNumberId from request > user's configured number > default
   const sender = await prisma.user.findUnique({ where: { id: sentById }, select: { waPhoneNumberId: true } });
   const phoneNumberId = explicitPhoneNumberId ?? sender?.waPhoneNumberId ?? undefined;
 
-  const contact = await findOrCreateOutboundContact(normalized, name);
-
-  let conversation = await prisma.waConversation.findFirst({
-    where: { contactId: contact.id, ...(phoneNumberId ? { phoneNumberId } : {}) },
-    orderBy: { updatedAt: "desc" },
-  });
-  if (!conversation) {
-    conversation = await prisma.waConversation.create({
-      data: { contactId: contact.id, phoneNumberId: phoneNumberId ?? null },
-    });
-  } else if (conversation.status === "closed") {
-    conversation = await prisma.waConversation.update({
-      where: { id: conversation.id },
-      data: { status: "open" },
-    });
-  }
-
-  const waId = await sendTextToMeta(normalized, text, undefined, phoneNumberId);
+  // Envia primeiro: se a Meta recusar, não fica contato/conversa criados à toa
+  const existing = await findOutboundContact(normalized);
+  const waId = await sendTextToMeta(existing?.phone ?? normalized, text, undefined, phoneNumberId);
+  const contact = existing ?? await findOrCreateOutboundContact(normalized, name);
+  const conversation = await pickOutboundConversation(contact.id, phoneNumberId);
 
   const message = await prisma.waMessage.create({
     data: {
@@ -907,95 +933,133 @@ export async function createMetaTemplate(payload: {
   return await metaPost(url, body, accessToken);
 }
 
+/** Erro da Meta → mensagem que o vendedor entende (o detalhe técnico fica no log do servidor) */
+function friendlyTemplateError(err: unknown): Error {
+  const raw = err instanceof Error ? err.message : String(err);
+  let code: number | undefined, details = "";
+  try {
+    const body = JSON.parse(raw.slice(raw.indexOf("{"))) as { error?: { code?: number; message?: string; error_data?: { details?: string } } };
+    code = body.error?.code;
+    details = body.error?.error_data?.details ?? body.error?.message ?? "";
+  } catch { /* não era um erro da API */ }
+  const known: Record<number, string> = {
+    132000: "A quantidade de variáveis não bate com o template. Preencha todos os campos.",
+    132001: "Este template não existe (ou ainda não foi aprovado) na conta deste número.",
+    132005: "O texto ficou longo demais depois de preencher as variáveis.",
+    132007: "O texto das variáveis não é aceito pela Meta (evite links e quebras de linha).",
+    132012: "Algum campo do template está no formato errado (ex.: falta a imagem do cabeçalho).",
+    132015: "Este template foi pausado pela Meta por baixa qualidade.",
+    132016: "Este template foi desativado pela Meta.",
+    131008: "Falta preencher um campo obrigatório do template.",
+    131026: "Este número não tem WhatsApp ou não pode receber mensagens.",
+    131030: "Este número não está liberado para receber mensagens desta conta (conta em modo de teste).",
+    131049: "A Meta segurou a mensagem para não cansar o cliente (muitas mensagens de marketing). Tente mais tarde ou use um template de utilidade.",
+    131056: "Muitas mensagens para este número em pouco tempo. Aguarde um pouco.",
+    100: "A Meta recusou algum dado do envio" + (details ? `: ${details}` : "."),
+  };
+  if (code && known[code]) return new Error(known[code]);
+  return new Error(details ? `A Meta recusou o envio: ${details}` : "Não foi possível enviar o template. Tente de novo.");
+}
+
+export interface TemplateParams {
+  /** Valores de {{1}}, {{2}}... do corpo, na ordem */
+  variables: string[];
+  /** Valores de {{1}}... do cabeçalho de texto */
+  headerVariables?: string[];
+  /** Complemento do link de cada botão com link variável, pelo índice do botão */
+  buttonVariables?: { index: number; value: string }[];
+  headerMediaUrl?: string;
+  headerMediaType?: string;
+  headerFileName?: string;
+}
+
 export async function sendTemplateMessage(
   phone: string,
   templateName: string,
   language: string,
-  variables: string[],
-  headerMediaUrl?: string,
-  headerMediaType?: string,
-  phoneNumberId?: string,
-  headerFileName?: string
+  params: TemplateParams,
+  phoneNumberId?: string | null,
 ): Promise<string> {
   const cfg = await getPhoneConfig(phoneNumberId);
   const url = `${GRAPH_URL}/${cfg.phoneNumberId}/messages`;
 
   const components: object[] = [];
 
-  // Header component (image/video/document) — prefer mediaId over URL
-  if (headerMediaType) {
-    const mediaKey = headerMediaType.toLowerCase();
-    if (headerMediaUrl) {
-      const isId = /^\d{10,}$/.test(headerMediaUrl);
-      const mediaObj: Record<string, unknown> = isId ? { id: headerMediaUrl } : { link: headerMediaUrl };
-      if (mediaKey === "document" && headerFileName) mediaObj.filename = headerFileName;
-      components.push({
-        type: "header",
-        parameters: [{ type: mediaKey, [mediaKey]: mediaObj }],
-      });
-    }
+  // Cabeçalho: mídia (prefere o id já enviado à Meta) ou texto com variáveis
+  if (params.headerMediaType && params.headerMediaUrl) {
+    const mediaKey = params.headerMediaType.toLowerCase();
+    const isId = /^\d{10,}$/.test(params.headerMediaUrl);
+    const mediaObj: Record<string, unknown> = isId ? { id: params.headerMediaUrl } : { link: params.headerMediaUrl };
+    if (mediaKey === "document" && params.headerFileName) mediaObj.filename = params.headerFileName;
+    components.push({ type: "header", parameters: [{ type: mediaKey, [mediaKey]: mediaObj }] });
+  } else if (params.headerVariables?.length) {
+    components.push({ type: "header", parameters: params.headerVariables.map((v) => ({ type: "text", text: v })) });
   }
 
-  // Body component (text variables)
-  if (variables.length) {
-    components.push({
-      type: "body",
-      parameters: variables.map((v) => ({ type: "text", text: v })),
-    });
+  if (params.variables.length) {
+    components.push({ type: "body", parameters: params.variables.map((v) => ({ type: "text", text: v })) });
   }
 
-  const normalizedPhone = phone.replace(/^\+/, "");
-  const data = await metaPost(url, {
-    messaging_product: "whatsapp",
-    to: normalizedPhone,
-    type: "template",
-    template: {
-      name: templateName,
-      language: { code: language },
-      ...(components.length ? { components } : {}),
-    },
-  }, cfg.accessToken) as { messages?: { id: string }[] };
-  return data.messages?.[0]?.id ?? "";
+  for (const b of params.buttonVariables ?? []) {
+    components.push({ type: "button", sub_type: "url", index: String(b.index), parameters: [{ type: "text", text: b.value }] });
+  }
+
+  try {
+    const data = await metaPost(url, {
+      messaging_product: "whatsapp",
+      to: phone.replace(/^\+/, ""),
+      type: "template",
+      template: {
+        name: templateName,
+        language: { code: language },
+        ...(components.length ? { components } : {}),
+      },
+    }, cfg.accessToken) as { messages?: { id: string }[] };
+    return data.messages?.[0]?.id ?? "";
+  } catch (err) {
+    console.error(`[WhatsApp] Template "${templateName}" recusado:`, err instanceof Error ? err.message : err);
+    throw friendlyTemplateError(err);
+  }
 }
 
-export async function startConversationWithTemplate(
-  phone: string,
-  name: string,
-  templateName: string,
-  language: string,
-  variables: string[],
-  sentById: string,
-  headerMediaUrl?: string,
-  headerMediaType?: string,
-  headerFileName?: string,
-  explicitPhoneNumberId?: string
-) {
-  const normalized = phone.replace(/[\s\-().]/g, "").replace(/^00/, "+").replace(/^(?!\+)/, "+");
+export async function startConversationWithTemplate(input: {
+  /** Envio de dentro de um chat: usa o contato e o número desta conversa */
+  conversationId?: string;
+  phone?: string;
+  name?: string;
+  templateName: string;
+  language: string;
+  params: TemplateParams;
+  /** Texto final (com as variáveis) para aparecer no chat da plataforma */
+  previewText?: string;
+  sentById: string;
+  phoneNumberId?: string;
+}) {
+  const sender = await prisma.user.findUnique({ where: { id: input.sentById }, select: { waPhoneNumberId: true } });
 
-  const sender = await prisma.user.findUnique({ where: { id: sentById }, select: { waPhoneNumberId: true } });
-  const phoneNumberId = explicitPhoneNumberId ?? sender?.waPhoneNumberId ?? undefined;
+  let conversation = input.conversationId
+    ? await prisma.waConversation.findUnique({ where: { id: input.conversationId }, include: { contact: true } })
+    : null;
+  if (input.conversationId && !conversation) throw new Error("Conversa não encontrada.");
 
-  const contact = await findOrCreateOutboundContact(normalized, name);
+  const phoneNumberId = conversation?.phoneNumberId ?? input.phoneNumberId ?? sender?.waPhoneNumberId ?? undefined;
+  const normalized = conversation ? conversation.contact.phone : normalizeOutboundPhone(input.phone ?? "");
+  if (normalized.replace(/\D/g, "").length < 10) throw new Error("Número inválido. Use DDD + número (ex.: 43 99999-8888).");
+  const existing = conversation ? conversation.contact : await findOutboundContact(normalized);
 
-  // Reuse the most recent conversation regardless of status — reopen if closed
-  let conversation = await prisma.waConversation.findFirst({
-    where: { contactId: contact.id, ...(phoneNumberId ? { phoneNumberId } : {}) },
-    orderBy: { updatedAt: "desc" },
-  });
+  // Envia primeiro: se a Meta recusar, não fica contato nem conversa criados à toa (era o "número duplicado")
+  const waId = await sendTemplateMessage(existing?.phone ?? normalized, input.templateName, input.language, input.params, phoneNumberId);
+
   if (!conversation) {
-    conversation = await prisma.waConversation.create({ data: { contactId: contact.id, phoneNumberId: phoneNumberId ?? null } });
+    const contact = existing ?? await findOrCreateOutboundContact(normalized, input.name?.trim() || normalized);
+    conversation = { ...(await pickOutboundConversation(contact.id, phoneNumberId)), contact };
   } else if (conversation.status === "closed") {
-    conversation = await prisma.waConversation.update({
-      where: { id: conversation.id },
-      data: { status: "open" },
-    });
+    conversation = { ...(await prisma.waConversation.update({ where: { id: conversation.id }, data: { status: "open" } })), contact: conversation.contact };
   }
 
-  const waId = await sendTemplateMessage(normalized, templateName, language, variables, headerMediaUrl, headerMediaType, phoneNumberId, headerFileName);
-
-  const bodyText = variables.length
-    ? `[Template: ${templateName}] ${variables.join(", ")}`
-    : `[Template: ${templateName}]`;
+  const vars = [...(input.params.headerVariables ?? []), ...input.params.variables];
+  const bodyText = input.previewText?.trim()
+    || (vars.length ? `[Template: ${input.templateName}] ${vars.join(", ")}` : `[Template: ${input.templateName}]`);
 
   const message = await prisma.waMessage.create({
     data: {
@@ -1004,7 +1068,7 @@ export async function startConversationWithTemplate(
       text: bodyText,
       waMessageId: waId || undefined,
       status: "sent",
-      sentById,
+      sentById: input.sentById,
     },
     include: { sentBy: { select: { id: true, name: true, avatarUrl: true } } },
   });
@@ -1014,7 +1078,8 @@ export async function startConversationWithTemplate(
     data: { lastMessageAt: new Date(), lastMessageText: bodyText },
   });
 
-  return { conversation, message };
+  const { contact: _c, ...conv } = conversation;
+  return { conversation: conv, message };
 }
 
 // ─── Templates ────────────────────────────────────────────────────────────────
