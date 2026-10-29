@@ -26,6 +26,7 @@ import { groupChatRouter } from "./modules/group-chat/group-chat.routes";
 import { webhookRouter } from "./modules/webhook/webhook.routes";
 import { servicesRouter } from "./modules/services/services.routes";
 import { hrAssistantRouter } from "./modules/hr-assistant/hr-assistant.routes";
+import { preflightRouter } from "./modules/preflight/preflight.routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { requireAuth, requireRole } from "./middleware/auth";
 
@@ -84,6 +85,7 @@ app.use("/api/group-chats", groupChatRouter);
 app.use("/api/webhook", webhookRouter);
 app.use("/api/servicos", servicesRouter);
 app.use("/api/hr-assistant", hrAssistantRouter);
+app.use("/api/preflight", preflightRouter);
 
 const clientDistPath = path.join(__dirname, "../../client/dist");
 app.use(express.static(clientDistPath, {

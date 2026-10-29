@@ -109,6 +109,7 @@ model User {
   employeesCreated Employee[]      @relation("EmployeeCreatedBy")
   salaryChangesCreated SalaryChange[] @relation("SalaryChangeCreatedBy")
   documentsUploaded EmployeeDocument[] @relation("DocumentUploadedBy")
+  preflightHistory  PreflightHistory[]
   stockMovements   StockMovement[]
   lumaConversations LumaConversation[]
   productionOrders  ProductionOrder[] @relation("ProductionCreatedBy")
@@ -1055,3 +1056,20 @@ model EmployeeDocument {
   @@map("hr_documents")
 }
 
+model PreflightHistory {
+  id         String   @id @default(cuid())
+  fileName   String
+  fileSize   Int
+  pageCount  Int
+  status     String   // "pass" | "warning" | "error"
+  errorCount Int
+  warnCount  Int
+  resultJson String   // full PreflightResult serialized as JSON
+  analyzedAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, analyzedAt(sort: Desc)])
+  @@map("preflight_history")
+}

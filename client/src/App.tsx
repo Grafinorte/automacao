@@ -43,6 +43,7 @@ import { ProductionPage } from "./pages/ProductionPage";
 import { ServicesPage } from "./pages/ServicesPage";
 import { HrAssistantPage } from "./pages/HrAssistantPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
+import { PreflightPage } from "./pages/PreflightPage";
 import {
   FactoryIcon,
   FinanceIcon,
@@ -153,6 +154,9 @@ export function App() {
               </Route>
               <Route element={<ProtectedRoute moduleId="whatsapp" />}>
                 <Route path="/whatsapp" element={<WhatsAppPage />} />
+              </Route>
+              <Route element={<ProtectedRoute moduleId="preflight" />}>
+                <Route path="/preflight" element={<PreflightPage />} />
               </Route>
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="/catalogo" element={<CatalogPage />} />
