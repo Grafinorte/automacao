@@ -24,7 +24,7 @@ const TYPE_ICON: Record<string, string> = {
   service_done: "🏁",
 };
 
-export function Header({ sidebarOpen, onToggleSidebar }: { sidebarOpen?: boolean; onToggleSidebar?: () => void } = {}) {
+export function Header({ sidebarOpen, onToggleSidebar, compact }: { sidebarOpen?: boolean; onToggleSidebar?: () => void; compact?: boolean } = {}) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
@@ -52,7 +52,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: { sidebarOpen?: boolean
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex h-14 md:h-20 items-center justify-between border-b border-[rgba(199,198,202,0.3)] bg-white/80 px-4 md:px-10 backdrop-blur-md dark:bg-[#14161a]/90 dark:border-white/8">
+    <header className={`fixed top-0 left-0 right-0 z-50 flex h-14 ${compact ? "md:h-12 md:px-5" : "md:h-20 md:px-10"} items-center justify-between border-b border-[rgba(199,198,202,0.3)] bg-white/80 px-4 backdrop-blur-md dark:bg-[#14161a]/90 dark:border-white/8`}>
       {/* Logo */}
       <div className="flex items-center gap-4">
         {onToggleSidebar && (
@@ -74,7 +74,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: { sidebarOpen?: boolean
         <img
           src={theme === "dark" ? "/assets/logo-white.png" : "/assets/logo-full.png"}
           alt="Grafinorte"
-          className="hidden md:block h-8 w-auto"
+          className={`hidden md:block w-auto ${compact ? "h-6" : "h-8"}`}
         />
       </div>
 
@@ -167,10 +167,11 @@ export function Header({ sidebarOpen, onToggleSidebar }: { sidebarOpen?: boolean
         <div ref={menuRef} className="relative ml-1">
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors hover:bg-[#f3f3f5] dark:hover:bg-[#222426]"
+            className={`flex items-center gap-2.5 rounded-xl px-2.5 transition-colors hover:bg-[#f3f3f5] dark:hover:bg-[#222426] ${compact ? "py-1" : "py-1.5"}`}
+            title={compact ? user.name : undefined}
           >
-            <Avatar name={user.name} avatarUrl={user.avatarUrl} size="md" />
-            <div className="hidden text-left sm:block">
+            <Avatar name={user.name} avatarUrl={user.avatarUrl} size={compact ? "sm" : "md"} />
+            <div className={`hidden text-left ${compact ? "" : "sm:block"}`}>
               <p className="text-[13.5px] font-semibold leading-tight text-[#1a1c1d] dark:text-[#e0e0e2]">{user.name}</p>
               <p className="text-[11px] leading-tight text-[#46464a] dark:text-[#a0a0a4]">{ROLE_LABELS[user.role]}</p>
             </div>

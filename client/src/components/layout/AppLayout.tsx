@@ -29,10 +29,11 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-[#f9f9fb] dark:bg-[#111214]">
-      <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
-      <Sidebar open={sidebarOpen} />
-      <main className={`pt-14 md:pt-20 transition-[margin] duration-200 ${sidebarOpen ? "md:ml-64" : "md:ml-0"}`}>
-        <div className="h-[calc(100vh-56px)] md:h-[calc(100vh-80px)] flex flex-col overflow-hidden">
+      {/* No WhatsApp o topo fica compacto (48px) para sobrar altura às conversas */}
+      <Header sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} compact={onWhatsApp} />
+      <Sidebar open={sidebarOpen} compact={onWhatsApp} />
+      <main className={`pt-14 ${onWhatsApp ? "md:pt-12" : "md:pt-20"} transition-[margin] duration-200 ${sidebarOpen ? "md:ml-64" : "md:ml-0"}`}>
+        <div className={`h-[calc(100vh-56px)] ${onWhatsApp ? "md:h-[calc(100vh-48px)]" : "md:h-[calc(100vh-80px)]"} flex flex-col overflow-hidden`}>
           <Outlet />
         </div>
       </main>

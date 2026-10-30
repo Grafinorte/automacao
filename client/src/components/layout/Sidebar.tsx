@@ -84,7 +84,7 @@ function chatNavClass({ isActive }: { isActive: boolean }) {
   }`;
 }
 
-export function Sidebar({ open = true }: { open?: boolean }) {
+export function Sidebar({ open = true, compact = false }: { open?: boolean; compact?: boolean }) {
   const { user, logout } = useAuth();
   const unreadCount = useUnreadMessages();
 
@@ -98,7 +98,7 @@ export function Sidebar({ open = true }: { open?: boolean }) {
   return (
     <aside
       aria-hidden={!open}
-      className={`hidden md:flex fixed left-0 top-20 z-40 h-[calc(100vh-80px)] w-64 transition-[transform,visibility] duration-200 ${open ? "translate-x-0" : "invisible -translate-x-full"} flex-col overflow-y-auto border-r border-[rgba(199,198,202,0.3)] bg-white px-4 py-4 shadow-sm dark:bg-[#1c1e22] dark:border-white/8`}
+      className={`hidden md:flex fixed left-0 ${compact ? "top-12 h-[calc(100vh-48px)]" : "top-20 h-[calc(100vh-80px)]"} z-40 w-64 transition-[transform,visibility] duration-200 ${open ? "translate-x-0" : "invisible -translate-x-full"} flex-col overflow-y-auto border-r border-[rgba(199,198,202,0.3)] bg-white px-4 py-4 shadow-sm dark:bg-[#1c1e22] dark:border-white/8`}
     >
       {/* Nav */}
       <nav className="flex flex-1 flex-col gap-1">

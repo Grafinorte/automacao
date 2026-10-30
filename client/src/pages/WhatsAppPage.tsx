@@ -1840,8 +1840,9 @@ function LabelFilter({ labels, selected, onChange, counts }: {
   return (
     <div ref={ref} className="relative ml-auto">
       <button onClick={() => { setOpen((v) => !v); setQ(""); }}
-        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-          selected.length ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"}`}>
+        title="Filtrar por etiqueta"
+        className={`flex items-center gap-1 whitespace-nowrap px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+          selected.length ?"bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"}`}>
         <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
         Etiquetas
         {selected.length > 0 && (
@@ -2705,7 +2706,7 @@ export function WhatsAppPage() {
   if (!selectedPhoneNumberId && (isAdmin || !assignedPhoneId) && phoneNumbers.length > 0) {
     const totalOpen = conversations.filter(c => c.status === "open").length;
     return (
-      <div className="flex h-[calc(100vh-56px)] md:h-[calc(100vh-80px)] items-center justify-center bg-gray-50 dark:bg-[#0b141a]">
+      <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-[#0b141a]">
         <div className="w-full max-w-md mx-auto px-6">
           {/* Icon */}
           <div className="flex justify-center mb-5">
@@ -2799,12 +2800,12 @@ export function WhatsAppPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-56px)] md:h-[calc(100vh-80px)] flex-col overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden">
       {/* Desktop tab bar */}
       <div className="hidden md:flex flex-shrink-0 items-center gap-1 px-4 border-b border-[rgba(0,0,0,0.07)] dark:border-white/8 bg-white dark:bg-[#1c1e22]">
         {(["inbox", "templates", "automacoes", ...(isAdmin ? ["numeros"] : [])] as const).map((t) => (
           <button key={t} onClick={() => setTab(t as typeof tab)}
-            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 ${
+            className={`px-4 py-2 text-[13px] font-medium transition-colors border-b-2 ${
               tab === t ? "border-green-500 text-green-600 dark:text-green-400" : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
             }`}
           >
@@ -2834,19 +2835,19 @@ export function WhatsAppPage() {
           onRefresh={() => whatsappApi.getPhoneNumbers().then(setPhoneNumbers).catch(() => {})}
         />
       ) : tab === "automacoes" ? (
-        <div className="flex-1 overflow-hidden px-8 pb-8">
+        <div className="flex-1 overflow-hidden px-3 pb-3 2xl:px-8 2xl:pb-8">
           <div className="h-full rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white dark:bg-[#1c1e22] overflow-hidden">
             <AutomationsPanel phoneNumbers={phoneNumbers} defaultPhoneNumberId={selectedPhoneNumberId} />
           </div>
         </div>
       ) : tab === "templates" ? (
-        <div className="flex-1 overflow-hidden px-8 pb-8">
+        <div className="flex-1 overflow-hidden px-3 pb-3 2xl:px-8 2xl:pb-8">
           <div className="h-full rounded-2xl border border-[rgba(0,0,0,0.06)] bg-white dark:bg-[#1c1e22] overflow-hidden">
             <MetaTemplatesPanel phoneNumberId={phoneFilter === "all" ? null : phoneFilter} onSend={(id) => { setActiveConvId(id); setTab("inbox"); loadConversations(); }} />
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 overflow-hidden md:px-8 md:pb-8 md:gap-4">
+        <div className="flex flex-1 overflow-hidden md:px-3 md:pb-3 md:gap-3 2xl:px-8 2xl:pb-8 2xl:gap-4">
           {showNewConv && (
             <NewConversationModal
               onClose={() => { setShowNewConv(false); setNewConvPrefill(null); }}
@@ -2991,16 +2992,10 @@ export function WhatsAppPage() {
             <div className="flex items-center px-3 pb-1 gap-0.5 border-b border-[rgba(0,0,0,0.06)]">
               {([["all","Tudo"],["unread","Não lidas"],["pinned","Favoritas"]] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setConvFilter(key)}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${convFilter === key ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}>
+                  className={`whitespace-nowrap px-2 py-1 rounded-full text-xs font-medium transition-colors ${convFilter === key ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "text-gray-500 hover:text-gray-700 dark:text-gray-400"}`}>
                   {label}
                 </button>
               ))}
-              {activeConvId && (
-                <button onClick={() => setStarredFilter(v => !v)} title="Ver mensagens com estrela"
-                  className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ml-0.5 ${starredFilter ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" : "text-gray-400 hover:text-amber-500"}`}>
-                  ⭐
-                </button>
-              )}
               {filterLabels.length > 0 && (
                 <LabelFilter labels={filterLabels} selected={labelFilter} onChange={setLabelFilter} counts={labelCounts} />
               )}
@@ -3240,6 +3235,17 @@ export function WhatsAppPage() {
                       }`}
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </button>
+
+                    {/* Mensagens com estrela desta conversa */}
+                    <button
+                      onClick={() => setStarredFilter(v => !v)}
+                      title="Ver mensagens com estrela"
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm transition-colors ${
+                        starredFilter ? "border-amber-400 bg-amber-50 dark:bg-amber-900/20" : "border-[rgba(0,0,0,0.08)] dark:border-white/10 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:border-amber-300"
+                      }`}
+                    >
+                      ⭐
                     </button>
 
                     {/* Contact info toggle */}
