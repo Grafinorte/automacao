@@ -1330,7 +1330,8 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
 
   const filtered = services
     .filter((s) => s.status === tab)
-    .filter((s) => !search || s.name.toLowerCase().includes(search.toLowerCase()) || String(s.serviceNumber).includes(search));
+    .filter((s) => !search || s.name.toLowerCase().includes(search.toLowerCase()) || String(s.serviceNumber).includes(search)
+      || s.items.some((i) => i.name.toLowerCase().includes(search.toLowerCase())));
 
   const sorted = [...filtered].sort((a, b) =>
     tab === "open" ? ((a.queuePosition ?? 999) - (b.queuePosition ?? 999))
@@ -1500,7 +1501,7 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
           <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#77767b]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar por ID ou nome"
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Pesquisar por ID, nome ou material"
             className="w-full rounded-xl border border-[rgba(199,198,202,0.3)] bg-white py-2 pl-9 pr-3 text-[13px] outline-none focus:border-[#005cba] dark:bg-[#1c1e22] dark:text-white dark:border-white/10" />
         </div>
       </div>
@@ -1572,6 +1573,17 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
                         <span className={`h-2 w-2 flex-shrink-0 rounded-full ${DOT[urg]}`} />
                         <span className="font-semibold text-[#1a1c1d] hover:text-[#005cba] dark:text-white dark:hover:text-[#4d9fff]">{svc.name}</span>
                       </button>
+                      {/* Materiais do serviço (nomes dos itens) */}
+                      {svc.items.some((i) => i.name.trim()) && (
+                        <div className="mt-1 ml-4 flex flex-wrap gap-1">
+                          {svc.items.filter((i) => i.name.trim()).map((i) => (
+                            <span key={i.id} title={i.name}
+                              className="max-w-[220px] truncate rounded-md bg-[#f3f3f5] px-1.5 py-0.5 text-[11px] font-medium text-[#46464a] dark:bg-white/5 dark:text-[#a0a0a4]">
+                              {i.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className={tdCls}><TypeBadge type={svc.type} /></td>
                     <td className={tdCls}>{fmtDate(svc.orderDate)}</td>
