@@ -1811,6 +1811,84 @@ function ToastNotification({ toast, onDismiss, onClick }: {
 
 // ─── Phone numbers panel ─────────────────────────────────────────────────────
 
+// ─── Filtro de etiquetas (lista com busca, contagem e várias etiquetas ao mesmo tempo) ───
+function LabelFilter({ labels, selected, onChange, counts }: {
+  labels: WaLabel[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+  counts: Record<string, number>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", esc); };
+  }, [open]);
+
+  const toggle = (id: string) => onChange(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
+  const visible = labels
+    .filter((l) => l.name.toLowerCase().includes(q.trim().toLowerCase()))
+    // Mais usadas primeiro; empate em ordem alfabética
+    .sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0) || a.name.localeCompare(b.name));
+
+  return (
+    <div ref={ref} className="relative ml-auto">
+      <button onClick={() => { setOpen((v) => !v); setQ(""); }}
+        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+          selected.length ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"}`}>
+        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
+        Etiquetas
+        {selected.length > 0 && (
+          <span className="min-w-[16px] h-4 px-1 rounded-full bg-green-600 text-white text-[10px] leading-4 text-center">{selected.length}</span>
+        )}
+        <svg className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-30 w-64 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-white/10 dark:bg-[#202124]">
+          <div className="p-2 border-b border-gray-100 dark:border-white/10">
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar etiqueta"
+              className="w-full rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs text-gray-700 placeholder-gray-400 focus:outline-none dark:bg-white/10 dark:text-gray-200" />
+          </div>
+          <div className="max-h-72 overflow-y-auto py-1">
+            {visible.length === 0 ? (
+              <p className="px-3 py-4 text-center text-xs text-gray-400">Nenhuma etiqueta encontrada.</p>
+            ) : visible.map((l) => {
+              const on = selected.includes(l.id);
+              return (
+                <button key={l.id} onClick={() => toggle(l.id)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs transition-colors ${on ? "bg-gray-50 dark:bg-white/5" : "hover:bg-gray-50 dark:hover:bg-white/5"}`}>
+                  <span className={`h-4 w-4 flex-shrink-0 rounded border flex items-center justify-center ${on ? "border-transparent" : "border-gray-300 dark:border-white/20"}`}
+                    style={on ? { backgroundColor: l.color } : {}}>
+                    {on && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
+                  </span>
+                  <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: l.color }} />
+                  <span className="flex-1 truncate font-medium text-gray-700 dark:text-gray-200">{l.name}</span>
+                  <span className="text-[11px] tabular-nums text-gray-400">{counts[l.id] ?? 0}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between gap-2 px-3 py-2 border-t border-gray-100 dark:border-white/10">
+            <span className="text-[11px] text-gray-400">
+              {selected.length > 1 ? "Qualquer uma das marcadas" : "Escolha uma ou mais"}
+            </span>
+            {selected.length > 0 && (
+              <button onClick={() => onChange([])} className="text-[11px] font-semibold text-green-600 hover:underline dark:text-green-400">Limpar</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
   phoneNumbers: import("../api/whatsapp").WaPhoneNumber[];
   onRefresh: () => void;
@@ -1992,7 +2070,7 @@ export function WhatsAppPage() {
   const [statusFilter, setStatusFilter] = useState<"open" | "closed">("open");
   const [convFilter, setConvFilter] = useState<"all" | "unread" | "pinned">("all");
   const [assignFilter, setAssignFilter] = useState<"all" | "mine" | "queue">("all");
-  const [labelFilter, setLabelFilter] = useState<string | null>(null);
+  const [labelFilter, setLabelFilter] = useState<string[]>([]);
   const isAdmin = user?.role === "ADMIN";
   const assignedPhoneId = user?.waPhoneNumberId ?? null;
   const [phoneNumbers, setPhoneNumbers] = useState<import("../api/whatsapp").WaPhoneNumber[]>([]);
@@ -2285,9 +2363,21 @@ export function WhatsAppPage() {
     const matchStatus = c.status === statusFilter;
     const matchConv = convFilter === "all" || (convFilter === "unread" && (c.unreadCount ?? 0) > 0) || (convFilter === "pinned" && c.pinned);
     const matchAssign = assignFilter === "all" || (assignFilter === "mine" && c.assignedToId === user?.id) || (assignFilter === "queue" && !c.assignedToId);
-    const matchLabel = !labelFilter || c.labels.some(({ label }) => label.id === labelFilter);
+    const matchLabel = labelFilter.length === 0 || c.labels.some(({ label }) => labelFilter.includes(label.id));
     return matchSearch && matchPhone && matchStatus && matchConv && matchAssign && matchLabel;
   });
+
+  // Etiquetas do número em atendimento (gerais + as dele) e quantas conversas de cada aparecem na lista atual
+  const filterLabels = labels.filter((l) => phoneFilter === "all" || !l.phoneNumberId || l.phoneNumberId === phoneFilter);
+  const labelCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const c of conversations) {
+      if (c.status !== statusFilter) continue;
+      if (!(phoneFilter === "all" || c.phoneNumberId === phoneFilter || !c.phoneNumberId)) continue;
+      for (const { label } of c.labels) counts[label.id] = (counts[label.id] ?? 0) + 1;
+    }
+    return counts;
+  }, [conversations, statusFilter, phoneFilter]);
 
   // "Marcar todas como lidas" — vale para o número em atendimento (mesma regra de filtro da lista)
   const [markingAllRead, setMarkingAllRead] = useState(false);
@@ -2911,11 +3001,9 @@ export function WhatsAppPage() {
                   ⭐
                 </button>
               )}
-              <button onClick={() => { setStatusFilter(statusFilter === "open" ? "closed" : "open"); setActiveConvId(null); }}
-                className="ml-auto flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 transition-colors">
-                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
-                Tags ▾
-              </button>
+              {filterLabels.length > 0 && (
+                <LabelFilter labels={filterLabels} selected={labelFilter} onChange={setLabelFilter} counts={labelCounts} />
+              )}
             </div>
 
             {/* Filter row 2: Todas / Minhas / Fila + status */}
@@ -2937,20 +3025,22 @@ export function WhatsAppPage() {
             </div>
 
             {/* Label chips */}
-            {labels.length > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-[rgba(0,0,0,0.06)] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-                <button onClick={() => setLabelFilter(null)}
-                  className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${!labelFilter ? "bg-gray-800 text-white border-gray-800 dark:bg-white dark:text-gray-900" : "text-gray-500 border-gray-200 dark:border-white/10 hover:border-gray-400"}`}>
-                  Todas
-                </button>
-                {labels.map(label => (
-                  <button key={label.id} onClick={() => setLabelFilter(labelFilter === label.id ? null : label.id)}
-                    className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${labelFilter === label.id ? "text-white border-transparent" : "text-gray-500 border-gray-200 dark:border-white/10 hover:border-gray-400"}`}
-                    style={labelFilter === label.id ? { backgroundColor: label.color, borderColor: label.color } : {}}>
-                    {labelFilter !== label.id && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }} />}
+            {/* Etiquetas escolhidas no filtro (só aparece quando há alguma) */}
+            {labelFilter.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 px-3 py-1.5 border-b border-[rgba(0,0,0,0.06)]">
+                {labels.filter((l) => labelFilter.includes(l.id)).map((label) => (
+                  <span key={label.id} className="flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-[11px] font-medium text-white"
+                    style={{ backgroundColor: label.color }}>
                     {label.name}
-                  </button>
+                    <button onClick={() => setLabelFilter(labelFilter.filter((id) => id !== label.id))} title="Tirar do filtro"
+                      className="rounded-full p-0.5 hover:bg-black/20">
+                      <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </span>
                 ))}
+                <button onClick={() => setLabelFilter([])} className="ml-auto text-[11px] font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                  Limpar
+                </button>
               </div>
             )}
 
