@@ -649,7 +649,7 @@ function ChatBubble({ msg, onReply, onEdit, onForward, onDelete, onStar, onScrol
           const phones = lines.slice(1).filter(Boolean);
           const firstPhone = phones[0];
           return (
-            <div className={`rounded-xl overflow-hidden min-w-[210px] ${isOut ? "bg-green-600/40" : "bg-gray-100 dark:bg-white/8"}`}>
+            <div className={`rounded-xl overflow-hidden min-w-[210px] ${isOut ? "bg-green-600/40" : "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white"}`}>
               <div className="flex items-center gap-2.5 p-2.5">
                 <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${isOut ? "bg-green-400/30" : "bg-gray-300 dark:bg-white/15"}`}>
                   <svg className="h-5 w-5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
