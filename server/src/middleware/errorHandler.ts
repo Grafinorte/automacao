@@ -20,5 +20,11 @@ export function errorHandler(
     return;
   }
   console.error(err);
+  // Tabela/coluna que ainda não existe no banco: atualização aplicada sem o "npx prisma db push"
+  const code = (err as { code?: string })?.code;
+  if (code === "P2021" || code === "P2022") {
+    res.status(500).json({ error: "O banco de dados está desatualizado para esta função. Peça ao T.I. para rodar \"npx prisma db push\" na pasta server e reiniciar a plataforma." });
+    return;
+  }
   res.status(500).json({ error: "Erro interno do servidor" });
 }
