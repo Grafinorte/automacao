@@ -357,6 +357,18 @@ export function StockIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function ColorProofIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3.75c2.9 3.42 5.25 6.62 5.25 9.6a5.25 5.25 0 1 1-10.5 0c0-2.98 2.35-6.18 5.25-9.6ZM9.75 14.25a2.25 2.25 0 0 0 2.25 2.25"
+      />
+    </Icon>
+  );
+}
+
 export function PreflightIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>

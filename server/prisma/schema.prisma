@@ -126,6 +126,7 @@ model User {
   socialPosts          SocialPost[]
   prospectSearches     ProspectSearch[]
   marketingResearch    MarketingResearch[]
+  colorProofs          ColorProof[]
 
   @@map("users")
 }
@@ -1072,4 +1073,49 @@ model PreflightHistory {
 
   @@index([userId, analyzedAt(sort: Desc)])
   @@map("preflight_history")
+}
+
+// ─── Teste de cor (custo das provas da Canon PRO-2600) ──────────────────────
+// Os preços usados no cálculo ficam gravados em cada prova, para o histórico
+// não mudar quando o preço do cartucho ou do papel mudar.
+model ColorProof {
+  id               String   @id @default(cuid())
+  date             DateTime
+  label            String   // OS / Cliente, ou "Lote dd/mm — A / B" no lote gangado
+  isBatch          Boolean  @default(false)
+  paperM2          Float
+  inkMl            Float
+  widthMm          Float?
+  lengthMm         Float?
+  inkByColor       String?  // JSON { PM, R, C, PGY, MBK, PBK, B, CO, GY, Y, M, PC } em ml
+  colorsIncomplete Boolean  @default(false)
+  inkPricePerMl    Float
+  paperPricePerM2  Float
+  maintenancePct   Float
+  inkCost          Float
+  paperCost        Float
+  maintenanceCost  Float
+  totalCost        Float
+  dominantColor    String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([date(sort: Desc)])
+  @@map("color_proofs")
+}
+
+// Preços atuais (uma linha só, id "default"), editáveis pelo admin
+model ColorProofSettings {
+  id              String   @id @default("default")
+  cartridgePrice  Float    @default(999)
+  cartridgeMl     Float    @default(160)
+  paperPricePerM2 Float    @default(30)
+  maintenancePct  Float    @default(50)
+  updatedAt       DateTime @updatedAt
+
+  @@map("color_proof_settings")
 }

@@ -5,7 +5,7 @@ import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import {
   HomeIcon, TasksIcon, FactoryIcon, HrIcon, FinanceIcon,
   MarketingIcon, QuoteIcon, ChatIcon, CatalogIcon, UsersAdminIcon,
-  CrmIcon, LogoutIcon, StockIcon, HelpIcon, DocumentsIcon, RkwIcon, DownloadIcon, ServicesIcon,
+  CrmIcon, LogoutIcon, StockIcon, HelpIcon, DocumentsIcon, RkwIcon, DownloadIcon, ServicesIcon, ColorProofIcon,
   PreflightIcon,
 } from "../icons/Icons";
 import { hasModuleAccess } from "../../config/modules";
@@ -162,6 +162,12 @@ export function Sidebar({ open = true, compact = false }: { open?: boolean; comp
           <NavLink to="/servicos" className={navClass}>
             <ServicesIcon className="h-[18px] w-[18px] flex-shrink-0" />
             Central de Serviços
+          </NavLink>
+        )}
+        {can("testecor") && (
+          <NavLink to="/teste-cor" className={navClass}>
+            <ColorProofIcon className="h-[18px] w-[18px] flex-shrink-0" />
+            Teste de cor
           </NavLink>
         )}
         {can("producao") && (

@@ -27,6 +27,7 @@ import { webhookRouter } from "./modules/webhook/webhook.routes";
 import { servicesRouter } from "./modules/services/services.routes";
 import { hrAssistantRouter } from "./modules/hr-assistant/hr-assistant.routes";
 import { preflightRouter } from "./modules/preflight/preflight.routes";
+import { colorProofRouter } from "./modules/color-proof/colorProof.routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { requireAuth, requireRole } from "./middleware/auth";
 
@@ -86,6 +87,7 @@ app.use("/api/webhook", webhookRouter);
 app.use("/api/servicos", servicesRouter);
 app.use("/api/hr-assistant", hrAssistantRouter);
 app.use("/api/preflight", preflightRouter);
+app.use("/api/teste-cor", colorProofRouter);
 
 const clientDistPath = path.join(__dirname, "../../client/dist");
 app.use(express.static(clientDistPath, {

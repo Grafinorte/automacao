@@ -24,6 +24,7 @@ export const ALL_MODULES: ModuleDef[] = [
   { id: "almoxarifado", label: "Almoxarifado",    desc: "Controle de estoque e materiais",                  icon: "📦", group: "Departamentos" },
   // Departamentos
   { id: "servicos",     label: "Central de Serviços", desc: "Gerenciamento de serviços e ordens de produção", icon: "🖨️", group: "Departamentos" },
+  { id: "testecor",     label: "Teste de cor",    desc: "Custo das provas de cor (Canon PRO-2600)",       icon: "🎨", group: "Departamentos" },
   // Ferramentas
   { id: "preflight",   label: "Preflight PDF",   desc: "Análise técnica de arquivos PDF para impressão",   icon: "🔍", group: "Departamentos" },
   // Admin (sempre admin-only, não togglável para outros)
@@ -57,12 +58,12 @@ export function hasModuleAccess(
     MARKETING:     ["tarefas", "chat", "documentos", "producao", "financeiro", "marketing"],
     RH:            ["tarefas", "chat", "documentos", "producao", "financeiro", "rh"],
     ALMOXARIFADO:  ["tarefas", "chat", "documentos", "producao", "financeiro", "almoxarifado"],
-    PCP:           ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight"],
-    DESIGN:        ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight"],
-    ARTE:          ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight"],
-    ARTE_FINAL:    ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight"],
-    GERENTE:       ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "comercial", "orcamentos", "rh", "preflight"],
-    SUPERVISOR:    ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "comercial", "orcamentos", "preflight"],
+    PCP:           ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],
+    DESIGN:        ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],
+    ARTE:          ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],
+    ARTE_FINAL:    ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],
+    GERENTE:       ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "comercial", "orcamentos", "rh", "preflight", "testecor"],
+    SUPERVISOR:    ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "comercial", "orcamentos", "preflight", "testecor"],
     CONSULTA:      ["servicos"],
   };
 
