@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   colorProofApi, computeCost, coverageBand, INK_COLORS, INK_INFO, STANDARD_WIDTH_MM,
-  type ColorProof, type ColorProofInput, type ColorProofSettings, type InkColor,
+  type ColorProof, type ColorProofInput, type ColorProofSettings, type InkColor, type PanelJob,
 } from "../api/colorProof";
 
 // ─── Formatação (padrão BR) ───────────────────────────────────────────────────
@@ -99,6 +99,156 @@ function Swatch({ color }: { color: InkColor }) {
   return <span className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full ring-1 ring-black/10 dark:ring-white/20" style={{ backgroundColor: INK_INFO[color].swatch }} />;
 }
 
+// ─── Leitura das fotos do painel pela IA ──────────────────────────────────────
+/** Reduz a foto (máx. 2200 px, JPEG) para enviar rápido sem perder a leitura dos números */
+function shrinkImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Não consegui abrir a foto."));
+    reader.onload = () => {
+      const src = reader.result as string;
+      const img = new Image();
+      // Formato que o navegador não abre (ex.: HEIC do iPhone): manda o original
+      img.onerror = () => resolve(src);
+      img.onload = () => {
+        const scale = Math.min(1, 2200 / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const sumOrNull = (vals: (number | null)[]) => (vals.some((v) => v !== null) ? vals.reduce<number>((s, v) => s + (v ?? 0), 0) : null);
+const r3 = (n: number | null) => (n === null ? null : Math.round(n * 1000) / 1000);
+
+/** Lote gangado: soma papel, tinta e cores de todos os trabalhos lidos */
+function mergeJobs(jobs: PanelJob[]): PanelJob {
+  const inkByColor = Object.fromEntries(INK_COLORS.map((c) => [c, r3(sumOrNull(jobs.map((j) => j.inkByColor[c])))])) as Record<InkColor, number | null>;
+  return {
+    label: null, date: jobs.find((j) => j.date)?.date ?? null,
+    paperM2: r3(sumOrNull(jobs.map((j) => j.paperM2))), inkMl: r3(sumOrNull(jobs.map((j) => j.inkMl))),
+    widthMm: jobs.find((j) => j.widthMm)?.widthMm ?? null, lengthMm: r3(sumOrNull(jobs.map((j) => j.lengthMm))),
+    inkByColor, illegible: jobs.flatMap((j) => j.illegible),
+  };
+}
+
+function PhotoReader({ onFill, disabled }: { onFill: (job: PanelJob, info: { photos: number; batchLabel?: string; questions: string[] }) => void; disabled?: boolean }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [thumbs, setThumbs] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [choice, setChoice] = useState<{ jobs: PanelJob[]; questions: string[]; photos: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  async function read(files: File[]) {
+    const imgs = files.filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+    if (!imgs.length || busy) return;
+    setBusy(true);
+    setError("");
+    setChoice(null);
+    try {
+      const data = await Promise.all(imgs.slice(0, 10).map(shrinkImage));
+      setThumbs(data);
+      const res = await colorProofApi.readPhotos(data);
+      if (res.jobs.length === 0) {
+        setError(res.questions[0] ?? "Não encontrei os dados do painel nessas fotos. Confira se é a tela “Exibir histórico trabalho”.");
+      } else if (res.jobs.length === 1) {
+        onFill(res.jobs[0], { photos: data.length, questions: res.questions });
+        setThumbs([]);
+      } else {
+        setChoice({ jobs: res.jobs, questions: res.questions, photos: data.length });
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao ler as fotos.");
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  // Colar print/foto com Ctrl+V em qualquer lugar da página
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+      if (files.length && !disabled) { e.preventDefault(); read(files); }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  });
+
+  const pick = (job: PanelJob, batchLabel?: string) => {
+    if (!choice) return;
+    onFill(job, { photos: choice.photos, batchLabel, questions: choice.questions });
+    setChoice(null);
+    setThumbs([]);
+  };
+
+  return (
+    <div
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); read([...e.dataTransfer.files]); }}
+      className={`mb-4 rounded-xl border-2 border-dashed p-4 transition-colors ${dragging ? "border-[#005cba] bg-[#005cba]/5" : "border-[rgba(199,198,202,0.7)] dark:border-white/15"}`}
+    >
+      <input ref={fileRef} type="file" accept="image/*,.heic,.heif" multiple capture="environment" className="hidden"
+        onChange={(e) => read([...(e.target.files ?? [])])} />
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={() => fileRef.current?.click()} disabled={busy || disabled}
+          className="inline-flex items-center gap-2 rounded-lg bg-[#005cba] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-[#004a96] disabled:opacity-50">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0Z" /></svg>
+          {busy ? "Lendo as fotos..." : "Enviar fotos do painel"}
+        </button>
+        <p className="min-w-0 flex-1 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">
+          Fotos da tela <b>“Exibir histórico trabalho”</b> da Canon — pode mandar várias (papel, tinta, cores, nome do documento).
+          A IA lê e preenche o formulário; você confere e lança. Também dá para arrastar as fotos aqui ou colar com Ctrl+V.
+        </p>
+      </div>
+
+      {thumbs.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {thumbs.map((t, i) => (
+            <img key={i} src={t} alt={`Foto ${i + 1}`} className={`h-16 w-16 rounded-lg object-cover ring-1 ring-black/10 dark:ring-white/10 ${busy ? "animate-pulse" : ""}`} />
+          ))}
+        </div>
+      )}
+      {busy && <p className="mt-2 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">A IA está lendo os números do painel — pode levar até 1 minuto.</p>}
+      {error && <p className="mt-3 text-[12.5px] text-red-600">{error}</p>}
+
+      {choice && (
+        <div className="mt-3 rounded-lg bg-[#f6f7f9] p-3 dark:bg-[#141518]">
+          <p className="mb-2 text-[12.5px] font-semibold text-[#1a1c1d] dark:text-white">Encontrei {choice.jobs.length} trabalhos nas fotos. Qual lançar?</p>
+          <div className="flex flex-col gap-1.5">
+            {choice.jobs.map((j, i) => (
+              <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-[12.5px] ring-1 ring-[rgba(199,198,202,0.4)] dark:bg-[#1c1e22] dark:ring-white/10">
+                <span className="font-medium text-[#1a1c1d] dark:text-white">{j.label ?? `Trabalho ${i + 1} (sem nome)`}</span>
+                <span className="text-[#77767b] tabular-nums">
+                  {j.paperM2 !== null ? `${fmt(j.paperM2, 3)} m²` : "papel ?"} · {j.inkMl !== null ? `${fmt(j.inkMl, 3)} ml` : "tinta ?"}
+                </span>
+                <button onClick={() => pick(j)} className="rounded-md px-2 py-1 text-[12px] font-semibold text-[#005cba] hover:bg-[#005cba]/10 dark:text-[#4d9fff]">Usar este</button>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={() => {
+              const d = todayIso();
+              const names = choice.jobs.map((j, i) => j.label ?? `Trabalho ${i + 1}`).join(" / ");
+              pick(mergeJobs(choice.jobs), `Lote ${d.slice(8, 10)}/${d.slice(5, 7)} — ${names}`);
+            }}
+            className="mt-2 rounded-lg border border-[#005cba] px-3 py-1.5 text-[12px] font-semibold text-[#005cba] hover:bg-[#005cba]/10 dark:border-[#4d9fff] dark:text-[#4d9fff]">
+            Rodaram juntos na mesma folha — lançar como um lote só
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Página ───────────────────────────────────────────────────────────────────
 export function ColorProofPage() {
   const { user } = useAuth();
@@ -115,6 +265,39 @@ export function ColorProofPage() {
   const [showColors, setShowColors] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [aiNotice, setAiNotice] = useState<{ photos: number; warnings: string[] } | null>(null);
+
+  // A IA só preenche; o operador confere e lança
+  function fillFromPanel(job: PanelJob, info: { photos: number; batchLabel?: string; questions: string[] }) {
+    const colors = emptyColors();
+    for (const c of INK_COLORS) colors[c] = toField(job.inkByColor[c]);
+    setForm((f) => ({
+      ...f,
+      date: job.date ?? f.date,
+      label: info.batchLabel ?? job.label ?? f.label,
+      isBatch: !!info.batchLabel || f.isBatch,
+      paperM2: toField(job.paperM2),
+      inkMl: toField(job.inkMl),
+      widthMm: job.widthMm !== null ? toField(job.widthMm) : f.widthMm,
+      lengthMm: toField(job.lengthMm),
+      colors,
+    }));
+    const missing = [
+      job.paperM2 === null && "papel consumido (m²)",
+      job.inkMl === null && "total de tinta (ml)",
+      !info.batchLabel && job.label === null && "nome do documento / OS",
+    ].filter(Boolean) as string[];
+    setAiNotice({
+      photos: info.photos,
+      warnings: [
+        ...(missing.length ? [`Não consegui ler: ${missing.join(", ")}. Preencha à mão ou mande outra foto.`] : []),
+        ...job.illegible,
+        ...info.questions,
+      ],
+    });
+    setShowColors(true);
+    setFormError("");
+  }
 
   async function load() {
     setLoading(true);
@@ -159,6 +342,7 @@ export function ColorProofPage() {
       else await colorProofApi.create(input);
       setForm(emptyForm());
       setEditing(null);
+      setAiNotice(null);
       await load();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Erro ao salvar.");
@@ -264,11 +448,29 @@ export function ColorProofPage() {
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className="text-[15px] font-semibold text-[#1a1c1d] dark:text-white">{editing ? `Editando: ${editing.label}` : "Nova prova"}</h2>
               {editing && (
-                <button onClick={() => { setEditing(null); setForm(emptyForm()); setFormError(""); }} className="text-[12px] font-medium text-[#77767b] hover:text-[#1a1c1d] dark:hover:text-white">
+                <button onClick={() => { setEditing(null); setForm(emptyForm()); setFormError(""); setAiNotice(null); }} className="text-[12px] font-medium text-[#77767b] hover:text-[#1a1c1d] dark:hover:text-white">
                   Cancelar edição
                 </button>
               )}
             </div>
+
+            <PhotoReader onFill={fillFromPanel} disabled={saving} />
+
+            {aiNotice && (
+              <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-[12.5px] text-amber-900 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold">
+                    Preenchido pela IA a partir de {aiNotice.photos} foto{aiNotice.photos > 1 ? "s" : ""}. Confira cada número com o painel antes de lançar.
+                  </p>
+                  <button onClick={() => setAiNotice(null)} title="Fechar aviso" className="text-amber-700 hover:text-amber-900 dark:text-amber-300">✕</button>
+                </div>
+                {aiNotice.warnings.length > 0 && (
+                  <ul className="mt-1.5 list-disc pl-5">
+                    {aiNotice.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
 
             <div className="grid gap-3 md:grid-cols-[140px_minmax(0,1fr)]">
               <div>

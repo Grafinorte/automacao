@@ -12,6 +12,9 @@ colorProofRouter.get("/settings", asyncHandler(ctrl.getSettings));
 // Preços só o admin muda
 colorProofRouter.put("/settings", requireRole("ADMIN"), asyncHandler(ctrl.putSettings));
 
+// IA lê as fotos do painel e devolve os números para o operador conferir (não grava nada)
+colorProofRouter.post("/ler-fotos", asyncHandler(ctrl.postReadPhotos));
+
 colorProofRouter.get("/", asyncHandler(ctrl.getProofs));
 colorProofRouter.post("/", asyncHandler(ctrl.postProof));
 colorProofRouter.put("/:id", asyncHandler(ctrl.putProof));

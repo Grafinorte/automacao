@@ -1,5 +1,10 @@
 import type { Request, Response } from "express";
 import * as service from "./colorProof.service";
+import { readPanelPhotos } from "./colorProof.ai";
+
+export async function postReadPhotos(req: Request, res: Response) {
+  res.json(await readPanelPhotos(req.body?.images));
+}
 
 export async function getProofs(req: Request, res: Response) {
   const from = typeof req.query.from === "string" ? new Date(req.query.from) : undefined;

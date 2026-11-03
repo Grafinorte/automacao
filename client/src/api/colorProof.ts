@@ -67,7 +67,20 @@ export interface ColorProofInput {
   notes: string | null;
 }
 
+/** Um trabalho lido pela IA nas fotos do painel (campo null = não deu para ler) */
+export interface PanelJob {
+  label: string | null;
+  date: string | null;
+  paperM2: number | null;
+  inkMl: number | null;
+  widthMm: number | null;
+  lengthMm: number | null;
+  inkByColor: Record<InkColor, number | null>;
+  illegible: string[];
+}
+
 export const colorProofApi = {
+  readPhotos: (images: string[]) => api.post<{ jobs: PanelJob[]; questions: string[]; model: string }>("/teste-cor/ler-fotos", { images }),
   list: (from?: string, to?: string) => {
     const q = new URLSearchParams();
     if (from) q.set("from", from);
