@@ -247,3 +247,17 @@ html.dark input.mkt-hero-input:not([type="checkbox"]):not([type="radio"]):not([t
   background-color: transparent !important;
   color: #ffffff !important;
 }
+
+/* Teste de cor: tela de carregamento enquanto a IA lê as fotos do painel */
+@keyframes cp-scan {
+  0%   { top: 0%; }
+  50%  { top: calc(100% - 3px); }
+  100% { top: 0%; }
+}
+.cp-scan-line { position: absolute; left: 0; right: 0; height: 3px; animation: cp-scan 2.2s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, #3d8ef0, transparent); box-shadow: 0 0 12px 2px rgba(61, 142, 240, 0.6); }
+@keyframes cp-bar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.cp-bar { animation: cp-bar 1.4s ease-in-out infinite; }

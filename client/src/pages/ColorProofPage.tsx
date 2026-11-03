@@ -138,6 +138,65 @@ function mergeJobs(jobs: PanelJob[]): PanelJob {
   };
 }
 
+const READ_STEPS = ["Enviando as fotos", "Lendo o painel da Canon", "Encontrando papel, tinta e as 12 cores", "Conferindo os números"];
+
+/** Tela de carregamento enquanto a IA lê as fotos (leva de 15 s a 1 min) */
+function ReadingOverlay({ thumbs }: { thumbs: string[] }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  // Avança as etapas com o tempo; a última fica até a resposta chegar
+  const step = Math.min(READ_STEPS.length - 1, seconds < 2 ? 0 : seconds < 8 ? 1 : seconds < 18 ? 2 : 3);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" role="status" aria-live="polite">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#1c1e22]">
+        <div className="mb-5 flex justify-center gap-2">
+          {thumbs.slice(0, 4).map((t, i) => (
+            <div key={i} className="relative h-24 w-[72px] overflow-hidden rounded-lg ring-1 ring-black/10 dark:ring-white/10">
+              <img src={t} alt="" className="h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-[#005cba]/10" />
+              <div className="cp-scan-line" style={{ animationDelay: `${i * 0.25}s` }} />
+            </div>
+          ))}
+          {thumbs.length > 4 && (
+            <div className="flex h-24 w-[72px] items-center justify-center rounded-lg bg-[#f3f3f5] text-[13px] font-semibold text-[#46464a] dark:bg-white/5 dark:text-[#a0a0a4]">+{thumbs.length - 4}</div>
+          )}
+        </div>
+
+        <p className="text-center text-[16px] font-semibold text-[#1a1c1d] dark:text-white">A IA está lendo as fotos</p>
+        <p className="mt-0.5 text-center text-[12.5px] text-[#77767b] dark:text-[#a0a0a4]">
+          {thumbs.length} foto{thumbs.length > 1 ? "s" : ""} · {seconds}s — costuma levar de 15 segundos a 1 minuto
+        </p>
+
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#eef0f3] dark:bg-white/10">
+          <div className="cp-bar h-full w-2/5 rounded-full bg-[#005cba] dark:bg-[#3d8ef0]" />
+        </div>
+
+        <ul className="mt-5 flex flex-col gap-2">
+          {READ_STEPS.map((label, i) => (
+            <li key={label} className={`flex items-center gap-2.5 text-[13px] ${i <= step ? "text-[#1a1c1d] dark:text-white" : "text-[#a0a0a4] dark:text-[#5f6064]"}`}>
+              {i < step ? (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white">
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                </span>
+              ) : i === step ? (
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#005cba]/25 border-t-[#005cba] dark:border-[#3d8ef0]/25 dark:border-t-[#3d8ef0]" />
+              ) : (
+                <span className="h-5 w-5 rounded-full border-2 border-[#e2e3e6] dark:border-white/10" />
+              )}
+              {label}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-5 text-center text-[11.5px] text-[#77767b] dark:text-[#a0a0a4]">Depois é só conferir os números e lançar — nada é salvo sozinho.</p>
+      </div>
+    </div>
+  );
+}
+
 function PhotoReader({ onFill, disabled }: { onFill: (job: PanelJob, info: { photos: number; batchLabel?: string; questions: string[] }) => void; disabled?: boolean }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -217,7 +276,7 @@ function PhotoReader({ onFill, disabled }: { onFill: (job: PanelJob, info: { pho
           ))}
         </div>
       )}
-      {busy && <p className="mt-2 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">A IA está lendo os números do painel — pode levar até 1 minuto.</p>}
+      {busy && thumbs.length > 0 && <ReadingOverlay thumbs={thumbs} />}
       {error && <p className="mt-3 text-[12.5px] text-red-600">{error}</p>}
 
       {choice && (
@@ -343,7 +402,9 @@ export function ColorProofPage() {
       setForm(emptyForm());
       setEditing(null);
       setAiNotice(null);
-      await load();
+      // Prova de outro mês (ex.: data lida do painel): mostra o mês dela, senão ela "some" da lista
+      if (month && !input.date.startsWith(month)) setMonth(input.date.slice(0, 7));
+      else await load();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Erro ao salvar.");
     } finally {

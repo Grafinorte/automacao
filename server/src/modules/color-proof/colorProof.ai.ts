@@ -17,13 +17,16 @@ Nunca deduza nem calcule um número que não aparece na foto.
 
 O QUE EXTRAIR DE CADA TRABALHO (procure estas telas):
 1. Papel consumido → em m² (a máquina mostra em pés² e em m²; use SEMPRE o m²). Campo paperM2.
-2. Comprimento do papel → mm (campo lengthMm, opcional).
-3. Largura do papel → mm (campo widthMm; o padrão é 609,6 mm = 24"; se for diferente, registre o que aparece).
+2. Comprimento do papel → mm (campo lengthMm, opcional). Se o painel mostrar só em polegadas ("pol"), deixe lengthMm null
+   e coloque o valor em polegadas em lengthIn.
+3. Largura do papel → mm (campo widthMm). O painel costuma mostrar SÓ em polegadas (ex.: "24.00 pol"): nesse caso
+   deixe widthMm null e coloque o número em polegadas em widthIn. Não converta unidades.
 4. Total de tinta consumido → ml (campo inkMl).
 5. Consumo de tinta por cor → as 12 cores em ml: PM, R, C, PGY, MBK, PBK, B, CO, GY, Y, M, PC.
    Cor que não aparece em nenhuma foto = null (não é zero). Zero só se o painel mostrar 0.
 6. Nome do documento / OS / cliente (tela "Nome do documento") → campo label; null se não aparecer.
-7. Data do trabalho, se aparecer no painel → campo date no formato AAAA-MM-DD; null se não aparecer.
+7. Data do trabalho: use "Início da impressão". ATENÇÃO: o painel mostra no formato americano MÊS/DIA/ANO
+   (ex.: "10/28/2026 08:37:25" = 28 de outubro de 2026). Devolva em date no formato AAAA-MM-DD; null se não aparecer.
 
 VÁRIAS FOTOS:
 - Várias fotos podem ser do MESMO trabalho (telas diferentes: papel, tinta, cores, nome). Junte tudo num item só.
@@ -35,7 +38,10 @@ VALIDAÇÃO (só informe, não corrija):
 - Se você leu as 12 cores e a soma não bate com o total de tinta, diga em "illegible" do trabalho que as cores
   parecem incompletas (painel cortado) — mesmo assim devolva o total lido.
 
-Números: use ponto como separador decimal no JSON (ex.: 0.412). Não arredonde: copie as casas que aparecem.
+Números: o painel mostra zeros à esquerda (ex.: "00000.597" = 0.597; "000.057" = 0.057). Use ponto como separador
+decimal no JSON (ex.: 0.412). Não arredonde: copie as casas que aparecem.
+A mesma informação pode aparecer em mais de uma foto (a tela rola): é o mesmo trabalho, não some duas vezes.
+Ignore reflexos de luz e ícones sobrepostos (setas, botão "Parar"); se cobrirem um dígito, marque como ilegível.
 Escreva "illegible" e "questions" em português, curtos e diretos para o operador.`;
 
 const colorProps = Object.fromEntries(INK_COLORS.map((c) => [c, { type: "number", nullable: true }]));
@@ -54,6 +60,8 @@ const RESPONSE_SCHEMA = {
           inkMl: { type: "number", nullable: true },
           widthMm: { type: "number", nullable: true },
           lengthMm: { type: "number", nullable: true },
+          widthIn: { type: "number", nullable: true },
+          lengthIn: { type: "number", nullable: true },
           inkByColor: { type: "object", properties: colorProps },
           illegible: { type: "array", items: { type: "string" } },
         },
@@ -83,6 +91,7 @@ function parseImage(dataUrl: unknown) {
   return { inline_data: { mime_type: m[1], data: m[2] } };
 }
 
+const inchesToMm = (v: unknown) => { const n = num(v); return n === null ? null : Math.round(n * 25.4 * 10) / 10; };
 const num = (v: unknown) => (typeof v === "number" && isFinite(v) && v >= 0 ? v : null);
 
 export async function readPanelPhotos(images: unknown[]): Promise<{ jobs: PanelJob[]; questions: string[]; model: string }> {
@@ -116,11 +125,13 @@ export async function readPanelPhotos(images: unknown[]): Promise<{ jobs: PanelJ
         continue;
       }
       const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-      const parsed = JSON.parse(text) as { jobs?: Partial<PanelJob>[]; questions?: string[] };
+      const parsed = JSON.parse(text) as { jobs?: (Partial<PanelJob> & { widthIn?: number; lengthIn?: number })[]; questions?: string[] };
       const jobs = (parsed.jobs ?? []).map((j) => ({
         label: typeof j.label === "string" && j.label.trim() ? j.label.trim() : null,
         date: typeof j.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(j.date) ? j.date : null,
-        paperM2: num(j.paperM2), inkMl: num(j.inkMl), widthMm: num(j.widthMm), lengthMm: num(j.lengthMm),
+        paperM2: num(j.paperM2), inkMl: num(j.inkMl),
+        // Painel em polegadas: a conversão para mm é feita aqui, não pela IA
+        widthMm: num(j.widthMm) ?? inchesToMm(j.widthIn), lengthMm: num(j.lengthMm) ?? inchesToMm(j.lengthIn),
         inkByColor: Object.fromEntries(INK_COLORS.map((c) => [c, num(j.inkByColor?.[c])])),
         illegible: Array.isArray(j.illegible) ? j.illegible.filter((s) => typeof s === "string" && s.trim()) : [],
       }));
