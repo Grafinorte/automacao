@@ -309,10 +309,23 @@ function PhotoReader({ onFill, disabled }: { onFill: (job: PanelJob, info: { pho
 }
 
 // ─── Página ───────────────────────────────────────────────────────────────────
+const MONTH_KEY = "testeCor.month";
+
 export function ColorProofPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
-  const [month, setMonth] = useState(currentMonth());
+  // Lembra o mês escolhido: ao atualizar a página, a prova lançada com data de outro mês continua aparecendo
+  const [month, setMonthState] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem(MONTH_KEY);
+      if (saved !== null && (saved === "" || /^\d{4}-\d{2}$/.test(saved))) return saved;
+    } catch { /* navegador sem storage */ }
+    return currentMonth();
+  });
+  const setMonth = (m: string) => {
+    setMonthState(m);
+    try { localStorage.setItem(MONTH_KEY, m); } catch { /* ignora */ }
+  };
   const [proofs, setProofs] = useState<ColorProof[]>([]);
   const [settings, setSettings] = useState<ColorProofSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -715,7 +728,14 @@ export function ColorProofPage() {
           ) : loading ? (
             <p className="px-5 py-10 text-center text-[13px] text-[#77767b]">Carregando...</p>
           ) : proofs.length === 0 ? (
-            <p className="px-5 py-10 text-center text-[13px] text-[#77767b]">Nenhuma prova lançada {month ? "neste mês" : "ainda"}.</p>
+            <div className="px-5 py-10 text-center text-[13px] text-[#77767b]">
+              Nenhuma prova lançada {month ? "neste mês" : "ainda"}.
+              {month && (
+                <button onClick={() => setMonth("")} className="ml-2 font-semibold text-[#005cba] hover:underline dark:text-[#4d9fff]">
+                  Ver todas as provas
+                </button>
+              )}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-[12.5px]">
