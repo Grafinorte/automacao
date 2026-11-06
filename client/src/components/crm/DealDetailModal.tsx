@@ -5,6 +5,7 @@ import type { Contact, DealActivity, DealDetail, LeadSource, QuoteListItem, Task
 import { LEAD_SOURCE_LABELS } from "../../types";
 import { Button } from "../common/Button";
 import { Avatar } from "../common/Avatar";
+import { parseMoney } from "./parseMoney";
 
 export interface DealFormValues {
   title: string;
@@ -70,6 +71,9 @@ export function DealDetailModal({
           sourceDetail: deal.sourceDetail ?? "",
         }
   );
+  const [valueText, setValueText] = useState(!isNew && deal.value ? String(deal.value).replace(".", ",") : "");
+  const parsedValue = parseMoney(valueText);
+  const valueInvalid = Number.isNaN(parsedValue);
   const [saving, setSaving] = useState(false);
   const [activities, setActivities] = useState<DealActivity[]>(!isNew ? deal.activities : []);
   const [newNote, setNewNote] = useState("");
@@ -79,10 +83,10 @@ export function DealDetailModal({
 
   async function handleSave(e: FormEvent) {
     e.preventDefault();
-    if (!values.title.trim() || (!isNew && !values.contactId) || !values.ownerId) return;
+    if (!values.title.trim() || (!isNew && !values.contactId) || !values.ownerId || valueInvalid) return;
     setSaving(true);
     try {
-      await onSave(values);
+      await onSave({ ...values, value: parsedValue });
     } finally {
       setSaving(false);
     }
@@ -270,13 +274,20 @@ export function DealDetailModal({
                 <div>
                   <label className={labelCls}>Valor (R$)</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={values.value}
-                    onChange={(e) => setValues((v) => ({ ...v, value: Number(e.target.value) || 0 }))}
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0"
+                    value={valueText}
+                    onChange={(e) => setValueText(e.target.value)}
+                    aria-invalid={valueInvalid}
                     className={inputCls}
                   />
+                  {valueInvalid ? (
+                    <p className="mt-1 text-[11.5px] text-red-600 dark:text-red-400">Digite só o valor. Ex.: 1500</p>
+                  ) : valueText.trim() && (
+                    <p className="mt-1 text-[11.5px] text-[#77767b] dark:text-[#a0a0a4]">Fica {formatCurrency(parsedValue)}</p>
+                  )}
                 </div>
                 <div>
                   <label className={labelCls}>Previsão de fechamento</label>
@@ -342,7 +353,7 @@ export function DealDetailModal({
               ) : <span />}
               <div className="flex gap-2">
                 <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-                <Button type="submit" disabled={saving || !values.title.trim() || (!isNew && !values.contactId)}>
+                <Button type="submit" disabled={saving || valueInvalid || !values.title.trim() || (!isNew && !values.contactId)}>
                   {saving ? "Salvando..." : "Salvar"}
                 </Button>
               </div>

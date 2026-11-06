@@ -5,6 +5,7 @@ import { usersApi } from "../api/users";
 import { useAuth } from "../context/AuthContext";
 import type { Contact, CrmStageBase, DealActivity, DealDetail, LeadSource, TaskUserRef } from "../types";
 import { LEAD_SOURCE_LABELS } from "../types";
+import { parseMoney } from "../components/crm/parseMoney";
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
@@ -49,7 +50,9 @@ export function DealPage() {
   const [title, setTitle] = useState("");
   const [contactId, setContactId] = useState("");
   const [ownerId, setOwnerId] = useState("");
-  const [value, setValue] = useState(0);
+  const [valueText, setValueText] = useState("");
+  const parsedValue = parseMoney(valueText);
+  const valueInvalid = Number.isNaN(parsedValue);
   const [expectedCloseDate, setExpectedCloseDate] = useState("");
   const [nextFollowUp, setNextFollowUp] = useState("");
   const [notes, setNotes] = useState("");
@@ -75,7 +78,7 @@ export function DealPage() {
     setTitle(d.title);
     setContactId(d.contact.id);
     setOwnerId(d.owner.id);
-    setValue(d.value);
+    setValueText(d.value ? String(d.value).replace(".", ",") : "");
     setExpectedCloseDate(d.expectedCloseDate ? d.expectedCloseDate.slice(0, 10) : "");
     setNextFollowUp(d.nextFollowUp ? d.nextFollowUp.slice(0, 10) : "");
     setNotes(d.notes ?? "");
@@ -108,14 +111,14 @@ export function DealPage() {
   }, [dealId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSave() {
-    if (!deal) return;
+    if (!deal || valueInvalid) return;
     setSaving(true);
     try {
       await crmApi.updateDeal(deal.id, {
         title,
         contactId,
         ownerId,
-        value,
+        value: parsedValue,
         expectedCloseDate: expectedCloseDate || null,
         nextFollowUp: nextFollowUp || null,
         notes: notes || null,
@@ -391,11 +394,22 @@ export function DealPage() {
             <div>
               <label className={labelCls}>Valor (R$)</label>
               <input
-                type="number" step="0.01" min="0"
-                value={value}
-                onChange={(e) => { setValue(Number(e.target.value) || 0); setDirty(true); }}
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
+                value={valueText}
+                onChange={(e) => { setValueText(e.target.value); setDirty(true); }}
+                aria-invalid={valueInvalid}
                 className={inputCls}
               />
+              {valueInvalid ? (
+                <p className="mt-1 text-[11.5px] text-red-600 dark:text-red-400">Digite só o valor. Ex.: 1500</p>
+              ) : valueText.trim() && (
+                <p className="mt-1 text-[11.5px] text-[#77767b] dark:text-[#a0a0a4]">
+                  Fica {parsedValue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </p>
+              )}
             </div>
             <div>
               <label className={labelCls}>Previsão de fechamento</label>
@@ -418,7 +432,7 @@ export function DealPage() {
 
             <button
               onClick={handleSave}
-              disabled={saving || !dirty}
+              disabled={saving || !dirty || valueInvalid}
               className="w-full rounded-xl bg-brand py-2.5 text-[13px] font-semibold text-white transition-all hover:bg-brand/90 active:scale-[0.98] disabled:opacity-40"
             >
               {saving ? "Salvando..." : "Salvar alterações"}
