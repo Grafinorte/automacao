@@ -3026,7 +3026,7 @@ export function WhatsAppPage() {
             )}
 
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="wa-scroll flex-1 overflow-y-auto">
               {loadingConvs ? (
                 <p className="text-center text-sm text-gray-400 py-8">Carregando...</p>
               ) : filteredConversations.length === 0 ? (
@@ -3355,7 +3355,7 @@ export function WhatsAppPage() {
 
                 {/* Messages */}
                 <div
-                  className="flex-1 overflow-y-auto px-2 md:px-5 py-3 md:py-4 relative"
+                  className="wa-scroll flex-1 overflow-y-auto px-2 md:px-5 py-3 md:py-4 relative"
                   style={{
                     backgroundImage: `url('/assets/${theme === "dark" ? "bg_whatsapp_escuro" : "bg_whatsapp"}.png')`,
                     backgroundSize: "cover",
