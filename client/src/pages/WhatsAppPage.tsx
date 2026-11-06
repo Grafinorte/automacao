@@ -1648,17 +1648,19 @@ function ContactPanel({
 
 // ─── Forward modal ────────────────────────────────────────────────────────────
 
-function ForwardModal({ msg, conversations, onClose }: {
-  msg: WaMessage;
+function ForwardModal({ msgs, conversations, onClose }: {
+  msgs: WaMessage[];
   conversations: WaConversation[];
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [forwarding, setForwarding] = useState<string | null>(null);
 
-  const previewText = msg.text
-    ? msg.text.slice(0, 60) + (msg.text.length > 60 ? "…" : "")
-    : `[${msg.mediaType ?? "mídia"}]`;
+  const previewText = msgs.length > 1
+    ? `${msgs.length} mensagens`
+    : msgs[0].text
+    ? msgs[0].text.slice(0, 60) + (msgs[0].text.length > 60 ? "…" : "")
+    : `[${msgs[0].mediaType ?? "mídia"}]`;
 
   const filtered = conversations.filter((c) =>
     c.contact.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -1668,17 +1670,32 @@ function ForwardModal({ msg, conversations, onClose }: {
   async function handleForward(convId: string) {
     if (forwarding) return;
     setForwarding(convId);
-    try {
-      if (msg.mediaType) {
-        await whatsappApi.forwardMedia(convId, msg.id);
-      } else {
-        const fwd = msg.text?.startsWith("↪️ ") ? msg.text.slice("↪️ ".length) : (msg.text ?? "");
-        await whatsappApi.sendMessage(convId, fwd, undefined, undefined, true);
+    // Uma de cada vez, para o cliente receber na mesma ordem da conversa
+    const errors: string[] = [];
+    for (const msg of msgs) {
+      try {
+        if (msg.mediaType) {
+          await whatsappApi.forwardMedia(convId, msg.id);
+        } else {
+          const fwd = msg.text?.startsWith("↪️ ") ? msg.text.slice("↪️ ".length) : (msg.text ?? "");
+          await whatsappApi.sendMessage(convId, fwd, undefined, undefined, true);
+        }
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : "";
+        const what = msg.text ? msg.text.slice(0, 40) : `[${msg.mediaType ?? "mídia"}]`;
+        errors.push(msgs.length > 1 ? `• ${what}: ${reason}` : reason);
       }
-      onClose();
-    } catch (err) {
-      alert(`A mensagem NÃO foi encaminhada.\n\n${err instanceof Error ? err.message : ""}`.trim());
-    } finally { setForwarding(null); }
+    }
+    setForwarding(null);
+    if (errors.length > 0) {
+      const title = msgs.length === 1
+        ? "A mensagem NÃO foi encaminhada."
+        : `${errors.length} de ${msgs.length} mensagens NÃO foram encaminhadas.`;
+      alert(`${title}\n\n${errors.join("\n")}`.trim());
+      // Se alguma já foi, fecha: tentar de novo reenviaria essas ao cliente
+      if (errors.length === msgs.length) return;
+    }
+    onClose();
   }
 
   return (
@@ -1692,7 +1709,7 @@ function ForwardModal({ msg, conversations, onClose }: {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(0,0,0,0.06)]">
           <div className="min-w-0">
-            <p className="font-semibold text-gray-900 dark:text-white">Encaminhar mensagem</p>
+            <p className="font-semibold text-gray-900 dark:text-white">Encaminhar {msgs.length > 1 ? "mensagens" : "mensagem"}</p>
             <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[220px]">{previewText}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0 ml-3">
@@ -2067,7 +2084,7 @@ export function WhatsAppPage() {
   // Envio de template para a conversa aberta (botão no chat e aviso de janela de 24h fechada)
   const [showChatTemplate, setShowChatTemplate] = useState(false);
   const [replyingTo, setReplyingTo] = useState<WaMessage | null>(null);
-  const [forwardingMsg, setForwardingMsg] = useState<WaMessage | null>(null);
+  const [forwardingMsgs, setForwardingMsgs] = useState<WaMessage[] | null>(null);
   const [showContactPanel, setShowContactPanel] = useState(false);
   const [isNoteMode, setIsNoteMode] = useState(false);
   const typingSentRef = useRef<{ convId: string | null; at: number }>({ convId: null, at: 0 });
@@ -2614,9 +2631,9 @@ export function WhatsAppPage() {
 
   function handleBulkForward() {
     if (selectedMsgIds.size === 0) return;
-    const firstId = [...selectedMsgIds][0];
-    const firstMsg = uniqueMessages.find(m => m.id === firstId);
-    if (firstMsg) setForwardingMsg(firstMsg);
+    // Na ordem da conversa, não na ordem em que foram marcadas
+    const selected = uniqueMessages.filter(m => selectedMsgIds.has(m.id));
+    if (selected.length > 0) setForwardingMsgs(selected);
     exitSelectionMode();
   }
 
@@ -3370,7 +3387,7 @@ export function WhatsAppPage() {
                               msg={msg}
                               onReply={setReplyingTo}
                               onCorrect={(t) => { setReplyText(t); textareaRef.current?.focus(); }}
-                              onForward={setForwardingMsg}
+                              onForward={(m) => setForwardingMsgs([m])}
                               onDelete={handleDeleteMsg}
                               onStar={handleStarMsg}
                               onScrollToQuote={handleScrollToMsg}
@@ -3705,11 +3722,11 @@ export function WhatsAppPage() {
         </div>
       )}
 
-      {forwardingMsg && (
+      {forwardingMsgs && (
         <ForwardModal
-          msg={forwardingMsg}
+          msgs={forwardingMsgs}
           conversations={conversations}
-          onClose={() => setForwardingMsg(null)}
+          onClose={() => setForwardingMsgs(null)}
         />
       )}
 
