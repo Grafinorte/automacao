@@ -6,7 +6,8 @@ import { getSettings, parseRecipients, round3 } from "./pcpStock.service";
 
 const CHECK_EVERY_MS = 60 * 60 * 1000;
 const FIRST_CHECK_MS = 60 * 1000;
-const GRAFINORTE = "Grafinorte";
+const DAY_MS = 24 * 60 * 60 * 1000;
+const COMPANY_LABEL: Record<string, string> = { GRAFINORTE: "Grafinorte", PLUSPACK: "Pluspack" };
 const TYPE_LABEL = { ENTRADA: "Entrada", SAIDA: "Saída", AJUSTE: "Ajuste" } as const;
 
 // Nomes e observações são digitados por pessoas: nunca entram crus no HTML
@@ -18,6 +19,9 @@ const TH = "padding:8px 10px;background:#f3f3f5;border-bottom:1px solid #dddddd;
 const TD = "padding:8px 10px;border-bottom:1px solid #eeeeee;font-size:12px;color:#222222;vertical-align:top;";
 const RIGHT = "text-align:right;white-space:nowrap;";
 
+const companyName = (company: string) => COMPANY_LABEL[company] ?? company;
+const ownerName = (item: { company: string; client: string | null }) => item.client ?? `${companyName(item.company)} (material próprio)`;
+
 export async function buildReport(period: string) {
   const { start, end } = monthRange(period);
   const [items, movements] = await Promise.all([
@@ -28,7 +32,7 @@ export async function buildReport(period: string) {
     }),
     prisma.pcpStockMovement.findMany({
       where: { createdAt: { gte: start, lt: end } },
-      include: { item: { select: { client: true, name: true, unit: true } } },
+      include: { item: { select: { company: true, osNumber: true, client: true, name: true, unit: true } } },
       orderBy: { createdAt: "asc" },
     }),
   ]);
@@ -38,15 +42,19 @@ export async function buildReport(period: string) {
     const after = item.movements.filter((m) => m.createdAt >= end).reduce((s, m) => s + m.quantity, 0);
     const sum = (type: string) => inPeriod.filter((m) => m.type === type).reduce((s, m) => s + m.quantity, 0);
     return {
-      owner: item.client ?? GRAFINORTE, name: item.name, category: item.category, unit: item.unit, location: item.location,
+      owner: `${companyName(item.company)} · ${item.client ?? "Material próprio"}`,
+      osNumber: item.osNumber, name: item.name, category: item.category, unit: item.unit, location: item.location,
       entries: round3(sum("ENTRADA")), exits: round3(0 - sum("SAIDA")), adjustments: round3(sum("AJUSTE")),
       // O saldo é o do último dia do mês, mesmo que o e-mail saia alguns dias depois
       balance: round3(item.quantity - after),
+      days: Math.floor((end.getTime() - item.createdAt.getTime()) / DAY_MS),
+      moved: inPeriod.length > 0,
     };
-  });
+    // OS já faturada e sem movimento no mês não precisa aparecer para sempre
+  }).filter((r) => r.balance !== 0 || r.moved);
 
-  const owners = [...new Set(rows.map((r) => r.owner))].sort((a, b) =>
-    a === GRAFINORTE ? -1 : b === GRAFINORTE ? 1 : a.localeCompare(b, "pt-BR"));
+  const owners = [...new Set(rows.map((r) => r.owner))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const pending = rows.filter((r) => r.balance > 0).length;
   const lastDay = formatDate(new Date(end.getTime() - 1));
   const exits = movements.filter((m) => m.type === "SAIDA").length;
   const entries = movements.filter((m) => m.type === "ENTRADA").length;
@@ -54,9 +62,10 @@ export async function buildReport(period: string) {
   const stockTables = owners.map((owner) => `
     <p style="margin:20px 0 6px;font-size:14px;font-weight:700;color:#111111;">${esc(owner)}</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-      <tr><th style="${TH}">Material</th><th style="${TH}">Tipo</th><th style="${TH}">Local</th><th style="${TH}${RIGHT}">Entradas</th><th style="${TH}${RIGHT}">Saídas</th><th style="${TH}${RIGHT}">Saldo</th></tr>
+      <tr><th style="${TH}">OS</th><th style="${TH}">Material</th><th style="${TH}">Local</th><th style="${TH}${RIGHT}">No estoque</th><th style="${TH}${RIGHT}">Entradas</th><th style="${TH}${RIGHT}">Saídas</th><th style="${TH}${RIGHT}">Saldo</th></tr>
       ${rows.filter((r) => r.owner === owner).map((r) => `<tr>
-        <td style="${TD}">${esc(r.name)}</td><td style="${TD}">${esc(r.category)}</td><td style="${TD}">${esc(r.location) || "—"}</td>
+        <td style="${TD}white-space:nowrap;">${esc(r.osNumber) || "—"}</td><td style="${TD}">${esc(r.name)}<br><span style="font-size:10px;color:#777777;">${esc(r.category)}</span></td><td style="${TD}">${esc(r.location) || "—"}</td>
+        <td style="${TD}${RIGHT}">${r.balance > 0 ? `${r.days} ${r.days === 1 ? "dia" : "dias"}` : "—"}</td>
         <td style="${TD}${RIGHT}">${num(r.entries)}</td><td style="${TD}${RIGHT}">${num(r.exits)}</td>
         <td style="${TD}${RIGHT}font-weight:700;">${num(r.balance)} ${esc(r.unit)}${r.adjustments ? `<br><span style="font-size:10px;font-weight:400;color:#777777;">ajuste ${r.adjustments > 0 ? "+" : ""}${num(r.adjustments)}</span>` : ""}</td>
       </tr>`).join("")}
@@ -64,10 +73,12 @@ export async function buildReport(period: string) {
 
   const movementRows = movements.map((m) => `<tr>
     <td style="${TD}white-space:nowrap;">${formatDateTime(m.createdAt)}</td>
-    <td style="${TD}">${esc(m.item.name)}<br><span style="font-size:10px;color:#777777;">${esc(m.item.client ?? GRAFINORTE)}</span></td>
+    <td style="${TD}white-space:nowrap;">${esc(m.item.osNumber) || "—"}</td>
+    <td style="${TD}">${esc(m.item.name)}<br><span style="font-size:10px;color:#777777;">${esc(ownerName(m.item))}</span></td>
     <td style="${TD}">${TYPE_LABEL[m.type]}</td>
     <td style="${TD}${RIGHT}font-weight:700;">${m.quantity > 0 ? "+" : ""}${num(m.quantity)} ${esc(m.item.unit)}</td>
     <td style="${TD}${RIGHT}">${num(m.balanceAfter)}</td>
+    <td style="${TD}white-space:nowrap;">${esc(m.invoiceNumber) || "—"}</td>
     <td style="${TD}">${esc(m.takenBy) || "—"}</td>
     <td style="${TD}">${esc([m.reference, m.notes].filter(Boolean).join(" · ")) || "—"}</td>
     <td style="${TD}">${esc(m.createdByName)}</td>
@@ -78,14 +89,14 @@ export async function buildReport(period: string) {
 <table align="center" width="760" cellpadding="0" cellspacing="0" style="max-width:760px;width:100%;background:#ffffff;border-radius:10px;"><tr><td style="padding:28px;">
   <p style="margin:0;font-size:11px;font-weight:700;letter-spacing:2px;color:#888888;">GRAFINORTE · CONTROLE DE ESTOQUE PCP</p>
   <h1 style="margin:6px 0 4px;font-size:22px;color:#111111;">Relatório de ${esc(formatPeriod(period))}</h1>
-  <p style="margin:0;font-size:13px;color:#555555;">${items.length} materiais · ${entries} entradas · ${exits} saídas</p>
+  <p style="margin:0;font-size:13px;color:#555555;">${pending} produzidos e não faturados · ${entries} entradas · ${exits} saídas</p>
 
   <h2 style="margin:26px 0 0;font-size:16px;color:#111111;">Estoque em ${lastDay}</h2>
-  ${stockTables || `<p style="font-size:13px;color:#777777;">Nenhum material cadastrado.</p>`}
+  ${stockTables || `<p style="font-size:13px;color:#777777;">Nenhum material no estoque.</p>`}
 
   <h2 style="margin:30px 0 8px;font-size:16px;color:#111111;">Movimentações do mês</h2>
   ${movementRows ? `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-    <tr><th style="${TH}">Data</th><th style="${TH}">Material</th><th style="${TH}">Tipo</th><th style="${TH}${RIGHT}">Qtd.</th><th style="${TH}${RIGHT}">Saldo</th><th style="${TH}">Quem tirou</th><th style="${TH}">OS / obs.</th><th style="${TH}">Registrado por</th></tr>
+    <tr><th style="${TH}">Data</th><th style="${TH}">OS</th><th style="${TH}">Material</th><th style="${TH}">Tipo</th><th style="${TH}${RIGHT}">Qtd.</th><th style="${TH}${RIGHT}">Saldo</th><th style="${TH}">NF</th><th style="${TH}">Quem tirou</th><th style="${TH}">Obs.</th><th style="${TH}">Registrado por</th></tr>
     ${movementRows}</table>` : `<p style="font-size:13px;color:#777777;">Nenhuma movimentação neste mês.</p>`}
 
   <p style="margin:26px 0 0;font-size:11px;color:#999999;">Enviado automaticamente pela plataforma Grafinorte.</p>

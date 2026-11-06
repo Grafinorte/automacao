@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
-  PCP_CATEGORIES, PCP_UNITS, pcpStockApi,
+  PCP_CATEGORIES, PCP_COMPANIES, PCP_UNITS, pcpStockApi,
   type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpSettings, type PcpStockItem,
 } from "../api/pcpStock";
 
-const GRAFINORTE = "Grafinorte";
+const STALE_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const card = "rounded-2xl border border-[rgba(199,198,202,0.3)] bg-white dark:border-white/10 dark:bg-[#1c1e22]";
 const inputCls = "w-full rounded-lg border border-[rgba(199,198,202,0.6)] bg-white px-3 py-2 text-[13px] text-[#1a1c1d] placeholder-[#a0a0a4] focus:border-[#005cba] focus:outline-none focus:ring-2 focus:ring-[#005cba]/15 dark:border-white/10 dark:bg-[#14151a] dark:text-white";
 const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]";
@@ -15,7 +16,10 @@ const rowBtn = "rounded-md px-2 py-1 text-[12px] font-medium text-[#005cba] hove
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
-const ownerOf = (client: string | null) => client ?? GRAFINORTE;
+const companyName = (id: string) => PCP_COMPANIES.find((c) => c.id === id)?.label ?? id;
+const ownerOf = (i: { company: string; client: string | null }) => i.client ?? `${companyName(i.company)} (própria)`;
+const daysSince = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / DAY_MS));
+const daysText = (d: number) => (d === 0 ? "hoje" : d === 1 ? "1 dia" : `${d} dias`);
 
 function parseNum(s: string): number {
   const t = s.trim();
@@ -65,10 +69,25 @@ function ModalActions({ onClose, onSubmit, disabled, saving, label, error }: {
   );
 }
 
-// ─── Cadastro do material ─────────────────────────────────────────────────────
-function ItemModal({ item, clients, onClose, onSaved }: {
-  item: PcpStockItem | null; clients: string[]; onClose: () => void; onSaved: () => void;
+function Toggle<T extends string | boolean>({ options, value, onChange }: { options: readonly { v: T; l: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="flex gap-2">
+      {options.map((o) => (
+        <button key={o.l} type="button" onClick={() => onChange(o.v)}
+          className={`flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium ${value === o.v ? "border-[#005cba] bg-[#005cba]/10 text-[#005cba] dark:text-[#4d9fff]" : "border-[rgba(199,198,202,0.6)] text-[#46464a] dark:border-white/10 dark:text-[#d0d0d4]"}`}>
+          {o.l}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Entrada por OS e edição ──────────────────────────────────────────────────
+function ItemModal({ item, items, clients, onClose, onSaved }: {
+  item: PcpStockItem | null; items: PcpStockItem[]; clients: string[]; onClose: () => void; onSaved: () => void;
 }) {
+  const [company, setCompany] = useState(item?.company ?? "GRAFINORTE");
+  const [osNumber, setOsNumber] = useState(item?.osNumber ?? "");
   const [isClient, setIsClient] = useState(item ? item.client !== null : true);
   const [client, setClient] = useState(item?.client ?? "");
   const [name, setName] = useState(item?.name ?? "");
@@ -80,8 +99,10 @@ function ItemModal({ item, clients, onClose, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const qty = quantity.trim() ? parseNum(quantity) : 0;
-  const valid = !!name.trim() && !!category && !!unit && (!isClient || !!client.trim()) && qty >= 0;
+  const qty = parseNum(quantity);
+  const qtyOk = !!item || qty > 0;
+  const valid = !!osNumber.trim() && !!name.trim() && !!category && !!unit && (!isClient || !!client.trim()) && qtyOk;
+  const sameOs = !item && osNumber.trim() ? items.filter((i) => i.osNumber === osNumber.trim() && i.company === company) : [];
 
   async function run(action: () => Promise<unknown>) {
     setSaving(true);
@@ -91,25 +112,31 @@ function ItemModal({ item, clients, onClose, onSaved }: {
   }
 
   const data: PcpItemInput = {
-    client: isClient ? client : null, name, category, unit,
+    company, osNumber, client: isClient ? client : null, name, category, unit,
     location: location || null, notes: notes || null,
   };
   const categoryKnown = PCP_CATEGORIES.some((g) => (g.options as readonly string[]).includes(category));
   const unitKnown = (PCP_UNITS as readonly string[]).includes(unit);
 
   return (
-    <Modal title={item ? "Editar material" : "Novo material"} onClose={onClose}>
+    <Modal title={item ? "Editar material" : "Entrada por OS"} subtitle={item ? undefined : "Registre o material que a produção concluiu."} onClose={onClose}>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
+          <label className={labelCls}>Empresa</label>
+          <Toggle options={PCP_COMPANIES.map((c) => ({ v: c.id as string, l: c.label }))} value={company} onChange={setCompany} />
+        </div>
+        <div className="col-span-2">
+          <label className={labelCls}>Número da OS</label>
+          <input autoFocus={!item} value={osNumber} onChange={(e) => setOsNumber(e.target.value)} className={inputCls} placeholder="Ex.: 12345" />
+          {sameOs.length > 0 && (
+            <p className="mt-1 text-[12px] font-medium text-amber-700 dark:text-amber-400">
+              Esta OS já está no estoque ({sameOs.map((i) => `${i.name}: ${fmt(i.quantity)} ${i.unit}`).join("; ")}). Para somar, cancele e use Entrada na linha dela.
+            </p>
+          )}
+        </div>
+        <div className="col-span-2">
           <label className={labelCls}>De quem é o material</label>
-          <div className="flex gap-2">
-            {[{ v: true, l: "Cliente" }, { v: false, l: GRAFINORTE }].map((o) => (
-              <button key={o.l} type="button" onClick={() => setIsClient(o.v)}
-                className={`flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium ${isClient === o.v ? "border-[#005cba] bg-[#005cba]/10 text-[#005cba] dark:text-[#4d9fff]" : "border-[rgba(199,198,202,0.6)] text-[#46464a] dark:border-white/10 dark:text-[#d0d0d4]"}`}>
-                {o.l}
-              </button>
-            ))}
-          </div>
+          <Toggle options={[{ v: true, l: "Cliente" }, { v: false, l: "Própria empresa" }]} value={isClient} onChange={setIsClient} />
         </div>
         {isClient && (
           <div className="col-span-2">
@@ -141,7 +168,7 @@ function ItemModal({ item, clients, onClose, onSaved }: {
         </div>
         {!item && (
           <div>
-            <label className={labelCls}>Quantidade atual</label>
+            <label className={labelCls}>Quantidade produzida</label>
             <input inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} placeholder="0" />
           </div>
         )}
@@ -167,7 +194,7 @@ function ItemModal({ item, clients, onClose, onSaved }: {
         </div>
       )}
       <ModalActions
-        onClose={onClose} saving={saving} error={error} disabled={!valid} label={item ? "Salvar" : "Cadastrar"}
+        onClose={onClose} saving={saving} error={error} disabled={!valid} label={item ? "Salvar" : "Registrar entrada"}
         onSubmit={() => void run(() => item ? pcpStockApi.updateItem(item.id, data) : pcpStockApi.createItem({ ...data, quantity: qty }))}
       />
     </Modal>
@@ -176,17 +203,18 @@ function ItemModal({ item, clients, onClose, onSaved }: {
 
 // ─── Entrada, saída e ajuste ──────────────────────────────────────────────────
 const MOVE_TEXT: Record<PcpMovementType, { title: string; qty: string; action: string }> = {
-  ENTRADA: { title: "Entrada no estoque", qty: "Quantidade que entrou", action: "Registrar entrada" },
-  SAIDA: { title: "Saída do estoque", qty: "Quantidade que saiu", action: "Registrar saída" },
+  ENTRADA: { title: "Entrada no estoque", qty: "Quantidade produzida", action: "Registrar entrada" },
+  SAIDA: { title: "Saída por nota fiscal", qty: "Quantidade faturada", action: "Registrar saída" },
   AJUSTE: { title: "Ajuste de contagem", qty: "Saldo contado", action: "Ajustar saldo" },
 };
 
 function MovementModal({ item, type, onClose, onSaved }: {
   item: PcpStockItem; type: PcpMovementType; onClose: () => void; onSaved: () => void;
 }) {
+  const { user } = useAuth();
   const [quantity, setQuantity] = useState("");
-  const [takenBy, setTakenBy] = useState("");
-  const [reference, setReference] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [takenBy, setTakenBy] = useState(user?.name ?? "");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -195,13 +223,14 @@ function MovementModal({ item, type, onClose, onSaved }: {
   const qty = parseNum(quantity);
   const qtyOk = type === "AJUSTE" ? qty >= 0 : qty > 0;
   const tooMuch = type === "SAIDA" && qty > item.quantity;
-  const valid = qtyOk && !tooMuch && (type !== "SAIDA" || !!takenBy.trim()) && (type !== "AJUSTE" || !!notes.trim());
+  const remaining = type === "SAIDA" && qtyOk && !tooMuch ? item.quantity - qty : null;
+  const valid = qtyOk && !tooMuch && (type !== "SAIDA" || (!!takenBy.trim() && !!invoiceNumber.trim())) && (type !== "AJUSTE" || !!notes.trim());
 
   async function submit() {
     setSaving(true);
     setError("");
     try {
-      await pcpStockApi.addMovement(item.id, { type, quantity: qty, takenBy, reference, notes });
+      await pcpStockApi.addMovement(item.id, { type, quantity: qty, takenBy, invoiceNumber, notes });
       onSaved();
     } catch (e) {
       setError(errorText(e, "Não foi possível registrar."));
@@ -210,24 +239,25 @@ function MovementModal({ item, type, onClose, onSaved }: {
   }
 
   return (
-    <Modal title={text.title} subtitle={`${item.name} · ${ownerOf(item.client)} · saldo ${fmt(item.quantity)} ${item.unit}`} onClose={onClose}>
+    <Modal title={text.title} subtitle={`OS ${item.osNumber ?? "—"} · ${item.name} · ${ownerOf(item)} · saldo ${fmt(item.quantity)} ${item.unit}`} onClose={onClose}>
       <div className="grid gap-3">
         <div>
           <label className={labelCls}>{text.qty} ({item.unit})</label>
           <input autoFocus inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} />
           {tooMuch && <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">Maior que o saldo de {fmt(item.quantity)} {item.unit}.</p>}
+          {remaining !== null && <p className="mt-1 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">{remaining > 0 ? `Ficam ${fmt(remaining)} ${item.unit} no estoque.` : "O saldo desta OS fica zerado."}</p>}
         </div>
         {type === "SAIDA" && (
-          <div>
-            <label className={labelCls}>Quem tirou do estoque</label>
-            <input value={takenBy} onChange={(e) => setTakenBy(e.target.value)} className={inputCls} placeholder="Nome da pessoa" />
-          </div>
-        )}
-        {type !== "AJUSTE" && (
-          <div>
-            <label className={labelCls}>OS / destino</label>
-            <input value={reference} onChange={(e) => setReference(e.target.value)} className={inputCls} placeholder="Opcional" />
-          </div>
+          <>
+            <div>
+              <label className={labelCls}>Número da nota fiscal</label>
+              <input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Quem tirou do estoque</label>
+              <input value={takenBy} onChange={(e) => setTakenBy(e.target.value)} className={inputCls} />
+            </div>
+          </>
         )}
         <div>
           <label className={labelCls}>{type === "AJUSTE" ? "Motivo do ajuste" : "Observação"}</label>
@@ -328,8 +358,10 @@ export function PcpStockPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [company, setCompany] = useState("");
   const [owner, setOwner] = useState("");
   const [category, setCategory] = useState("");
+  const [showZero, setShowZero] = useState(false);
   const [editing, setEditing] = useState<PcpStockItem | "new" | null>(null);
   const [moving, setMoving] = useState<{ item: PcpStockItem; type: PcpMovementType } | null>(null);
   const [showReport, setShowReport] = useState(false);
@@ -355,17 +387,24 @@ export function PcpStockPage() {
     () => [...new Set(items.map((i) => i.client).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b, "pt-BR")),
     [items],
   );
+  const owners = useMemo(() => [...new Set(items.map(ownerOf))].sort((a, b) => a.localeCompare(b, "pt-BR")), [items]);
   const categories = useMemo(() => [...new Set(items.map((i) => i.category))].sort((a, b) => a.localeCompare(b, "pt-BR")), [items]);
+
+  const pending = items.filter((i) => i.quantity > 0);
+  const stale = pending.filter((i) => daysSince(i.createdAt) > STALE_DAYS);
 
   const needle = search.trim().toLowerCase();
   const visibleItems = items.filter((i) =>
-    (!owner || ownerOf(i.client) === owner) &&
+    (showZero || i.quantity !== 0) &&
+    (!company || i.company === company) &&
+    (!owner || ownerOf(i) === owner) &&
     (!category || i.category === category) &&
-    (!needle || `${i.name} ${ownerOf(i.client)} ${i.location ?? ""}`.toLowerCase().includes(needle)));
+    (!needle || `${i.osNumber ?? ""} ${i.name} ${ownerOf(i)} ${i.location ?? ""}`.toLowerCase().includes(needle)));
   const visibleMovements = movements.filter((m) =>
-    (!owner || ownerOf(m.item.client) === owner) &&
+    (!company || m.item.company === company) &&
+    (!owner || ownerOf(m.item) === owner) &&
     (!category || m.item.category === category) &&
-    (!needle || `${m.item.name} ${ownerOf(m.item.client)} ${m.takenBy ?? ""} ${m.reference ?? ""} ${m.notes ?? ""} ${m.createdByName}`.toLowerCase().includes(needle)));
+    (!needle || `${m.item.osNumber ?? ""} ${m.invoiceNumber ?? ""} ${m.item.name} ${ownerOf(m.item)} ${m.takenBy ?? ""} ${m.notes ?? ""} ${m.createdByName}`.toLowerCase().includes(needle)));
 
   const afterSave = () => {
     setEditing(null);
@@ -379,11 +418,11 @@ export function PcpStockPage() {
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold text-[#1a1c1d] dark:text-white">Controle de estoque PCP</h1>
-            <p className="text-[13px] text-[#77767b] dark:text-[#a0a0a4]">Materiais de clientes e impressos da Grafinorte guardados no estoque.</p>
+            <p className="text-[13px] text-[#77767b] dark:text-[#a0a0a4]">Material produzido entra pela OS e sai pela nota fiscal.</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setShowReport(true)} disabled={!settings} className={ghostBtn}>Relatório mensal</button>
-            <button onClick={() => setEditing("new")} className={primaryBtn}>Novo material</button>
+            <button onClick={() => setEditing("new")} className={primaryBtn}>Entrada por OS</button>
           </div>
         </div>
 
@@ -395,8 +434,8 @@ export function PcpStockPage() {
         )}
 
         <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Kpi label="Materiais" value={String(items.length)} />
-          <Kpi label="Clientes" value={String(clients.length)} />
+          <Kpi label="Produzido e não faturado" value={String(pending.length)} />
+          <Kpi label={`Há mais de ${STALE_DAYS} dias`} value={String(stale.length)} />
           <Kpi label="Entradas no mês" value={String(movements.filter((m) => m.type === "ENTRADA").length)} />
           <Kpi label="Saídas no mês" value={String(movements.filter((m) => m.type === "SAIDA").length)} />
         </div>
@@ -410,17 +449,25 @@ export function PcpStockPage() {
                 </button>
               ))}
             </div>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." className={inputCls + " !w-full sm:!w-56"} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar OS, nota, material..." className={inputCls + " !w-full sm:!w-56"} />
+            <select aria-label="Empresa" value={company} onChange={(e) => setCompany(e.target.value)} className={inputCls + " !w-full sm:!w-40"}>
+              <option value="">Todas as empresas</option>
+              {PCP_COMPANIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
             <select aria-label="Dono" value={owner} onChange={(e) => setOwner(e.target.value)} className={inputCls + " !w-full sm:!w-44"}>
               <option value="">Todos os donos</option>
-              <option value={GRAFINORTE}>{GRAFINORTE}</option>
-              {clients.map((c) => <option key={c} value={c}>{c}</option>)}
+              {owners.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select aria-label="Tipo" value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls + " !w-full sm:!w-40"}>
+            <select aria-label="Tipo" value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls + " !w-full sm:!w-36"}>
               <option value="">Todos os tipos</option>
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            {tab === "movimentacoes" && (
+            {tab === "estoque" ? (
+              <label className="flex items-center gap-1.5 text-[12.5px] text-[#46464a] dark:text-[#a0a0a4]">
+                <input type="checkbox" checked={showZero} onChange={(e) => setShowZero(e.target.checked)} />
+                Mostrar saldo zerado
+              </label>
+            ) : (
               <input aria-label="Mês" type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className={inputCls + " !w-full sm:!w-44"} />
             )}
           </div>
@@ -429,32 +476,36 @@ export function PcpStockPage() {
             <p className="py-12 text-center text-[13px] text-[#77767b]">Carregando...</p>
           ) : tab === "estoque" ? (
             visibleItems.length === 0 ? (
-              <p className="py-12 text-center text-[13px] text-[#77767b]">{items.length === 0 ? "Nenhum material cadastrado. Clique em Novo material para começar." : "Nada encontrado com esses filtros."}</p>
+              <p className="py-12 text-center text-[13px] text-[#77767b]">{items.length === 0 ? "Nenhuma OS no estoque. Clique em Entrada por OS para começar." : "Nada encontrado com esses filtros."}</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[820px] text-left text-[13px]">
+                <table className="w-full min-w-[980px] text-left text-[13px]">
                   <thead className="text-[11px] uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]">
                     <tr>
-                      <th className="px-4 py-2.5">Material</th><th className="px-4 py-2.5">Dono</th><th className="px-4 py-2.5">Tipo</th>
-                      <th className="px-4 py-2.5">Local</th><th className="px-4 py-2.5 text-right">Saldo</th><th className="px-4 py-2.5 text-right">Ações</th>
+                      <th className="px-4 py-2.5">OS</th><th className="px-4 py-2.5">Material</th><th className="px-4 py-2.5">Dono</th>
+                      <th className="px-4 py-2.5">Local</th><th className="px-4 py-2.5 text-right">No estoque</th><th className="px-4 py-2.5 text-right">Saldo</th><th className="px-4 py-2.5 text-right">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleItems.map((i) => (
-                      <tr key={i.id} className="border-t border-[rgba(199,198,202,0.25)] text-[#1a1c1d] dark:border-white/5 dark:text-[#e0e0e4]">
-                        <td className="px-4 py-2.5 font-medium">{i.name}{i.notes && <p className="text-[11.5px] font-normal text-[#77767b]">{i.notes}</p>}</td>
-                        <td className="px-4 py-2.5">{ownerOf(i.client)}</td>
-                        <td className="px-4 py-2.5">{i.category}</td>
-                        <td className="px-4 py-2.5 text-[#77767b] dark:text-[#a0a0a4]">{i.location ?? "—"}</td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{fmt(i.quantity)} {i.unit}</td>
-                        <td className="whitespace-nowrap px-4 py-2.5 text-right">
-                          <button onClick={() => setMoving({ item: i, type: "ENTRADA" })} className={rowBtn}>Entrada</button>
-                          <button onClick={() => setMoving({ item: i, type: "SAIDA" })} className={rowBtn}>Saída</button>
-                          <button onClick={() => setMoving({ item: i, type: "AJUSTE" })} className={rowBtn}>Ajustar</button>
-                          <button onClick={() => setEditing(i)} className={rowBtn}>Editar</button>
-                        </td>
-                      </tr>
-                    ))}
+                    {visibleItems.map((i) => {
+                      const days = daysSince(i.createdAt);
+                      return (
+                        <tr key={i.id} className="border-t border-[rgba(199,198,202,0.25)] text-[#1a1c1d] dark:border-white/5 dark:text-[#e0e0e4]">
+                          <td className="whitespace-nowrap px-4 py-2.5 font-semibold tabular-nums">{i.osNumber ?? "—"}</td>
+                          <td className="px-4 py-2.5 font-medium">{i.name}<p className="text-[11.5px] font-normal text-[#77767b]">{i.category}{i.notes ? ` · ${i.notes}` : ""}</p></td>
+                          <td className="px-4 py-2.5">{ownerOf(i)}<p className="text-[11.5px] text-[#77767b]">{companyName(i.company)}</p></td>
+                          <td className="px-4 py-2.5 text-[#77767b] dark:text-[#a0a0a4]">{i.location ?? "—"}</td>
+                          <td className={`whitespace-nowrap px-4 py-2.5 text-right tabular-nums ${i.quantity > 0 && days > STALE_DAYS ? "font-semibold text-amber-700 dark:text-amber-400" : "text-[#77767b] dark:text-[#a0a0a4]"}`}>{i.quantity > 0 ? daysText(days) : "—"}</td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{fmt(i.quantity)} {i.unit}</td>
+                          <td className="whitespace-nowrap px-4 py-2.5 text-right">
+                            <button onClick={() => setMoving({ item: i, type: "ENTRADA" })} className={rowBtn}>Entrada</button>
+                            <button onClick={() => setMoving({ item: i, type: "SAIDA" })} disabled={i.quantity <= 0} className={rowBtn + " disabled:opacity-40"}>Saída</button>
+                            <button onClick={() => setMoving({ item: i, type: "AJUSTE" })} className={rowBtn}>Ajustar</button>
+                            <button onClick={() => setEditing(i)} className={rowBtn}>Editar</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -463,22 +514,24 @@ export function PcpStockPage() {
             <p className="py-12 text-center text-[13px] text-[#77767b]">Nenhuma movimentação neste mês.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-[13px]">
+              <table className="w-full min-w-[1100px] text-left text-[13px]">
                 <thead className="text-[11px] uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]">
                   <tr>
-                    <th className="px-4 py-2.5">Data</th><th className="px-4 py-2.5">Material</th><th className="px-4 py-2.5">Tipo</th>
-                    <th className="px-4 py-2.5 text-right">Qtd.</th><th className="px-4 py-2.5 text-right">Saldo</th>
-                    <th className="px-4 py-2.5">Quem tirou</th><th className="px-4 py-2.5">OS / obs.</th><th className="px-4 py-2.5">Registrado por</th>
+                    <th className="px-4 py-2.5">Data</th><th className="px-4 py-2.5">OS</th><th className="px-4 py-2.5">Material</th><th className="px-4 py-2.5">Tipo</th>
+                    <th className="px-4 py-2.5 text-right">Qtd.</th><th className="px-4 py-2.5 text-right">Saldo</th><th className="px-4 py-2.5">NF</th>
+                    <th className="px-4 py-2.5">Quem tirou</th><th className="px-4 py-2.5">Obs.</th><th className="px-4 py-2.5">Registrado por</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleMovements.map((m) => (
                     <tr key={m.id} className="border-t border-[rgba(199,198,202,0.25)] text-[#1a1c1d] dark:border-white/5 dark:text-[#e0e0e4]">
                       <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
-                      <td className="px-4 py-2.5 font-medium">{m.item.name}<p className="text-[11.5px] font-normal text-[#77767b]">{ownerOf(m.item.client)}</p></td>
+                      <td className="whitespace-nowrap px-4 py-2.5 font-semibold tabular-nums">{m.item.osNumber ?? "—"}</td>
+                      <td className="px-4 py-2.5 font-medium">{m.item.name}<p className="text-[11.5px] font-normal text-[#77767b]">{ownerOf(m.item)}</p></td>
                       <td className="px-4 py-2.5"><span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${TYPE_STYLE[m.type].cls}`}>{TYPE_STYLE[m.type].label}</span></td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{m.quantity > 0 ? "+" : ""}{fmt(m.quantity)} {m.item.unit}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums">{fmt(m.balanceAfter)}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{m.invoiceNumber ?? "—"}</td>
                       <td className="px-4 py-2.5">{m.takenBy ?? "—"}</td>
                       <td className="px-4 py-2.5 text-[#77767b] dark:text-[#a0a0a4]">{[m.reference, m.notes].filter(Boolean).join(" · ") || "—"}</td>
                       <td className="px-4 py-2.5">{m.createdByName}</td>
@@ -491,7 +544,7 @@ export function PcpStockPage() {
         </div>
       </div>
 
-      {editing && <ItemModal item={editing === "new" ? null : editing} clients={clients} onClose={() => setEditing(null)} onSaved={afterSave} />}
+      {editing && <ItemModal item={editing === "new" ? null : editing} items={items} clients={clients} onClose={() => setEditing(null)} onSaved={afterSave} />}
       {moving && <MovementModal item={moving.item} type={moving.type} onClose={() => setMoving(null)} onSaved={afterSave} />}
       {showReport && settings && <ReportModal settings={settings} isAdmin={isAdmin} onClose={() => setShowReport(false)} onChange={setSettings} />}
     </div>

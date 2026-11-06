@@ -1123,7 +1123,9 @@ model ColorProofSettings {
 // Controle de estoque do PCP: materiais de clientes e impressos da Grafinorte (separado do Almoxarifado)
 model PcpStockItem {
   id        String   @id @default(cuid())
-  client    String?  // null = material da própria Grafinorte
+  company   String   @default("GRAFINORTE") // GRAFINORTE ou PLUSPACK
+  osNumber  String?  // OS do Zênite; só fica vazio em cadastro antigo
+  client    String?  // null = material da própria empresa
   name      String
   category  String
   unit      String
@@ -1137,6 +1139,7 @@ model PcpStockItem {
   movements PcpStockMovement[]
 
   @@index([client, name])
+  @@index([osNumber])
   @@map("pcp_stock_items")
 }
 
@@ -1147,6 +1150,7 @@ model PcpStockMovement {
   balanceAfter  Float
   takenBy       String?           // quem tirou fisicamente do estoque
   reference     String?           // OS / destino
+  invoiceNumber String?           // nota fiscal da saída
   notes         String?
   createdById   String
   createdByName String            // o histórico continua legível mesmo se o usuário sair
