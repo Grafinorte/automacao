@@ -1111,8 +1111,8 @@ model ColorProof {
 // Preços atuais (uma linha só, id "default"), editáveis pelo admin
 model ColorProofSettings {
   id              String   @id @default("default")
-  cartridgePrice  Float    @default(999)
-  cartridgeMl     Float    @default(160)
+  cartridgePrice  Float    @default(1099.9)
+  cartridgeMl     Float    @default(300)
   paperPricePerM2 Float    @default(30)
   maintenancePct  Float    @default(50)
   updatedAt       DateTime @updatedAt

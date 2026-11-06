@@ -399,6 +399,10 @@ export function ColorProofPage() {
     : settings
     ? { inkPricePerMl: settings.cartridgePrice / settings.cartridgeMl, paperPricePerM2: settings.paperPricePerM2, maintenancePct: settings.maintenancePct }
     : null;
+  // Custo por m² numa cobertura de referência, com os preços atuais
+  const refPerM2 = (mlPerM2: number) => settings
+    ? brl(Math.round(mlPerM2 * (settings.cartridgePrice / settings.cartridgeMl) * (1 + settings.maintenancePct / 100) + settings.paperPricePerM2))
+    : "—";
 
   const input = formToInput(form);
   const valid = !!input.label && input.paperM2 > 0 && input.inkMl > 0 && !!input.date;
@@ -512,7 +516,7 @@ export function ColorProofPage() {
           <Kpi label="Papel" value={`${fmt(totals.paper, 3)} m²`} />
           <Kpi label="Tinta" value={`${fmt(totals.ink, 3)} ml`} />
           <Kpi label="Custo total" value={brl(totals.cost)} />
-          <Kpi label="Custo médio" value={`${brl(totals.perM2)}/m²`} hint="referência ~R$ 68/m²" />
+          <Kpi label="Custo médio" value={`${brl(totals.perM2)}/m²`} hint={`referência ~${refPerM2(4)}/m²`} />
           <Kpi label="Cobertura média" value={`${fmt(totals.coverage, 2)} ml/m²`} />
         </div>
 
@@ -693,16 +697,18 @@ export function ColorProofPage() {
               <h2 className="mb-2 text-[15px] font-semibold text-[#1a1c1d] dark:text-white">Como é calculado</h2>
               {settings && (
                 <ul className="flex flex-col gap-1">
-                  <li>Tinta: <b>{brl(settings.cartridgePrice / settings.cartridgeMl)}/ml</b> ({brl(settings.cartridgePrice)} por {fmt(settings.cartridgeMl, 0)} ml)</li>
+                  <li>Cartuchos: <b>{INK_COLORS.length} cores</b>, cada um com <b>{fmt(settings.cartridgeMl, 0)} ml</b> a <b>{brl(settings.cartridgePrice)}</b></li>
+                  <li>Jogo completo: <b>{brl(INK_COLORS.length * settings.cartridgePrice)}</b></li>
+                  <li>Tinta: <b>{brl(settings.cartridgePrice / settings.cartridgeMl)}/ml</b></li>
                   <li>Papel: <b>{brl(settings.paperPricePerM2)}/m²</b></li>
                   <li>Manutenção: <b>+{fmt(settings.maintenancePct, 0)}%</b> sobre a tinta (limpeza de cabeça / bicos)</li>
                 </ul>
               )}
               <p className="mt-3 font-semibold text-[#1a1c1d] dark:text-white">Faixas de referência (só conferência)</p>
               <ul className="mt-1 flex flex-col gap-0.5">
-                <li>Embalagem lisa: ~2 ml/m² → ~R$ 3 a 4 por prova</li>
-                <li>Material gráfico / folder: ~4 ml/m² → ~R$ 6 a 7</li>
-                <li>Arte carregada / food: 6+ ml/m² → R$ 8+</li>
+                <li>Embalagem lisa: ~2 ml/m² → ~{refPerM2(2)}/m²</li>
+                <li>Material gráfico / folder: ~4 ml/m² → ~{refPerM2(4)}/m²</li>
+                <li>Arte carregada / food: 6+ ml/m² → {refPerM2(6)}+/m²</li>
               </ul>
             </div>
           </div>
@@ -839,12 +845,12 @@ function SettingsModal({ settings, canEdit, onClose, onSaved }: {
           {!canEdit && " Só o administrador pode alterar."}
         </p>
         <div className="grid grid-cols-2 gap-3">
-          {field("cartridgePrice", "Preço do cartucho", "R$")}
-          {field("cartridgeMl", "Conteúdo do cartucho", "ml")}
+          {field("cartridgePrice", "Preço de cada cartucho", "R$")}
+          {field("cartridgeMl", "Conteúdo de cada cartucho", "ml")}
           {field("paperPricePerM2", "Papel / mídia", "R$/m²")}
           {field("maintenancePct", "Manutenção", "%")}
         </div>
-        {ok && <p className="mt-3 text-[12px] text-[#46464a] dark:text-[#a0a0a4]">Tinta: <b>{brl(vals.cartridgePrice / vals.cartridgeMl)}/ml</b></p>}
+        {ok && <p className="mt-3 text-[12px] text-[#46464a] dark:text-[#a0a0a4]">Tinta: <b>{brl(vals.cartridgePrice / vals.cartridgeMl)}/ml</b> · Jogo com {INK_COLORS.length} cores: <b>{brl(INK_COLORS.length * vals.cartridgePrice)}</b></p>}
         <p className="mt-2 text-[11.5px] text-[#77767b]">A manutenção (+50%) é uma estimativa; os demais valores vêm da medição da máquina.</p>
         {err && <p className="mt-2 text-[12px] text-red-600">{err}</p>}
         <div className="mt-5 flex justify-end gap-2">
