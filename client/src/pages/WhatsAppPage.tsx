@@ -420,10 +420,10 @@ function WaAudioPlayer({ src, isOut }: { src: string; isOut: boolean }) {
 
 // ─── Chat bubble ──────────────────────────────────────────────────────────────
 
-function ChatBubble({ msg, onReply, onEdit, onForward, onDelete, onStar, onScrollToQuote, onContactConverse, inSelectionMode, selected, onSelect, highlighted }: {
+function ChatBubble({ msg, onReply, onCorrect, onForward, onDelete, onStar, onScrollToQuote, onContactConverse, inSelectionMode, selected, onSelect, highlighted }: {
   msg: WaMessage;
   onReply: (msg: WaMessage) => void;
-  onEdit: (updated: WaMessage) => void;
+  onCorrect: (text: string) => void;
   onForward: (msg: WaMessage) => void;
   onDelete: (id: string) => void;
   onStar: (id: string, starred: boolean) => void;
@@ -436,10 +436,7 @@ function ChatBubble({ msg, onReply, onEdit, onForward, onDelete, onStar, onScrol
 }) {
   const isOut = msg.direction === "outbound";
   const mediaSrc = msg.mediaUrl ? `/wa-media/${msg.mediaUrl}` : null;
-  const canEdit = isOut && !msg.mediaType && !!msg.text && !msg.isInternal;
-  const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(msg.text ?? "");
-  const [savingEdit, setSavingEdit] = useState(false);
+  const canCorrect = isOut && !msg.mediaType && !!msg.text && !msg.isInternal;
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
@@ -464,16 +461,6 @@ function ChatBubble({ msg, onReply, onEdit, onForward, onDelete, onStar, onScrol
     const y = Math.min(e.clientY, window.innerHeight - 280);
     setMenuPos({ x, y });
     setMenuOpen(true);
-  }
-
-  async function handleSaveEdit() {
-    if (!editText.trim() || savingEdit) return;
-    setSavingEdit(true);
-    try {
-      const updated = await whatsappApi.updateMessage(msg.id, editText.trim());
-      onEdit(updated as WaMessage);
-      setEditing(false);
-    } finally { setSavingEdit(false); }
   }
 
   if (msg.isInternal) {
@@ -530,11 +517,12 @@ function ChatBubble({ msg, onReply, onEdit, onForward, onDelete, onStar, onScrol
               Selecionar
             </button>
           )}
-          {canEdit && (
-            <button onClick={() => { setEditText(msg.text ?? ""); setEditing(true); setMenuOpen(false); }}
+          {canCorrect && (
+            <button onClick={() => { onCorrect((msg.text ?? "").replace(/^↪️ /, "")); setMenuOpen(false); }}
+              title="O WhatsApp não altera mensagem já enviada: o texto volta para a caixa, para enviar corrigido"
               className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 dark:hover:bg-white/5 text-left text-gray-700 dark:text-gray-200">
               <svg className="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-              Editar
+              Corrigir e reenviar
             </button>
           )}
           <div className="border-t border-[rgba(0,0,0,0.06)] my-1" />
@@ -685,32 +673,7 @@ function ChatBubble({ msg, onReply, onEdit, onForward, onDelete, onStar, onScrol
         })()}
         {/* Plain text message (no media, not a contact card) */}
         {!mediaSrc && !msg.mediaType && msg.text && !msg.text.startsWith("📇 ") && !msg.text.match(/^\[contacts?\]$/i) && (
-          editing ? (
-            <div>
-              <textarea
-                value={editText}
-                onChange={e => setEditText(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
-                  if (e.key === "Escape") setEditing(false);
-                }}
-                rows={Math.max(2, editText.split("\n").length)}
-                autoFocus
-                className={`w-full bg-transparent resize-none outline-none text-sm whitespace-pre-wrap ${isOut ? "text-white placeholder-green-200" : "text-gray-900 dark:text-white"}`}
-                style={{ minWidth: 180 }}
-              />
-              <div className="flex justify-end gap-3 mt-1.5">
-                <button onClick={() => setEditing(false)} className={`text-xs ${isOut ? "text-green-100 hover:text-white" : "text-gray-400 hover:text-gray-600"}`}>
-                  Cancelar
-                </button>
-                <button onClick={handleSaveEdit} disabled={savingEdit} className={`text-xs font-semibold disabled:opacity-50 ${isOut ? "text-white" : "text-green-600 dark:text-green-400"}`}>
-                  {savingEdit ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <p className="whitespace-pre-wrap">{renderMessageText(isForwarded && displayTextForwarded ? displayTextForwarded : (msg.text ?? ""), isOut)}</p>
-          )
+          <p className="whitespace-pre-wrap">{renderMessageText(isForwarded && displayTextForwarded ? displayTextForwarded : (msg.text ?? ""), isOut)}</p>
         )}
 
         {/* Footer: time + ticks */}
@@ -1706,9 +1669,15 @@ function ForwardModal({ msg, conversations, onClose }: {
     if (forwarding) return;
     setForwarding(convId);
     try {
-      const fwd = msg.text?.startsWith("↪️ ") ? msg.text.slice("↪️ ".length) : (msg.text ?? `[${msg.mediaType ?? "mídia"}]`);
-      await whatsappApi.sendMessage(convId, fwd, undefined, undefined, true);
+      if (msg.mediaType) {
+        await whatsappApi.forwardMedia(convId, msg.id);
+      } else {
+        const fwd = msg.text?.startsWith("↪️ ") ? msg.text.slice("↪️ ".length) : (msg.text ?? "");
+        await whatsappApi.sendMessage(convId, fwd, undefined, undefined, true);
+      }
       onClose();
+    } catch (err) {
+      alert(`A mensagem NÃO foi encaminhada.\n\n${err instanceof Error ? err.message : ""}`.trim());
     } finally { setForwarding(null); }
   }
 
@@ -3400,7 +3369,7 @@ export function WhatsAppPage() {
                             <ChatBubble
                               msg={msg}
                               onReply={setReplyingTo}
-                              onEdit={(updated) => setMessages((ms) => ms.map((m) => m.id === updated.id ? updated : m))}
+                              onCorrect={(t) => { setReplyText(t); textareaRef.current?.focus(); }}
                               onForward={setForwardingMsg}
                               onDelete={handleDeleteMsg}
                               onStar={handleStarMsg}

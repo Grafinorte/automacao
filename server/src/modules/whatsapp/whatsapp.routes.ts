@@ -29,6 +29,7 @@ whatsappRouter.get("/conversations/:id/messages", asyncHandler(ctrl.getConversat
 whatsappRouter.post("/conversations/:id/typing", asyncHandler(ctrl.postTyping));
 whatsappRouter.post("/conversations/:id/messages", asyncHandler(ctrl.postMessage));
 whatsappRouter.post("/conversations/:id/media", asyncHandler(ctrl.postMediaMessage));
+whatsappRouter.post("/conversations/:id/forward-media", asyncHandler(ctrl.postForwardMedia));
 whatsappRouter.patch("/conversations/:id", asyncHandler(ctrl.patchConversation));
 whatsappRouter.patch("/messages/:messageId", asyncHandler(ctrl.patchMessage));
 whatsappRouter.patch("/messages/:messageId/star", asyncHandler(ctrl.starMessage));

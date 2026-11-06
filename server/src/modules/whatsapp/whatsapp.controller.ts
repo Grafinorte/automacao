@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { env } from "../../config/env";
 import * as waService from "./whatsapp.service";
+import { forwardMediaMessage } from "./whatsapp.forward";
 
 // ─── Webhook ──────────────────────────────────────────────────────────────────
 
@@ -368,6 +369,15 @@ export async function postMediaMessage(req: Request, res: Response) {
   }
   const message = await waService.sendMediaMessage(id, mediaId, mimetype, caption, req.user!.sub, localFilename ?? null, filename ?? null);
   res.json(message);
+}
+
+export async function postForwardMedia(req: Request, res: Response) {
+  const { messageId } = req.body as { messageId?: string };
+  if (!messageId) {
+    res.status(400).json({ error: "messageId é obrigatório." });
+    return;
+  }
+  res.json(await forwardMediaMessage(req.params.id, messageId, req.user!.sub));
 }
 
 // ─── Labels ───────────────────────────────────────────────────────────────────

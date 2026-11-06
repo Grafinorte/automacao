@@ -219,11 +219,12 @@ export const whatsappApi = {
   sendMediaMessage: (conversationId: string, data: { mediaId: string; mimetype: string; caption?: string; localFilename?: string; filename?: string }) =>
     api.post<WaMessage>(`/whatsapp/conversations/${conversationId}/media`, data),
 
+  forwardMedia: (conversationId: string, messageId: string) =>
+    api.post<WaMessage>(`/whatsapp/conversations/${conversationId}/forward-media`, { messageId }),
+
   sendMessage: (conversationId: string, text: string, replyToId?: string, isInternal?: boolean, forwarded?: boolean) =>
     api.post<WaMessage>(`/whatsapp/conversations/${conversationId}/messages`, { text, replyToId, isInternal, forwarded }),
 
-  updateMessage: (id: string, text: string) =>
-    api.patch<WaMessage>(`/whatsapp/messages/${id}`, { text }),
 
   starMessage: (id: string, starred: boolean) =>
     api.patch<WaMessage>(`/whatsapp/messages/${id}/star`, { starred }),
