@@ -1,0 +1,499 @@
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import {
+  PCP_CATEGORIES, PCP_UNITS, pcpStockApi,
+  type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpSettings, type PcpStockItem,
+} from "../api/pcpStock";
+
+const GRAFINORTE = "Grafinorte";
+const card = "rounded-2xl border border-[rgba(199,198,202,0.3)] bg-white dark:border-white/10 dark:bg-[#1c1e22]";
+const inputCls = "w-full rounded-lg border border-[rgba(199,198,202,0.6)] bg-white px-3 py-2 text-[13px] text-[#1a1c1d] placeholder-[#a0a0a4] focus:border-[#005cba] focus:outline-none focus:ring-2 focus:ring-[#005cba]/15 dark:border-white/10 dark:bg-[#14151a] dark:text-white";
+const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]";
+const primaryBtn = "rounded-lg bg-[#005cba] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#004a96] disabled:opacity-40";
+const ghostBtn = "rounded-lg border border-[rgba(199,198,202,0.6)] px-3 py-2 text-[13px] font-medium text-[#46464a] hover:bg-[#f3f3f5] dark:border-white/10 dark:text-[#d0d0d4] dark:hover:bg-white/5";
+const rowBtn = "rounded-md px-2 py-1 text-[12px] font-medium text-[#005cba] hover:bg-[#005cba]/10 dark:text-[#4d9fff]";
+
+const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
+const ownerOf = (client: string | null) => client ?? GRAFINORTE;
+
+function parseNum(s: string): number {
+  const t = s.trim();
+  if (!t) return NaN;
+  // "5.000" é cinco mil, como se escreve no Brasil; só "1.5" vale como decimal com ponto
+  if (/^\d{1,3}(\.\d{3})+$/.test(t)) return Number(t.replace(/\./g, ""));
+  return Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
+}
+
+function currentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function Kpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div className={`${card} px-4 py-3`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]">{label}</p>
+      <p className="mt-1 text-[20px] font-bold tabular-nums text-[#1a1c1d] dark:text-white">{value}</p>
+    </div>
+  );
+}
+
+function Modal({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>
+      <div className={`${card} max-h-[90vh] w-full max-w-lg overflow-y-auto p-5 shadow-2xl`} onMouseDown={(e) => e.stopPropagation()}>
+        <h2 className="text-[16px] font-semibold text-[#1a1c1d] dark:text-white">{title}</h2>
+        {subtitle && <p className="mt-0.5 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">{subtitle}</p>}
+        <div className="mt-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function ModalActions({ onClose, onSubmit, disabled, saving, label, error }: {
+  onClose: () => void; onSubmit: () => void; disabled: boolean; saving: boolean; label: string; error: string;
+}) {
+  return (
+    <>
+      {error && <p className="mt-3 text-[12px] text-red-600 dark:text-red-400">{error}</p>}
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] font-medium text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-white/5">Cancelar</button>
+        <button onClick={onSubmit} disabled={disabled || saving} className={primaryBtn}>{saving ? "Salvando..." : label}</button>
+      </div>
+    </>
+  );
+}
+
+// ─── Cadastro do material ─────────────────────────────────────────────────────
+function ItemModal({ item, clients, onClose, onSaved }: {
+  item: PcpStockItem | null; clients: string[]; onClose: () => void; onSaved: () => void;
+}) {
+  const [isClient, setIsClient] = useState(item ? item.client !== null : true);
+  const [client, setClient] = useState(item?.client ?? "");
+  const [name, setName] = useState(item?.name ?? "");
+  const [category, setCategory] = useState(item?.category ?? "");
+  const [unit, setUnit] = useState(item?.unit ?? "un");
+  const [quantity, setQuantity] = useState("");
+  const [location, setLocation] = useState(item?.location ?? "");
+  const [notes, setNotes] = useState(item?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const qty = quantity.trim() ? parseNum(quantity) : 0;
+  const valid = !!name.trim() && !!category && !!unit && (!isClient || !!client.trim()) && qty >= 0;
+
+  async function run(action: () => Promise<unknown>) {
+    setSaving(true);
+    setError("");
+    try { await action(); onSaved(); }
+    catch (e) { setError(errorText(e, "Não foi possível salvar.")); setSaving(false); }
+  }
+
+  const data: PcpItemInput = {
+    client: isClient ? client : null, name, category, unit,
+    location: location || null, notes: notes || null,
+  };
+  const categoryKnown = PCP_CATEGORIES.some((g) => (g.options as readonly string[]).includes(category));
+  const unitKnown = (PCP_UNITS as readonly string[]).includes(unit);
+
+  return (
+    <Modal title={item ? "Editar material" : "Novo material"} onClose={onClose}>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className={labelCls}>De quem é o material</label>
+          <div className="flex gap-2">
+            {[{ v: true, l: "Cliente" }, { v: false, l: GRAFINORTE }].map((o) => (
+              <button key={o.l} type="button" onClick={() => setIsClient(o.v)}
+                className={`flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium ${isClient === o.v ? "border-[#005cba] bg-[#005cba]/10 text-[#005cba] dark:text-[#4d9fff]" : "border-[rgba(199,198,202,0.6)] text-[#46464a] dark:border-white/10 dark:text-[#d0d0d4]"}`}>
+                {o.l}
+              </button>
+            ))}
+          </div>
+        </div>
+        {isClient && (
+          <div className="col-span-2">
+            <label className={labelCls}>Cliente</label>
+            <input list="pcp-clients" value={client} onChange={(e) => setClient(e.target.value)} className={inputCls} placeholder="Nome do cliente" />
+            <datalist id="pcp-clients">{clients.map((c) => <option key={c} value={c} />)}</datalist>
+          </div>
+        )}
+        <div className="col-span-2">
+          <label className={labelCls}>Material</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} placeholder="Ex.: Copo 300 ml Verão 2026" />
+        </div>
+        <div>
+          <label className={labelCls}>Tipo</label>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
+            <option value="">Escolha...</option>
+            {PCP_CATEGORIES.map((g) => (
+              <optgroup key={g.group} label={g.group}>{g.options.map((o) => <option key={o} value={o}>{o}</option>)}</optgroup>
+            ))}
+            {category && !categoryKnown && <option value={category}>{category}</option>}
+          </select>
+        </div>
+        <div>
+          <label className={labelCls}>Unidade</label>
+          <select value={unit} onChange={(e) => setUnit(e.target.value)} className={inputCls}>
+            {PCP_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            {!unitKnown && <option value={unit}>{unit}</option>}
+          </select>
+        </div>
+        {!item && (
+          <div>
+            <label className={labelCls}>Quantidade atual</label>
+            <input inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} placeholder="0" />
+          </div>
+        )}
+        <div className={item ? "col-span-2" : ""}>
+          <label className={labelCls}>Local no estoque</label>
+          <input value={location} onChange={(e) => setLocation(e.target.value)} className={inputCls} placeholder="Opcional" />
+        </div>
+        <div className="col-span-2">
+          <label className={labelCls}>Observação</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="Opcional" />
+        </div>
+      </div>
+      {item && (
+        <div className="mt-4 border-t border-[rgba(199,198,202,0.3)] pt-3 dark:border-white/10">
+          <button
+            disabled={item.quantity !== 0 || saving}
+            onClick={() => { if (confirm(`Arquivar "${item.name}"? O histórico continua nos relatórios.`)) void run(() => pcpStockApi.archiveItem(item.id)); }}
+            className="text-[12px] font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-[#a0a0a4] disabled:no-underline dark:text-red-400"
+          >
+            Arquivar material
+          </button>
+          {item.quantity !== 0 && <span className="ml-2 text-[11.5px] text-[#77767b]">Só com saldo zerado.</span>}
+        </div>
+      )}
+      <ModalActions
+        onClose={onClose} saving={saving} error={error} disabled={!valid} label={item ? "Salvar" : "Cadastrar"}
+        onSubmit={() => void run(() => item ? pcpStockApi.updateItem(item.id, data) : pcpStockApi.createItem({ ...data, quantity: qty }))}
+      />
+    </Modal>
+  );
+}
+
+// ─── Entrada, saída e ajuste ──────────────────────────────────────────────────
+const MOVE_TEXT: Record<PcpMovementType, { title: string; qty: string; action: string }> = {
+  ENTRADA: { title: "Entrada no estoque", qty: "Quantidade que entrou", action: "Registrar entrada" },
+  SAIDA: { title: "Saída do estoque", qty: "Quantidade que saiu", action: "Registrar saída" },
+  AJUSTE: { title: "Ajuste de contagem", qty: "Saldo contado", action: "Ajustar saldo" },
+};
+
+function MovementModal({ item, type, onClose, onSaved }: {
+  item: PcpStockItem; type: PcpMovementType; onClose: () => void; onSaved: () => void;
+}) {
+  const [quantity, setQuantity] = useState("");
+  const [takenBy, setTakenBy] = useState("");
+  const [reference, setReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const text = MOVE_TEXT[type];
+  const qty = parseNum(quantity);
+  const qtyOk = type === "AJUSTE" ? qty >= 0 : qty > 0;
+  const tooMuch = type === "SAIDA" && qty > item.quantity;
+  const valid = qtyOk && !tooMuch && (type !== "SAIDA" || !!takenBy.trim()) && (type !== "AJUSTE" || !!notes.trim());
+
+  async function submit() {
+    setSaving(true);
+    setError("");
+    try {
+      await pcpStockApi.addMovement(item.id, { type, quantity: qty, takenBy, reference, notes });
+      onSaved();
+    } catch (e) {
+      setError(errorText(e, "Não foi possível registrar."));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal title={text.title} subtitle={`${item.name} · ${ownerOf(item.client)} · saldo ${fmt(item.quantity)} ${item.unit}`} onClose={onClose}>
+      <div className="grid gap-3">
+        <div>
+          <label className={labelCls}>{text.qty} ({item.unit})</label>
+          <input autoFocus inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} />
+          {tooMuch && <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">Maior que o saldo de {fmt(item.quantity)} {item.unit}.</p>}
+        </div>
+        {type === "SAIDA" && (
+          <div>
+            <label className={labelCls}>Quem tirou do estoque</label>
+            <input value={takenBy} onChange={(e) => setTakenBy(e.target.value)} className={inputCls} placeholder="Nome da pessoa" />
+          </div>
+        )}
+        {type !== "AJUSTE" && (
+          <div>
+            <label className={labelCls}>OS / destino</label>
+            <input value={reference} onChange={(e) => setReference(e.target.value)} className={inputCls} placeholder="Opcional" />
+          </div>
+        )}
+        <div>
+          <label className={labelCls}>{type === "AJUSTE" ? "Motivo do ajuste" : "Observação"}</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder={type === "AJUSTE" ? "Ex.: contagem física" : "Opcional"} />
+        </div>
+      </div>
+      <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!valid} saving={saving} label={text.action} error={error} />
+    </Modal>
+  );
+}
+
+// ─── Relatório mensal ─────────────────────────────────────────────────────────
+function ReportModal({ settings, isAdmin, onClose, onChange }: {
+  settings: PcpSettings; isAdmin: boolean; onClose: () => void; onChange: (s: PcpSettings) => void;
+}) {
+  const [recipients, setRecipients] = useState(settings.recipients);
+  const [senderUserId, setSenderUserId] = useState(settings.senderUserId ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const dirty = recipients !== settings.recipients || senderUserId !== (settings.senderUserId ?? "");
+  const configured = !!settings.recipients && !!settings.senderUserId;
+
+  async function run(action: () => Promise<PcpSettings>, onDone?: () => void) {
+    setBusy(true);
+    setError("");
+    setSent(false);
+    try { const s = await action(); onChange(s); setRecipients(s.recipients); onDone?.(); }
+    catch (e) { setError(errorText(e, "Não foi possível concluir.")); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Modal title="Relatório mensal" subtitle="Enviado todo dia 1º, às 8h, com o estoque e as movimentações do mês anterior." onClose={onClose}>
+      <div className="grid gap-3">
+        <div>
+          <label className={labelCls}>Quem recebe</label>
+          <textarea rows={3} disabled={!isAdmin} value={recipients} onChange={(e) => setRecipients(e.target.value)} className={inputCls + " resize-none disabled:opacity-60"} placeholder="pcp@empresa.com.br, outra.pessoa@empresa.com.br" />
+        </div>
+        {isAdmin && (
+          <div>
+            <label className={labelCls}>E-mail que envia</label>
+            <select value={senderUserId} onChange={(e) => setSenderUserId(e.target.value)} className={inputCls}>
+              <option value="">Escolha...</option>
+              {settings.senderUserId && !settings.senders.some((u) => u.id === settings.senderUserId) && (
+                <option value={settings.senderUserId} disabled>Remetente sem e-mail configurado</option>
+              )}
+              {settings.senders.map((u) => <option key={u.id} value={u.id}>{u.name} ({u.smtpEmail})</option>)}
+            </select>
+            {settings.senders.length === 0 && (
+              <p className="mt-1 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">Ninguém configurou o e-mail no perfil ainda. Configure um e-mail e uma senha de app no perfil de um usuário.</p>
+            )}
+          </div>
+        )}
+        <div className="rounded-lg bg-[#f7f7f9] px-3 py-2 text-[12px] text-[#46464a] dark:bg-white/5 dark:text-[#a0a0a4]">
+          {settings.lastSentAt
+            ? <>Último envio: <b>{new Date(settings.lastSentAt).toLocaleString("pt-BR")}</b></>
+            : "Nenhum relatório enviado ainda."}
+          {!configured && <p className="mt-1 font-medium text-amber-700 dark:text-amber-400">O envio automático só funciona com os dois campos preenchidos.</p>}
+          {settings.lastError && <p className="mt-1 font-medium text-red-600 dark:text-red-400">Última falha: {settings.lastError}</p>}
+        </div>
+      </div>
+      {error && <p className="mt-3 text-[12px] text-red-600 dark:text-red-400">{error}</p>}
+      {sent && <p className="mt-3 text-[12px] font-medium text-green-700 dark:text-green-400">Relatório do mês passado enviado.</p>}
+      <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <button onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] font-medium text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-white/5">Fechar</button>
+        {isAdmin && (
+          <>
+            <button disabled={busy || dirty || !configured} onClick={() => { if (confirm("Enviar agora o relatório do mês passado para todos os destinatários?")) void run(() => pcpStockApi.sendReport(), () => setSent(true)); }} className={ghostBtn + " disabled:opacity-40"}>
+              Enviar agora
+            </button>
+            <button disabled={busy || !dirty} onClick={() => void run(() => pcpStockApi.saveSettings({ recipients, senderUserId: senderUserId || null }))} className={primaryBtn}>
+              {busy ? "Aguarde..." : "Salvar"}
+            </button>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
+const TYPE_STYLE: Record<PcpMovementType, { label: string; cls: string }> = {
+  ENTRADA: { label: "Entrada", cls: "bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300" },
+  SAIDA: { label: "Saída", cls: "bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300" },
+  AJUSTE: { label: "Ajuste", cls: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300" },
+};
+
+export function PcpStockPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const [tab, setTab] = useState<"estoque" | "movimentacoes">("estoque");
+  const [items, setItems] = useState<PcpStockItem[]>([]);
+  const [movements, setMovements] = useState<PcpMovement[]>([]);
+  const [settings, setSettings] = useState<PcpSettings | null>(null);
+  const [month, setMonth] = useState(currentMonth);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [owner, setOwner] = useState("");
+  const [category, setCategory] = useState("");
+  const [editing, setEditing] = useState<PcpStockItem | "new" | null>(null);
+  const [moving, setMoving] = useState<{ item: PcpStockItem; type: PcpMovementType } | null>(null);
+  const [showReport, setShowReport] = useState(false);
+
+  async function loadAll() {
+    setError("");
+    try {
+      const [i, m, s] = await Promise.all([pcpStockApi.listItems(), pcpStockApi.listMovements(month), pcpStockApi.getSettings()]);
+      setItems(i);
+      setMovements(m);
+      setSettings(s);
+    } catch (e) {
+      setError(errorText(e, "Não foi possível carregar o estoque."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void loadAll(); }, [month]);
+
+  const clients = useMemo(
+    () => [...new Set(items.map((i) => i.client).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [items],
+  );
+  const categories = useMemo(() => [...new Set(items.map((i) => i.category))].sort((a, b) => a.localeCompare(b, "pt-BR")), [items]);
+
+  const needle = search.trim().toLowerCase();
+  const visibleItems = items.filter((i) =>
+    (!owner || ownerOf(i.client) === owner) &&
+    (!category || i.category === category) &&
+    (!needle || `${i.name} ${ownerOf(i.client)} ${i.location ?? ""}`.toLowerCase().includes(needle)));
+  const visibleMovements = movements.filter((m) =>
+    (!owner || ownerOf(m.item.client) === owner) &&
+    (!category || m.item.category === category) &&
+    (!needle || `${m.item.name} ${ownerOf(m.item.client)} ${m.takenBy ?? ""} ${m.reference ?? ""} ${m.notes ?? ""} ${m.createdByName}`.toLowerCase().includes(needle)));
+
+  const afterSave = () => {
+    setEditing(null);
+    setMoving(null);
+    void loadAll();
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-[22px] font-bold text-[#1a1c1d] dark:text-white">Controle de estoque PCP</h1>
+            <p className="text-[13px] text-[#77767b] dark:text-[#a0a0a4]">Materiais de clientes e impressos da Grafinorte guardados no estoque.</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowReport(true)} disabled={!settings} className={ghostBtn}>Relatório mensal</button>
+            <button onClick={() => setEditing("new")} className={primaryBtn}>Novo material</button>
+          </div>
+        </div>
+
+        {error && <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-[13px] text-red-700 dark:bg-red-500/10 dark:text-red-300">{error}</p>}
+        {settings?.lastError && (
+          <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-[13px] text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+            O último relatório mensal não foi enviado. {settings.lastError}
+          </p>
+        )}
+
+        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Kpi label="Materiais" value={String(items.length)} />
+          <Kpi label="Clientes" value={String(clients.length)} />
+          <Kpi label="Entradas no mês" value={String(movements.filter((m) => m.type === "ENTRADA").length)} />
+          <Kpi label="Saídas no mês" value={String(movements.filter((m) => m.type === "SAIDA").length)} />
+        </div>
+
+        <div className={`${card} overflow-hidden`}>
+          <div className="flex flex-wrap items-center gap-2 border-b border-[rgba(199,198,202,0.3)] px-4 py-3 dark:border-white/10">
+            <div className="flex rounded-lg bg-[#f3f3f5] p-0.5 dark:bg-white/5">
+              {([["estoque", "Estoque"], ["movimentacoes", "Movimentações"]] as const).map(([id, label]) => (
+                <button key={id} onClick={() => setTab(id)} className={`rounded-md px-3 py-1.5 text-[13px] font-medium ${tab === id ? "bg-white text-[#1a1c1d] shadow-sm dark:bg-[#2a2c31] dark:text-white" : "text-[#77767b] dark:text-[#a0a0a4]"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar..." className={inputCls + " !w-full sm:!w-56"} />
+            <select aria-label="Dono" value={owner} onChange={(e) => setOwner(e.target.value)} className={inputCls + " !w-full sm:!w-44"}>
+              <option value="">Todos os donos</option>
+              <option value={GRAFINORTE}>{GRAFINORTE}</option>
+              {clients.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select aria-label="Tipo" value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls + " !w-full sm:!w-40"}>
+              <option value="">Todos os tipos</option>
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            {tab === "movimentacoes" && (
+              <input aria-label="Mês" type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} className={inputCls + " !w-full sm:!w-44"} />
+            )}
+          </div>
+
+          {loading ? (
+            <p className="py-12 text-center text-[13px] text-[#77767b]">Carregando...</p>
+          ) : tab === "estoque" ? (
+            visibleItems.length === 0 ? (
+              <p className="py-12 text-center text-[13px] text-[#77767b]">{items.length === 0 ? "Nenhum material cadastrado. Clique em Novo material para começar." : "Nada encontrado com esses filtros."}</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[820px] text-left text-[13px]">
+                  <thead className="text-[11px] uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]">
+                    <tr>
+                      <th className="px-4 py-2.5">Material</th><th className="px-4 py-2.5">Dono</th><th className="px-4 py-2.5">Tipo</th>
+                      <th className="px-4 py-2.5">Local</th><th className="px-4 py-2.5 text-right">Saldo</th><th className="px-4 py-2.5 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleItems.map((i) => (
+                      <tr key={i.id} className="border-t border-[rgba(199,198,202,0.25)] text-[#1a1c1d] dark:border-white/5 dark:text-[#e0e0e4]">
+                        <td className="px-4 py-2.5 font-medium">{i.name}{i.notes && <p className="text-[11.5px] font-normal text-[#77767b]">{i.notes}</p>}</td>
+                        <td className="px-4 py-2.5">{ownerOf(i.client)}</td>
+                        <td className="px-4 py-2.5">{i.category}</td>
+                        <td className="px-4 py-2.5 text-[#77767b] dark:text-[#a0a0a4]">{i.location ?? "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{fmt(i.quantity)} {i.unit}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right">
+                          <button onClick={() => setMoving({ item: i, type: "ENTRADA" })} className={rowBtn}>Entrada</button>
+                          <button onClick={() => setMoving({ item: i, type: "SAIDA" })} className={rowBtn}>Saída</button>
+                          <button onClick={() => setMoving({ item: i, type: "AJUSTE" })} className={rowBtn}>Ajustar</button>
+                          <button onClick={() => setEditing(i)} className={rowBtn}>Editar</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : visibleMovements.length === 0 ? (
+            <p className="py-12 text-center text-[13px] text-[#77767b]">Nenhuma movimentação neste mês.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] text-left text-[13px]">
+                <thead className="text-[11px] uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]">
+                  <tr>
+                    <th className="px-4 py-2.5">Data</th><th className="px-4 py-2.5">Material</th><th className="px-4 py-2.5">Tipo</th>
+                    <th className="px-4 py-2.5 text-right">Qtd.</th><th className="px-4 py-2.5 text-right">Saldo</th>
+                    <th className="px-4 py-2.5">Quem tirou</th><th className="px-4 py-2.5">OS / obs.</th><th className="px-4 py-2.5">Registrado por</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleMovements.map((m) => (
+                    <tr key={m.id} className="border-t border-[rgba(199,198,202,0.25)] text-[#1a1c1d] dark:border-white/5 dark:text-[#e0e0e4]">
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
+                      <td className="px-4 py-2.5 font-medium">{m.item.name}<p className="text-[11.5px] font-normal text-[#77767b]">{ownerOf(m.item.client)}</p></td>
+                      <td className="px-4 py-2.5"><span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${TYPE_STYLE[m.type].cls}`}>{TYPE_STYLE[m.type].label}</span></td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{m.quantity > 0 ? "+" : ""}{fmt(m.quantity)} {m.item.unit}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums">{fmt(m.balanceAfter)}</td>
+                      <td className="px-4 py-2.5">{m.takenBy ?? "—"}</td>
+                      <td className="px-4 py-2.5 text-[#77767b] dark:text-[#a0a0a4]">{[m.reference, m.notes].filter(Boolean).join(" · ") || "—"}</td>
+                      <td className="px-4 py-2.5">{m.createdByName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {editing && <ItemModal item={editing === "new" ? null : editing} clients={clients} onClose={() => setEditing(null)} onSaved={afterSave} />}
+      {moving && <MovementModal item={moving.item} type={moving.type} onClose={() => setMoving(null)} onSaved={afterSave} />}
+      {showReport && settings && <ReportModal settings={settings} isAdmin={isAdmin} onClose={() => setShowReport(false)} onChange={setSettings} />}
+    </div>
+  );
+}

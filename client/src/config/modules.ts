@@ -25,6 +25,7 @@ export const ALL_MODULES: ModuleDef[] = [
   // Departamentos
   { id: "servicos",     label: "Central de Serviços", desc: "Gerenciamento de serviços e ordens de produção", icon: "🖨️", group: "Departamentos" },
   { id: "testecor",     label: "Teste de cor",    desc: "Custo das provas de cor (Canon PRO-2600)",       icon: "🎨", group: "Departamentos" },
+  { id: "estoquepcp",   label: "Estoque PCP",     desc: "Materiais de clientes e impressos da Grafinorte",  icon: "🗃️", group: "Departamentos" },
   // Ferramentas
   { id: "preflight",   label: "Preflight PDF",   desc: "Análise técnica de arquivos PDF para impressão",   icon: "🔍", group: "Departamentos" },
   // Admin (sempre admin-only, não togglável para outros)
@@ -58,7 +59,7 @@ export function hasModuleAccess(
     MARKETING:     ["tarefas", "chat", "documentos", "producao", "financeiro", "marketing"],
     RH:            ["tarefas", "chat", "documentos", "producao", "financeiro", "rh"],
     ALMOXARIFADO:  ["tarefas", "chat", "documentos", "producao", "financeiro", "almoxarifado"],
-    PCP:           ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],
+    PCP:           ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor", "estoquepcp"],
     DESIGN:        ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],
     ARTE:          ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],
     ARTE_FINAL:    ["tarefas", "chat", "documentos", "producao", "financeiro", "servicos", "preflight", "testecor"],

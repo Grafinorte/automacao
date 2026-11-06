@@ -1,0 +1,70 @@
+import type { NextFunction, Request, Response } from "express";
+import { prisma } from "../../db/prisma";
+import { HttpError } from "../../middleware/errorHandler";
+import { currentPeriod, isPeriod, previousPeriod } from "./pcpStock.period";
+import { sendReport } from "./pcpStock.report";
+import * as service from "./pcpStock.service";
+
+const MODULE_ID = "estoquepcp";
+
+/** Mesma regra da tela: permissões personalizadas têm prioridade sobre o padrão do cargo */
+export async function requireStockAccess(req: Request, res: Response, next: NextFunction) {
+  const user = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { role: true, permissions: true } });
+  let allowed = user?.role === "ADMIN" || user?.role === "PCP";
+  if (user && user.role !== "ADMIN" && user.permissions !== null) {
+    try { allowed = (JSON.parse(user.permissions) as string[]).includes(MODULE_ID); } catch { allowed = false; }
+  }
+  if (!allowed) { res.status(403).json({ error: "Acesso não permitido" }); return; }
+  next();
+}
+
+export async function getItems(_req: Request, res: Response) {
+  res.json(await service.listItems());
+}
+
+export async function postItem(req: Request, res: Response) {
+  res.status(201).json(await service.createItem(req.body ?? {}, req.user!.sub));
+}
+
+export async function patchItem(req: Request, res: Response) {
+  res.json(await service.updateItem(req.params.id, req.body ?? {}));
+}
+
+export async function deleteItem(req: Request, res: Response) {
+  await service.archiveItem(req.params.id);
+  res.status(204).end();
+}
+
+export async function postMovement(req: Request, res: Response) {
+  res.status(201).json(await service.addMovement(req.params.id, req.user!.sub, req.body ?? {}));
+}
+
+export async function getMovements(req: Request, res: Response) {
+  const period = isPeriod(req.query.month) ? req.query.month : currentPeriod(new Date());
+  res.json(await service.listMovements(period));
+}
+
+export async function getSettings(req: Request, res: Response) {
+  const settings = await service.getSettings();
+  res.json({
+    recipients: settings.recipients,
+    senderUserId: settings.senderUserId,
+    lastPeriodSent: settings.lastPeriodSent,
+    lastSentAt: settings.lastSentAt,
+    lastError: settings.lastError,
+    // Só o admin escolhe o remetente
+    senders: req.user!.role === "ADMIN" ? await service.listSenders() : [],
+  });
+}
+
+export async function putSettings(req: Request, res: Response) {
+  await service.updateSettings(req.body ?? {});
+  await getSettings(req, res);
+}
+
+export async function postSendReport(req: Request, res: Response) {
+  const period = req.body?.month ?? previousPeriod(new Date());
+  if (!isPeriod(period)) throw new HttpError(400, "Mês inválido.");
+  await sendReport(period);
+  await getSettings(req, res);
+}

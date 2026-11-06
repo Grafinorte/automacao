@@ -45,6 +45,7 @@ import { HrAssistantPage } from "./pages/HrAssistantPage";
 import { WhatsAppPage } from "./pages/WhatsAppPage";
 import { PreflightPage } from "./pages/PreflightPage";
 import { ColorProofPage } from "./pages/ColorProofPage";
+import { PcpStockPage } from "./pages/PcpStockPage";
 import {
   FactoryIcon,
   FinanceIcon,
@@ -152,6 +153,9 @@ export function App() {
               </Route>
               <Route element={<ProtectedRoute moduleId="servicos" />}>
                 <Route path="/servicos" element={<ServicesPage />} />
+              </Route>
+              <Route element={<ProtectedRoute moduleId="estoquepcp" />}>
+                <Route path="/estoque-pcp" element={<PcpStockPage />} />
               </Route>
               <Route element={<ProtectedRoute moduleId="testecor" />}>
                 <Route path="/teste-cor" element={<ColorProofPage />} />

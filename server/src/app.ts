@@ -28,6 +28,7 @@ import { servicesRouter } from "./modules/services/services.routes";
 import { hrAssistantRouter } from "./modules/hr-assistant/hr-assistant.routes";
 import { preflightRouter } from "./modules/preflight/preflight.routes";
 import { colorProofRouter } from "./modules/color-proof/colorProof.routes";
+import { pcpStockRouter } from "./modules/pcp-stock/pcpStock.routes";
 import { errorHandler } from "./middleware/errorHandler";
 import { requireAuth, requireRole } from "./middleware/auth";
 
@@ -88,6 +89,7 @@ app.use("/api/servicos", servicesRouter);
 app.use("/api/hr-assistant", hrAssistantRouter);
 app.use("/api/preflight", preflightRouter);
 app.use("/api/teste-cor", colorProofRouter);
+app.use("/api/estoque-pcp", pcpStockRouter);
 
 const clientDistPath = path.join(__dirname, "../../client/dist");
 app.use(express.static(clientDistPath, {

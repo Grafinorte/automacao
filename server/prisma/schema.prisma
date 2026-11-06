@@ -1119,3 +1119,56 @@ model ColorProofSettings {
 
   @@map("color_proof_settings")
 }
+
+// Controle de estoque do PCP: materiais de clientes e impressos da Grafinorte (separado do Almoxarifado)
+model PcpStockItem {
+  id        String   @id @default(cuid())
+  client    String?  // null = material da própria Grafinorte
+  name      String
+  category  String
+  unit      String
+  quantity  Float    @default(0)
+  location  String?
+  notes     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements PcpStockMovement[]
+
+  @@index([client, name])
+  @@map("pcp_stock_items")
+}
+
+model PcpStockMovement {
+  id            String            @id @default(cuid())
+  type          StockMovementType
+  quantity      Float             // com sinal: saída é negativa
+  balanceAfter  Float
+  takenBy       String?           // quem tirou fisicamente do estoque
+  reference     String?           // OS / destino
+  notes         String?
+  createdById   String
+  createdByName String            // o histórico continua legível mesmo se o usuário sair
+  createdAt     DateTime          @default(now())
+
+  itemId String
+  item   PcpStockItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([itemId, createdAt])
+  @@map("pcp_stock_movements")
+}
+
+// Relatório mensal (uma linha só, id "default"), configurado pelo admin
+model PcpStockSettings {
+  id             String    @id @default("default")
+  recipients     String    @default("") // e-mails separados por vírgula
+  senderUserId   String?   // usuário cujo e-mail SMTP do perfil envia o relatório
+  lastPeriodSent String?   // "AAAA-MM" do último mês já enviado
+  lastSentAt     DateTime?
+  lastError      String?
+  updatedAt      DateTime  @updatedAt
+
+  @@map("pcp_stock_settings")
+}
