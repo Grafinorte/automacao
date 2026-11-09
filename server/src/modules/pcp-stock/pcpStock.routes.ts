@@ -15,6 +15,12 @@ pcpStockRouter.delete("/items/:id", asyncHandler(ctrl.deleteItem));
 pcpStockRouter.post("/items/:id/movements", asyncHandler(ctrl.postMovement));
 pcpStockRouter.get("/movements", asyncHandler(ctrl.getMovements));
 
+// Fluxo: produção concluída, conferência da expedição e despacho
+pcpStockRouter.post("/items/:id/stage", asyncHandler(ctrl.postStage));
+pcpStockRouter.post("/items/:id/receive", asyncHandler(ctrl.postReceive));
+pcpStockRouter.get("/dispatch", asyncHandler(ctrl.getDispatch));
+pcpStockRouter.post("/movements/:id/dispatch", asyncHandler(ctrl.postDispatch));
+
 pcpStockRouter.get("/settings", asyncHandler(ctrl.getSettings));
 // Quem recebe, quem envia e o envio manual ficam com o admin
 pcpStockRouter.put("/settings", requireRole("ADMIN"), asyncHandler(ctrl.putSettings));

@@ -4,6 +4,7 @@ import {
   PCP_CATEGORIES, PCP_COMPANIES, PCP_UNITS, pcpStockApi,
   type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpOsData, type PcpSettings, type PcpStockItem,
 } from "../api/pcpStock";
+import { PcpFlowBoard } from "../components/pcp-stock/PcpFlowBoard";
 
 const STALE_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -34,11 +35,12 @@ function currentMonth() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
+function Kpi({ label, value, hint, warn }: { label: string; value: string; hint?: string; warn?: boolean }) {
   return (
     <div className={`${card} px-4 py-3`}>
       <p className="text-[11px] font-semibold uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]">{label}</p>
       <p className="mt-1 text-[20px] font-bold tabular-nums text-[#1a1c1d] dark:text-white">{value}</p>
+      {hint && <p className={`text-[11.5px] ${warn ? "font-semibold text-amber-700 dark:text-amber-400" : "text-[#77767b] dark:text-[#a0a0a4]"}`}>{hint}</p>}
     </div>
   );
 }
@@ -100,6 +102,9 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
   const [error, setError] = useState("");
   const [reading, setReading] = useState(false);
   const [osRead, setOsRead] = useState<PcpOsData | null>(null);
+  // Onde a OS começa: em produção (fluxo normal) ou já no estoque (o que já estava pronto)
+  const [where, setWhere] = useState<"PRODUCAO" | "ESTOQUE">("PRODUCAO");
+  const inProduction = !item && where === "PRODUCAO";
 
   // O PDF só preenche; a pessoa confere e digita o que foi produzido de fato
   async function readPdf(file: File) {
@@ -131,7 +136,8 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
   }
 
   const qty = parseNum(quantity);
-  const qtyOk = !!item || qty > 0;
+  // Em produção a quantidade é só o pedido (opcional); no estoque é o que foi produzido
+  const qtyOk = !!item || (inProduction ? !quantity.trim() || qty > 0 : qty > 0);
   const valid = !!osNumber.trim() && !!name.trim() && !!category && !!unit && (!isClient || !!client.trim()) && qtyOk;
   const sameOs = !item && osNumber.trim() ? items.filter((i) => i.osNumber === osNumber.trim() && i.company === company) : [];
 
@@ -150,7 +156,13 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
   const unitKnown = (PCP_UNITS as readonly string[]).includes(unit);
 
   return (
-    <Modal title={item ? "Editar material" : "Entrada por OS"} subtitle={item ? undefined : "Registre o material que a produção concluiu."} onClose={onClose}>
+    <Modal title={item ? "Editar material" : "Nova OS"} subtitle={item ? undefined : "Cadastre a OS quando ela for liberada para a produção."} onClose={onClose}>
+      {!item && (
+        <div className="mb-4">
+          <label className={labelCls}>Onde a OS está agora</label>
+          <Toggle options={[{ v: "PRODUCAO" as const, l: "Em produção" }, { v: "ESTOQUE" as const, l: "Já pronta, no estoque" }]} value={where} onChange={setWhere} />
+        </div>
+      )}
       {!item && (
         <div className="mb-4 rounded-lg border border-dashed border-[rgba(199,198,202,0.8)] p-3 dark:border-white/15">
           <label className={`${ghostBtn} inline-block cursor-pointer ${reading ? "pointer-events-none opacity-50" : ""}`}>
@@ -166,7 +178,7 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
                 {osRead.plannedQty !== null && osRead.plannedQty !== osRead.orderedQty && <> · plano <b>{fmt(osRead.plannedQty)}</b></>}
                 . Confira os campos.
               </p>
-              <p className="mt-1">
+              {!inProduction && <p className="mt-1">
                 {osRead.orderedQty !== null
                   ? "A quantidade veio do pedido. Se a produção foi diferente, corrija."
                   : "Não achei a quantidade. Digite a que foi produzida."}
@@ -176,7 +188,7 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
                     Usar o plano ({fmt(osRead.plannedQty)})
                   </button>
                 )}
-              </p>
+              </p>}
               {(!osRead.company || !osRead.client || !osRead.name || !osRead.category) && (
                 <p className="mt-1 font-medium text-amber-700 dark:text-amber-400">
                   Não achei: {[!osRead.company && "empresa", !osRead.client && "cliente", !osRead.name && "material", !osRead.category && "tipo"].filter(Boolean).join(", ")}. Preencha à mão.
@@ -198,7 +210,7 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
           <input autoFocus={!item} value={osNumber} onChange={(e) => setOsNumber(e.target.value)} className={inputCls} placeholder="Ex.: 12345" />
           {sameOs.length > 0 && (
             <p className="mt-1 text-[12px] font-medium text-amber-700 dark:text-amber-400">
-              Esta OS já está no estoque ({sameOs.map((i) => `${i.name}: ${fmt(i.quantity)} ${i.unit}`).join("; ")}). Para somar, cancele e use Entrada na linha dela.
+              Esta OS já está cadastrada ({sameOs.map((i) => `${i.name}: ${fmt(i.quantity)} ${i.unit}`).join("; ")}). Para somar ao estoque, cancele e use Entrada na linha dela.
             </p>
           )}
         </div>
@@ -236,7 +248,7 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
         </div>
         {!item && (
           <div>
-            <label className={labelCls}>Quantidade produzida</label>
+            <label className={labelCls}>{inProduction ? "Quantidade do pedido" : "Quantidade produzida"}</label>
             <input inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} placeholder="0" />
           </div>
         )}
@@ -250,8 +262,17 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
         </div>
       </div>
       <ModalActions
-        onClose={onClose} saving={saving} error={error} disabled={!valid} label={item ? "Salvar" : "Registrar entrada"}
-        onSubmit={() => void run(() => item ? pcpStockApi.updateItem(item.id, data) : pcpStockApi.createItem({ ...data, quantity: qty }))}
+        onClose={onClose} saving={saving} error={error} disabled={!valid}
+        label={item ? "Salvar" : inProduction ? "Colocar em produção" : "Registrar entrada"}
+        onSubmit={() => void run(() => item
+          ? pcpStockApi.updateItem(item.id, data)
+          : pcpStockApi.createItem({
+            ...data,
+            stage: where,
+            quantity: inProduction ? 0 : qty,
+            orderedQty: inProduction ? (qty > 0 ? qty : osRead?.orderedQty ?? null) : osRead?.orderedQty ?? null,
+            plannedQty: osRead?.plannedQty ?? null,
+          }))}
       />
     </Modal>
   );
@@ -321,6 +342,47 @@ function MovementModal({ item, type, onClose, onSaved }: {
         </div>
       </div>
       <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!valid} saving={saving} label={text.action} error={error} />
+    </Modal>
+  );
+}
+
+// ─── Conferência da expedição: a OS entra no estoque ─────────────────────────
+function ReceiveModal({ item, onClose, onSaved }: { item: PcpStockItem; onClose: () => void; onSaved: () => void }) {
+  const [quantity, setQuantity] = useState(item.orderedQty ? fmt(item.orderedQty) : "");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const qty = parseNum(quantity);
+  const showPlan = item.plannedQty !== null && item.plannedQty !== item.orderedQty;
+
+  async function submit() {
+    setSaving(true);
+    setError("");
+    try { await pcpStockApi.receive(item.id, qty, notes); onSaved(); }
+    catch (e) { setError(errorText(e, "Não foi possível guardar.")); setSaving(false); }
+  }
+
+  return (
+    <Modal title="Conferir e guardar no estoque" subtitle={`OS ${item.osNumber ?? "—"} · ${item.name} · ${ownerOf(item)}`} onClose={onClose}>
+      <div className="grid gap-3">
+        <div>
+          <label className={labelCls}>Quantidade conferida ({item.unit})</label>
+          <input autoFocus inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} />
+          <p className="mt-1 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">
+            {item.orderedQty !== null ? `Pedido: ${fmt(item.orderedQty)}. Conte e corrija se for diferente.` : "Digite a quantidade contada."}
+            {showPlan && (
+              <button type="button" onClick={() => setQuantity(fmt(item.plannedQty!))} className="ml-1 font-semibold text-[#005cba] hover:underline dark:text-[#4d9fff]">
+                Usar o plano ({fmt(item.plannedQty!)})
+              </button>
+            )}
+          </p>
+        </div>
+        <div>
+          <label className={labelCls}>Observação</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="Opcional" />
+        </div>
+      </div>
+      <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!(qty > 0)} saving={saving} label="Guardar no estoque" error={error} />
     </Modal>
   );
 }
@@ -406,9 +468,12 @@ const TYPE_STYLE: Record<PcpMovementType, { label: string; cls: string }> = {
 export function PcpStockPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
-  const [tab, setTab] = useState<"estoque" | "movimentacoes">("estoque");
+  const [tab, setTab] = useState<"fluxo" | "estoque" | "movimentacoes">("fluxo");
   const [items, setItems] = useState<PcpStockItem[]>([]);
   const [movements, setMovements] = useState<PcpMovement[]>([]);
+  const [dispatch, setDispatch] = useState<{ pending: PcpMovement[]; done: PcpMovement[] }>({ pending: [], done: [] });
+  const [receiving, setReceiving] = useState<PcpStockItem | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
   const [settings, setSettings] = useState<PcpSettings | null>(null);
   const [month, setMonth] = useState(currentMonth);
   const [loading, setLoading] = useState(true);
@@ -425,10 +490,11 @@ export function PcpStockPage() {
   async function loadAll() {
     setError("");
     try {
-      const [i, m, s] = await Promise.all([pcpStockApi.listItems(), pcpStockApi.listMovements(month), pcpStockApi.getSettings()]);
+      const [i, m, s, d] = await Promise.all([pcpStockApi.listItems(), pcpStockApi.listMovements(month), pcpStockApi.getSettings(), pcpStockApi.listDispatch()]);
       setItems(i);
       setMovements(m);
       setSettings(s);
+      setDispatch(d);
     } catch (e) {
       setError(errorText(e, "Não foi possível carregar o estoque."));
     } finally {
@@ -446,21 +512,37 @@ export function PcpStockPage() {
   const owners = useMemo(() => [...new Set(items.map(ownerOf))].sort((a, b) => a.localeCompare(b, "pt-BR")), [items]);
   const categories = useMemo(() => [...new Set(items.map((i) => i.category))].sort((a, b) => a.localeCompare(b, "pt-BR")), [items]);
 
-  const pending = items.filter((i) => i.quantity > 0);
-  const stale = pending.filter((i) => daysSince(i.createdAt) > STALE_DAYS);
+  const inStock = items.filter((i) => i.stage === "ESTOQUE" && i.quantity > 0);
+  const stale = inStock.filter((i) => daysSince(i.stockedAt ?? i.createdAt) > STALE_DAYS);
 
   const needle = search.trim().toLowerCase();
-  const visibleItems = items.filter((i) =>
-    (showZero || i.quantity !== 0) &&
+  const itemMatches = (i: PcpStockItem) =>
     (!company || i.company === company) &&
     (!owner || ownerOf(i) === owner) &&
     (!category || i.category === category) &&
-    (!needle || `${i.osNumber ?? ""} ${i.name} ${ownerOf(i)} ${i.location ?? ""}`.toLowerCase().includes(needle)));
-  const visibleMovements = movements.filter((m) =>
+    (!needle || `${i.osNumber ?? ""} ${i.name} ${ownerOf(i)} ${i.location ?? ""}`.toLowerCase().includes(needle));
+  const movementMatches = (m: PcpMovement) =>
     (!company || m.item.company === company) &&
     (!owner || ownerOf(m.item) === owner) &&
     (!category || m.item.category === category) &&
-    (!needle || `${m.item.osNumber ?? ""} ${m.invoiceNumber ?? ""} ${m.item.name} ${ownerOf(m.item)} ${m.takenBy ?? ""} ${m.notes ?? ""} ${m.createdByName}`.toLowerCase().includes(needle)));
+    (!needle || `${m.item.osNumber ?? ""} ${m.invoiceNumber ?? ""} ${m.item.name} ${ownerOf(m.item)} ${m.takenBy ?? ""} ${m.notes ?? ""} ${m.createdByName}`.toLowerCase().includes(needle));
+  const boardItems = items.filter(itemMatches);
+  const visibleItems = items.filter((i) => i.stage === "ESTOQUE" && (showZero || i.quantity !== 0) && itemMatches(i));
+  const visibleMovements = movements.filter(movementMatches);
+
+  async function step(id: string, action: () => Promise<unknown>) {
+    setBusy(id);
+    try { await action(); await loadAll(); }
+    catch (e) { alert(errorText(e, "Não foi possível concluir.")); }
+    finally { setBusy(null); }
+  }
+  const conclude = (i: PcpStockItem) => {
+    if (confirm(`Produção concluída da OS ${i.osNumber ?? ""}? Ela vai para a expedição conferir.`)) void step(i.id, () => pcpStockApi.moveStage(i.id, "EXPEDICAO"));
+  };
+  const backToProduction = (i: PcpStockItem) => void step(i.id, () => pcpStockApi.moveStage(i.id, "PRODUCAO"));
+  const markDispatched = (m: PcpMovement) => {
+    if (confirm(`Despachado: OS ${m.item.osNumber ?? ""}, NF ${m.invoiceNumber ?? ""}?`)) void step(m.id, () => pcpStockApi.dispatch(m.id));
+  };
 
   // Soma por unidade: mostra a sobra de um mesmo material espalhada em várias OS
   const listTotal = Object.entries(
@@ -470,6 +552,7 @@ export function PcpStockPage() {
   const afterSave = () => {
     setEditing(null);
     setMoving(null);
+    setReceiving(null);
     void loadAll();
   };
 
@@ -490,11 +573,11 @@ export function PcpStockPage() {
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-[22px] font-bold text-[#1a1c1d] dark:text-white">Controle de estoque PCP</h1>
-            <p className="text-[13px] text-[#77767b] dark:text-[#a0a0a4]">Material produzido entra pela OS e sai pela nota fiscal.</p>
+            <p className="text-[13px] text-[#77767b] dark:text-[#a0a0a4]">Produção → expedição → estoque → nota fiscal → despacho.</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setShowReport(true)} disabled={!settings} className={ghostBtn}>Relatório mensal</button>
-            <button onClick={() => setEditing("new")} className={primaryBtn}>Entrada por OS</button>
+            <button onClick={() => setEditing("new")} className={primaryBtn}>Nova OS</button>
           </div>
         </div>
 
@@ -506,16 +589,16 @@ export function PcpStockPage() {
         )}
 
         <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Kpi label="Produzido e não faturado" value={String(pending.length)} />
-          <Kpi label={`Há mais de ${STALE_DAYS} dias`} value={String(stale.length)} />
-          <Kpi label="Entradas no mês" value={String(movements.filter((m) => m.type === "ENTRADA").length)} />
-          <Kpi label="Saídas no mês" value={String(movements.filter((m) => m.type === "SAIDA").length)} />
+          <Kpi label="Em produção" value={String(items.filter((i) => i.stage === "PRODUCAO").length)} />
+          <Kpi label="Na expedição" value={String(items.filter((i) => i.stage === "EXPEDICAO").length)} />
+          <Kpi label="No estoque" value={String(inStock.length)} hint={stale.length ? `${stale.length} parada(s) há mais de ${STALE_DAYS} dias` : undefined} warn />
+          <Kpi label="A despachar" value={String(dispatch.pending.length)} />
         </div>
 
         <div className={`${card} overflow-hidden`}>
           <div className="flex flex-wrap items-center gap-2 border-b border-[rgba(199,198,202,0.3)] px-4 py-3 dark:border-white/10">
             <div className="flex rounded-lg bg-[#f3f3f5] p-0.5 dark:bg-white/5">
-              {([["estoque", "Estoque"], ["movimentacoes", "Movimentações"]] as const).map(([id, label]) => (
+              {([["fluxo", "Fluxo"], ["estoque", "Estoque"], ["movimentacoes", "Movimentações"]] as const).map(([id, label]) => (
                 <button key={id} onClick={() => setTab(id)} className={`rounded-md px-3 py-1.5 text-[13px] font-medium ${tab === id ? "bg-white text-[#1a1c1d] shadow-sm dark:bg-[#2a2c31] dark:text-white" : "text-[#77767b] dark:text-[#a0a0a4]"}`}>
                   {label}
                 </button>
@@ -534,7 +617,7 @@ export function PcpStockPage() {
               <option value="">Todos os tipos</option>
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            {tab === "estoque" ? (
+            {tab === "fluxo" ? null : tab === "estoque" ? (
               <label className="flex items-center gap-1.5 text-[12.5px] text-[#46464a] dark:text-[#a0a0a4]">
                 <input type="checkbox" checked={showZero} onChange={(e) => setShowZero(e.target.checked)} />
                 Mostrar saldo zerado
@@ -546,9 +629,23 @@ export function PcpStockPage() {
 
           {loading ? (
             <p className="py-12 text-center text-[13px] text-[#77767b]">Carregando...</p>
+          ) : tab === "fluxo" ? (
+            <PcpFlowBoard
+              items={boardItems}
+              pending={dispatch.pending.filter(movementMatches)}
+              done={dispatch.done.filter(movementMatches)}
+              ownerOf={ownerOf}
+              busy={busy}
+              onConclude={conclude}
+              onBack={backToProduction}
+              onReceive={setReceiving}
+              onBill={(i) => setMoving({ item: i, type: "SAIDA" })}
+              onDispatch={markDispatched}
+              onRemove={(i) => void remove(i)}
+            />
           ) : tab === "estoque" ? (
             visibleItems.length === 0 ? (
-              <p className="py-12 text-center text-[13px] text-[#77767b]">{items.length === 0 ? "Nenhuma OS no estoque. Clique em Entrada por OS para começar." : "Nada encontrado com esses filtros."}</p>
+              <p className="py-12 text-center text-[13px] text-[#77767b]">{items.length === 0 ? "Nenhuma OS no estoque. Clique em Nova OS para começar." : "Nada encontrado com esses filtros."}</p>
             ) : (
               <>
               <div className="overflow-x-auto">
@@ -561,7 +658,7 @@ export function PcpStockPage() {
                   </thead>
                   <tbody>
                     {visibleItems.map((i) => {
-                      const days = daysSince(i.createdAt);
+                      const days = daysSince(i.stockedAt ?? i.createdAt);
                       return (
                         <tr key={i.id} className="border-t border-[rgba(199,198,202,0.25)] text-[#1a1c1d] dark:border-white/5 dark:text-[#e0e0e4]">
                           <td className="whitespace-nowrap px-4 py-2.5 font-semibold tabular-nums">{i.osNumber ?? "—"}</td>
@@ -604,7 +701,7 @@ export function PcpStockPage() {
                   <tr>
                     <th className="px-4 py-2.5">Data</th><th className="px-4 py-2.5">OS</th><th className="px-4 py-2.5">Material</th><th className="px-4 py-2.5">Tipo</th>
                     <th className="px-4 py-2.5 text-right">Qtd.</th><th className="px-4 py-2.5 text-right">Saldo</th><th className="px-4 py-2.5">NF</th>
-                    <th className="px-4 py-2.5">Quem tirou</th><th className="px-4 py-2.5">Obs.</th><th className="px-4 py-2.5">Registrado por</th>
+                    <th className="px-4 py-2.5">Quem tirou</th><th className="px-4 py-2.5">Despacho</th><th className="px-4 py-2.5">Obs.</th><th className="px-4 py-2.5">Registrado por</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -618,6 +715,11 @@ export function PcpStockPage() {
                       <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums">{fmt(m.balanceAfter)}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{m.invoiceNumber ?? "—"}</td>
                       <td className="px-4 py-2.5">{m.takenBy ?? "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-[12px]">
+                        {m.type !== "SAIDA" ? "—" : m.dispatchedAt
+                          ? `${new Date(m.dispatchedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} · ${m.dispatchedBy ?? ""}`
+                          : <span className="font-medium text-red-600 dark:text-red-400">pendente</span>}
+                      </td>
                       <td className="px-4 py-2.5 text-[#77767b] dark:text-[#a0a0a4]">{[m.reference, m.notes].filter(Boolean).join(" · ") || "—"}</td>
                       <td className="px-4 py-2.5">{m.createdByName}</td>
                     </tr>
@@ -631,6 +733,7 @@ export function PcpStockPage() {
 
       {editing && <ItemModal item={editing === "new" ? null : editing} items={items} clients={clients} onClose={() => setEditing(null)} onSaved={afterSave} />}
       {moving && <MovementModal item={moving.item} type={moving.type} onClose={() => setMoving(null)} onSaved={afterSave} />}
+      {receiving && <ReceiveModal item={receiving} onClose={() => setReceiving(null)} onSaved={afterSave} />}
       {showReport && settings && <ReportModal settings={settings} isAdmin={isAdmin} onClose={() => setShowReport(false)} onChange={setSettings} />}
     </div>
   );

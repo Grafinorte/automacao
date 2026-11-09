@@ -44,6 +44,22 @@ export async function postMovement(req: Request, res: Response) {
   res.status(201).json(await service.addMovement(req.params.id, req.user!.sub, req.body ?? {}));
 }
 
+export async function postStage(req: Request, res: Response) {
+  res.json(await service.moveStage(req.params.id, req.user!.sub, req.body?.to));
+}
+
+export async function postReceive(req: Request, res: Response) {
+  res.json(await service.receiveItem(req.params.id, req.user!.sub, req.body ?? {}));
+}
+
+export async function getDispatch(_req: Request, res: Response) {
+  res.json(await service.listDispatch());
+}
+
+export async function postDispatch(req: Request, res: Response) {
+  res.json(await service.dispatchMovement(req.params.id, req.user!.sub));
+}
+
 export async function getMovements(req: Request, res: Response) {
   const period = isPeriod(req.query.month) ? req.query.month : currentPeriod(new Date());
   res.json(await service.listMovements(period));

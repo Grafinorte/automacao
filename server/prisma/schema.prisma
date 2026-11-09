@@ -1133,6 +1133,13 @@ model PcpStockItem {
   location  String?
   notes     String?
   active    Boolean  @default(true)
+  // Etapa do fluxo do PCP: PRODUCAO → EXPEDICAO → ESTOQUE (a nota e o despacho ficam nas saídas)
+  stage      String    @default("ESTOQUE")
+  stageAt    DateTime?
+  stageBy    String?
+  stockedAt  DateTime? // quando entrou no estoque; conta os dias parado
+  orderedQty Float?    // pedido na OS
+  plannedQty Float?    // plano da OS (pode ser maior que o pedido)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1151,6 +1158,8 @@ model PcpStockMovement {
   takenBy       String?           // quem tirou fisicamente do estoque
   reference     String?           // OS / destino
   invoiceNumber String?           // nota fiscal da saída
+  dispatchedAt  DateTime?         // despacho do que saiu com a nota
+  dispatchedBy  String?
   notes         String?
   createdById   String
   createdByName String            // o histórico continua legível mesmo se o usuário sair

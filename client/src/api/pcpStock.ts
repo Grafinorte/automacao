@@ -25,8 +25,16 @@ export interface PcpStockItem {
   quantity: number;
   location: string | null;
   notes: string | null;
+  stage: PcpStage;
+  stageAt: string | null;
+  stageBy: string | null;
+  stockedAt: string | null;
+  orderedQty: number | null;
+  plannedQty: number | null;
   createdAt: string;
 }
+
+export type PcpStage = "PRODUCAO" | "EXPEDICAO" | "ESTOQUE";
 
 export interface PcpItemInput {
   company: string;
@@ -46,6 +54,8 @@ export interface PcpMovement {
   balanceAfter: number;
   takenBy: string | null;
   invoiceNumber: string | null;
+  dispatchedAt: string | null;
+  dispatchedBy: string | null;
   reference: string | null;
   notes: string | null;
   createdByName: string;
@@ -77,7 +87,12 @@ export interface PcpOsData {
 export const pcpStockApi = {
   readOs: (pdf: string) => api.post<PcpOsData>("/estoque-pcp/ler-os", { pdf }),
   listItems: () => api.get<PcpStockItem[]>("/estoque-pcp/items"),
-  createItem: (data: PcpItemInput & { quantity: number }) => api.post<PcpStockItem>("/estoque-pcp/items", data),
+  createItem: (data: PcpItemInput & { quantity: number; stage: "PRODUCAO" | "ESTOQUE"; orderedQty: number | null; plannedQty: number | null }) =>
+    api.post<PcpStockItem>("/estoque-pcp/items", data),
+  moveStage: (id: string, to: "PRODUCAO" | "EXPEDICAO") => api.post<PcpStockItem>(`/estoque-pcp/items/${id}/stage`, { to }),
+  receive: (id: string, quantity: number, notes: string) => api.post<PcpStockItem>(`/estoque-pcp/items/${id}/receive`, { quantity, notes }),
+  listDispatch: () => api.get<{ pending: PcpMovement[]; done: PcpMovement[] }>("/estoque-pcp/dispatch"),
+  dispatch: (movementId: string) => api.post<unknown>(`/estoque-pcp/movements/${movementId}/dispatch`, {}),
   updateItem: (id: string, data: PcpItemInput) => api.patch<PcpStockItem>(`/estoque-pcp/items/${id}`, data),
   removeItem: (id: string) => api.delete<{ result: "deleted" | "archived" }>(`/estoque-pcp/items/${id}`),
   addMovement: (id: string, data: { type: PcpMovementType; quantity: number; takenBy?: string; invoiceNumber?: string; notes?: string }) =>

@@ -47,7 +47,7 @@ export async function buildReport(period: string) {
       entries: round3(sum("ENTRADA")), exits: round3(0 - sum("SAIDA")), adjustments: round3(sum("AJUSTE")),
       // O saldo é o do último dia do mês, mesmo que o e-mail saia alguns dias depois
       balance: round3(item.quantity - after),
-      days: Math.floor((end.getTime() - item.createdAt.getTime()) / DAY_MS),
+      days: Math.floor((end.getTime() - (item.stockedAt ?? item.createdAt).getTime()) / DAY_MS),
       moved: inPeriod.length > 0,
     };
     // OS já faturada e sem movimento no mês não precisa aparecer para sempre

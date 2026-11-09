@@ -49,16 +49,32 @@ export function listItems() {
   return prisma.pcpStockItem.findMany({ where: { active: true }, orderBy: { createdAt: "asc" } });
 }
 
-export async function createItem(raw: PcpItemInput & { quantity?: unknown }, userId: string) {
+const positiveOrNull = (v: unknown) => (Number.isFinite(Number(v)) && Number(v) > 0 && v !== null && v !== "" ? round3(Number(v)) : null);
+
+export async function createItem(
+  raw: PcpItemInput & { quantity?: unknown; stage?: unknown; orderedQty?: unknown; plannedQty?: unknown },
+  userId: string,
+) {
   const data = cleanItem(raw);
-  const quantity = raw.quantity === undefined || raw.quantity === null || raw.quantity === "" ? 0 : Number(raw.quantity);
+  // Começa em produção (sem saldo) ou já direto no estoque, para o que já estava pronto
+  const inProduction = raw.stage === "PRODUCAO";
+  const quantity = inProduction || raw.quantity === undefined || raw.quantity === null || raw.quantity === "" ? 0 : Number(raw.quantity);
   if (!Number.isFinite(quantity) || quantity < 0) throw new HttpError(400, "Quantidade inicial inválida.");
   await assertNotDuplicate(data.company, data.osNumber, data.name);
   const createdByName = await userName(userId);
   const initial = round3(quantity);
+  const now = new Date();
+  const flow = {
+    stage: inProduction ? "PRODUCAO" : "ESTOQUE",
+    stageAt: now,
+    stageBy: createdByName,
+    stockedAt: inProduction ? null : now,
+    orderedQty: positiveOrNull(raw.orderedQty),
+    plannedQty: positiveOrNull(raw.plannedQty),
+  };
 
   return prisma.$transaction(async (tx) => {
-    const item = await tx.pcpStockItem.create({ data: { ...data, quantity: initial } });
+    const item = await tx.pcpStockItem.create({ data: { ...data, ...flow, quantity: initial } });
     if (initial > 0) {
       await tx.pcpStockMovement.create({
         data: { itemId: item.id, type: "ENTRADA", quantity: initial, balanceAfter: initial, createdById: userId, createdByName },
@@ -122,6 +138,7 @@ export async function addMovement(
   return prisma.$transaction(async (tx) => {
     const item = await tx.pcpStockItem.findUnique({ where: { id: itemId } });
     if (!item?.active) throw new HttpError(404, "Material não encontrado.");
+    if (item.stage !== "ESTOQUE") throw new HttpError(409, "Esta OS ainda não entrou no estoque. Conclua a produção e a conferência da expedição antes.");
 
     // No ajuste, a quantidade informada é o saldo contado
     const delta = round3(type === "ENTRADA" ? quantity : type === "SAIDA" ? -quantity : quantity - item.quantity);
@@ -145,6 +162,59 @@ export function listMovements(period: string) {
     orderBy: { createdAt: "desc" },
     take: 5000,
   });
+}
+
+// ─── Fluxo do desenho do PCP: Produção → Expedição → Estoque → NF → Despacho ──
+const STAGE_MOVES: Record<string, string> = { "PRODUCAO>EXPEDICAO": "produção concluída", "EXPEDICAO>PRODUCAO": "voltou para a produção" };
+
+/** Produção concluída (ou volta, se marcaram por engano). A entrada no estoque é pela conferência. */
+export async function moveStage(id: string, userId: string, to: unknown) {
+  const item = await prisma.pcpStockItem.findUnique({ where: { id } });
+  if (!item?.active) throw new HttpError(404, "OS não encontrada.");
+  if (typeof to !== "string" || !STAGE_MOVES[`${item.stage}>${to}`]) throw new HttpError(409, "Essa mudança de etapa não é permitida.");
+  return prisma.pcpStockItem.update({ where: { id }, data: { stage: to, stageAt: new Date(), stageBy: await userName(userId) } });
+}
+
+/** A expedição confere a quantidade e a OS entra no estoque */
+export async function receiveItem(id: string, userId: string, raw: { quantity?: unknown; notes?: unknown }) {
+  const quantity = round3(Number(raw.quantity));
+  if (!Number.isFinite(quantity) || quantity <= 0) throw new HttpError(400, "Informe a quantidade conferida.");
+  const createdByName = await userName(userId);
+
+  return prisma.$transaction(async (tx) => {
+    const item = await tx.pcpStockItem.findUnique({ where: { id } });
+    if (!item?.active) throw new HttpError(404, "OS não encontrada.");
+    if (item.stage !== "EXPEDICAO") throw new HttpError(409, "Só entra no estoque o que está na expedição.");
+    const balanceAfter = round3(item.quantity + quantity);
+    const now = new Date();
+    await tx.pcpStockMovement.create({
+      data: { itemId: id, type: "ENTRADA", quantity, balanceAfter, notes: clean(raw.notes), createdById: userId, createdByName },
+    });
+    return tx.pcpStockItem.update({
+      where: { id },
+      data: { quantity: balanceAfter, stage: "ESTOQUE", stageAt: now, stageBy: createdByName, stockedAt: now },
+    });
+  });
+}
+
+const DISPATCHED_DAYS = 7;
+const movementItem = { item: { select: { id: true, company: true, osNumber: true, client: true, name: true, unit: true, category: true } } } as const;
+
+/** Faturado esperando despacho e o que foi despachado nos últimos dias */
+export async function listDispatch() {
+  const since = new Date(Date.now() - DISPATCHED_DAYS * 24 * 60 * 60 * 1000);
+  const [pending, done] = await Promise.all([
+    prisma.pcpStockMovement.findMany({ where: { type: "SAIDA", dispatchedAt: null }, include: movementItem, orderBy: { createdAt: "asc" }, take: 500 }),
+    prisma.pcpStockMovement.findMany({ where: { type: "SAIDA", dispatchedAt: { gte: since } }, include: movementItem, orderBy: { dispatchedAt: "desc" }, take: 200 }),
+  ]);
+  return { pending, done };
+}
+
+export async function dispatchMovement(id: string, userId: string) {
+  const movement = await prisma.pcpStockMovement.findUnique({ where: { id } });
+  if (!movement || movement.type !== "SAIDA") throw new HttpError(404, "Saída não encontrada.");
+  if (movement.dispatchedAt) throw new HttpError(409, "Esta nota já foi despachada.");
+  return prisma.pcpStockMovement.update({ where: { id }, data: { dispatchedAt: new Date(), dispatchedBy: await userName(userId) } });
 }
 
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
