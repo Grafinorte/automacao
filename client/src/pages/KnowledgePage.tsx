@@ -181,7 +181,12 @@ function MessageBubble({ msg, userInitials }: { msg: ChatMessage; userInitials: 
         </div>
         {!isUser && msg.sources && msg.sources.length > 0 && (
           <div className="flex flex-wrap gap-1 px-1">
-            {msg.sources.map((s) => (
+            {msg.sources.map((s) => s.startsWith("Dados: ") ? (
+              // Dados reais consultados ficam em destaque, antes dos documentos
+              <span key={s} className="rounded-full border border-[#005cba]/30 bg-[#005cba]/10 px-2 py-0.5 text-[10px] font-semibold text-[#005cba] dark:text-[#4d9fff]">
+                {s}
+              </span>
+            ) : (
               <span key={s} className="rounded-full border border-[#e0e0e2] bg-white px-2 py-0.5 text-[10px] text-[#77767b] dark:border-white/8 dark:bg-white/5 dark:text-[#a0a0a4]">
                 {s}
               </span>
@@ -233,11 +238,12 @@ function InputBar({ inputRef, input, loading, onChange, onSubmit, onKeyDown }: {
   );
 }
 
+// A Luma também consulta os dados da plataforma que o usuário pode ver
 const SUGGESTIONS = [
+  "Quais OS estão paradas no estoque há mais tempo?",
+  "Quanto gastamos com provas de cor este mês?",
   "Quais produtos e serviços oferecemos?",
-  "Resumo dos documentos disponíveis",
   "Quais são as políticas internas?",
-  "Processos e procedimentos",
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────

@@ -9,13 +9,16 @@ import * as service from "./pcpStock.service";
 const MODULE_ID = "estoquepcp";
 
 /** Mesma regra da tela: permissões personalizadas têm prioridade sobre o padrão do cargo */
+export function canAccessStock(user: { role: string; permissions: string | null } | null) {
+  if (!user) return false;
+  if (user.role === "ADMIN") return true;
+  if (user.permissions === null) return user.role === "PCP";
+  try { return (JSON.parse(user.permissions) as string[]).includes(MODULE_ID); } catch { return false; }
+}
+
 export async function requireStockAccess(req: Request, res: Response, next: NextFunction) {
   const user = await prisma.user.findUnique({ where: { id: req.user!.sub }, select: { role: true, permissions: true } });
-  let allowed = user?.role === "ADMIN" || user?.role === "PCP";
-  if (user && user.role !== "ADMIN" && user.permissions !== null) {
-    try { allowed = (JSON.parse(user.permissions) as string[]).includes(MODULE_ID); } catch { allowed = false; }
-  }
-  if (!allowed) { res.status(403).json({ error: "Acesso não permitido" }); return; }
+  if (!canAccessStock(user)) { res.status(403).json({ error: "Acesso não permitido" }); return; }
   next();
 }
 

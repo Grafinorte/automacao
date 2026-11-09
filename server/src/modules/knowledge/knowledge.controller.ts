@@ -13,7 +13,7 @@ export async function postAsk(req: Request, res: Response) {
     return;
   }
   const safeHistory = Array.isArray(history) ? history : [];
-  const result = await knowledgeService.askQuestion(question.trim(), safeHistory);
+  const result = await knowledgeService.askQuestion(question.trim(), safeHistory, req.user!.sub);
   res.json(result);
 }
 

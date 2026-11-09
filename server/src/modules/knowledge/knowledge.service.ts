@@ -3,6 +3,7 @@ import path from "node:path";
 import { env } from "../../config/env";
 import { HttpError } from "../../middleware/errorHandler";
 import { prisma } from "../../db/prisma";
+import { areasFor } from "./luma-tools";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
@@ -17,9 +18,14 @@ const SUPPORTED = [".pdf", ".txt", ".md", ".csv"];
 const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash"];
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
+type GeminiPart =
+  | { text: string }
+  | { functionCall: { name: string; args: Record<string, unknown> } }
+  | { functionResponse: { name: string; response: Record<string, unknown> } };
+
 interface GeminiContent {
   role: "user" | "model";
-  parts: { text: string }[];
+  parts: GeminiPart[];
 }
 
 interface GeminiResponse {
@@ -27,32 +33,61 @@ interface GeminiResponse {
   error?: { code: number; message: string };
 }
 
-async function callGemini(
-  systemPrompt: string,
-  contents: GeminiContent[]
-): Promise<string> {
+const MAX_TOOL_ROUNDS = 5;
+const BUSY_RETRIES = 2;
+const BUSY_WAIT_MS = 2000;
+
+type Tools = Awaited<ReturnType<typeof areasFor>>;
+
+/**
+ * Pergunta à IA; quando ela pede uma consulta aos dados, executa (só as liberadas ao usuário)
+ * e devolve o resultado, até ela responder em texto.
+ */
+async function callGemini(systemPrompt: string, contents: GeminiContent[], tools: Tools, usedAreas: Set<string>): Promise<string> {
   let lastErr = "sem resposta";
   for (const model of GEMINI_MODELS) {
+    const convo = [...contents];
+    let busyRetries = 0;
     try {
-      const res = await fetch(`${GEMINI_BASE}/${model}:generateContent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": env.geminiApiKey },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemPrompt }] },
-          contents,
-        }),
-      });
-      const data = (await res.json()) as GeminiResponse;
-      if (data.error) {
-        const { code, message } = data.error;
-        lastErr = `[${code}] ${message}`;
-        if (code === 401 || code === 403) {
-          throw new HttpError(503, `Acesso negado pela API Gemini: ${message}`);
+      for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+        const res = await fetch(`${GEMINI_BASE}/${model}:generateContent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": env.geminiApiKey },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: convo,
+            ...(tools.declarations.length && round < MAX_TOOL_ROUNDS ? { tools: [{ function_declarations: tools.declarations }] } : {}),
+          }),
+        });
+        const data = (await res.json()) as GeminiResponse;
+        if (data.error) {
+          const { code, message } = data.error;
+          if (code === 401 || code === 403) throw new HttpError(503, `Acesso negado pela API Gemini: ${message}`);
+          // Pico de demanda no Google: espera um pouco e tenta de novo a mesma etapa
+          if ((code === 503 || code === 429) && busyRetries < BUSY_RETRIES) {
+            busyRetries++;
+            await new Promise((r) => setTimeout(r, BUSY_WAIT_MS * busyRetries));
+            round--;
+            continue;
+          }
+          throw new Error(`[${code}] ${message}`);
         }
-        continue;
+        const parts = data.candidates?.[0]?.content?.parts ?? [];
+        const calls = parts.filter((p): p is { functionCall: { name: string; args: Record<string, unknown> } } => "functionCall" in p);
+        if (calls.length === 0) {
+          const text = parts.filter((p): p is { text: string } => "text" in p).map((p) => p.text).join("").trim();
+          if (text) return text;
+          throw new Error("resposta vazia");
+        }
+        convo.push({ role: "model", parts });
+        const results = await Promise.all(calls.map(async (c) => {
+          const { area, output } = await tools.run(c.functionCall.name, c.functionCall.args);
+          if (area) usedAreas.add(area);
+          return { functionResponse: { name: c.functionCall.name, response: { output: JSON.stringify(output) } } };
+        }));
+        convo.push({ role: "user", parts: results });
       }
-      const text = data.candidates?.[0]?.content?.parts?.find((p) => "text" in p)?.text?.trim();
-      if (text) return text;
+      throw new Error("consultas demais sem resposta");
     } catch (err: unknown) {
       if (err instanceof HttpError) throw err;
       lastErr = err instanceof Error ? err.message : String(err);
@@ -174,21 +209,15 @@ function stripMarkdown(text: string): string {
 
 export async function askQuestion(
   question: string,
-  history: { role: "user" | "assistant"; content: string }[]
+  history: { role: "user" | "assistant"; content: string }[],
+  userId: string,
 ): Promise<AskResult> {
   if (!env.geminiApiKey) {
     throw new HttpError(503, "GEMINI_API_KEY não configurada no servidor.");
   }
 
   const docs = await listDocuments();
-
-  if (docs.length === 0) {
-    return {
-      answer:
-        "Nenhum documento encontrado na pasta base-conhecimento. Adicione arquivos PDF, TXT, MD ou CSV na pasta e tente novamente.",
-      sources: [],
-    };
-  }
+  const tools = await areasFor(userId);
 
   const loaded: { name: string; text: string }[] = [];
   let totalChars = 0;
@@ -211,16 +240,22 @@ export async function askQuestion(
     .map((d) => `=== DOCUMENTO: ${d.name} ===\n${d.text}`)
     .join("\n\n---\n\n");
 
+  const today = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
   const systemPrompt = [
-    "Você é a Luma, assistente de base de conhecimento da Grafinorte Indústria Gráfica.",
-    "Responda perguntas baseando-se EXCLUSIVAMENTE nos documentos fornecidos abaixo.",
-    "Se a informação não estiver nos documentos, diga claramente que não encontrou.",
-    "Quando citar informações, mencione o nome do documento fonte entre parênteses, ex: (Fonte: manual.pdf).",
-    "Responda em português do Brasil, de forma clara, objetiva e organizada.",
-    "IMPORTANTE: NÃO use formatação markdown. Não use asteriscos (**), hashtags (#), underlines (_) ou qualquer outro marcador de formatação. Escreva em texto simples corrido.",
+    "Você é a Luma, assistente da Grafinorte Indústria Gráfica (e da Pluspack Embalagens).",
+    `Hoje é ${today}.`,
+    "Você responde de duas fontes:",
+    "1) Os documentos da base de conhecimento, abaixo. Ao usar um documento, cite a fonte entre parênteses, ex: (Fonte: manual.pdf).",
+    tools.labels.length
+      ? `2) Dados reais da plataforma, pelas consultas disponíveis, das áreas: ${tools.labels.join(", ")}. Para perguntas sobre números, clientes, OS, notas, estoque ou custos, use as consultas antes de responder; nunca invente números. Não cite o nome das consultas; se quiser indicar a origem, diga só a área (ex.: "segundo o Estoque PCP").`
+      : "2) O seu usuário não tem acesso a dados da plataforma pela Luma.",
+    "Fale diretamente com a pessoa (você). Se a pergunta for sobre uma área que não está na lista acima, explique que o seu perfil não tem acesso a esses dados pela Luma e que um administrador pode liberar.",
+    "Se não encontrar a informação, diga claramente que não encontrou.",
+    "Responda em português do Brasil, de forma clara, objetiva e organizada. Valores em R$, datas no formato DD/MM/AAAA, números com separador de milhar (10.000).",
+    "IMPORTANTE: NÃO use formatação markdown. Não use asteriscos (**), hashtags (#), underlines (_) ou qualquer outro marcador de formatação. Escreva em texto simples; listas podem usar • no começo da linha.",
     "",
     "DOCUMENTOS CARREGADOS:",
-    contextBlock.slice(0, MAX_TOTAL_CHARS),
+    contextBlock ? contextBlock.slice(0, MAX_TOTAL_CHARS) : "(nenhum documento na base de conhecimento)",
   ].join("\n");
 
   const contents: GeminiContent[] = [
@@ -231,7 +266,9 @@ export async function askQuestion(
     { role: "user" as const, parts: [{ text: question }] },
   ];
 
-  const raw = await callGemini(systemPrompt, contents);
+  const usedAreas = new Set<string>();
+  const raw = await callGemini(systemPrompt, contents, tools, usedAreas);
   const answer = stripMarkdown(raw);
-  return { answer, sources: loaded.map((d) => d.name) };
+  // Fontes: as áreas de dados consultadas e os documentos carregados
+  return { answer, sources: [...[...usedAreas].map((a) => `Dados: ${a}`), ...loaded.map((d) => d.name)] };
 }

@@ -133,7 +133,7 @@ async function getRecentActivities(limit: number) {
   }));
 }
 
-async function executeTool(name: string, args: Record<string, unknown>) {
+export async function executeTool(name: string, args: Record<string, unknown>) {
   switch (name) {
     case "get_pipeline_summary":   return getPipelineSummary();
     case "get_stalled_deals":      return getStalledDeals(Number(args.days) || 7);
@@ -174,7 +174,7 @@ interface GeminiResponse {
 
 // ─── Tool declarations ─────────────────────────────────────────────────────────
 
-const FUNCTION_DECLARATIONS: GeminiFunctionDeclaration[] = [
+export const FUNCTION_DECLARATIONS: GeminiFunctionDeclaration[] = [
   {
     name: "get_pipeline_summary",
     description: "Retorna o funil de vendas completo: etapas, quantidade de deals e valor total em cada etapa.",
