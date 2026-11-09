@@ -39,7 +39,7 @@ function Card({ os, title, owner, children }: { os: string | null; title: string
   );
 }
 
-export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, onBack, onReceive, onBill, onDispatch, onRemove }: {
+export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, onBack, onReceive, onBill, onDispatch, onRemove, onEdit }: {
   items: PcpStockItem[];
   pending: PcpMovement[];
   done: PcpMovement[];
@@ -51,6 +51,7 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
   onBill: (i: PcpStockItem) => void;
   onDispatch: (m: PcpMovement) => void;
   onRemove: (i: PcpStockItem) => void;
+  onEdit: (i: PcpStockItem) => void;
 }) {
   const production = items.filter((i) => i.stage === "PRODUCAO");
   const expedition = items.filter((i) => i.stage === "EXPEDICAO");
@@ -66,7 +67,10 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
               {i.orderedQty !== null ? <>Pedido <b className="tabular-nums">{fmt(i.orderedQty)} {i.unit}</b> · </> : null}{daysText(daysSince(since(i)))}
             </p>
             <button disabled={busy === i.id} onClick={() => onConclude(i)} className={actionBtn}>Produção concluída</button>
-            <button disabled={busy === i.id} onClick={() => onRemove(i)} className={`${linkBtn} mt-1.5`}>Excluir</button>
+            <div className="mt-1.5 flex justify-between">
+              <button disabled={busy === i.id} onClick={() => onEdit(i)} className={linkBtn}>Editar</button>
+              <button disabled={busy === i.id} onClick={() => onRemove(i)} className={linkBtn}>Excluir</button>
+            </div>
           </Card>
         ))}
       </Column>
@@ -80,7 +84,10 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
             <button disabled={busy === i.id} onClick={() => onReceive(i)} className={actionBtn}>Conferir e guardar</button>
             <div className="mt-1.5 flex justify-between">
               <button disabled={busy === i.id} onClick={() => onBack(i)} className={linkBtn}>Voltar para a produção</button>
-              <button disabled={busy === i.id} onClick={() => onRemove(i)} className={linkBtn}>Excluir</button>
+              <span className="flex gap-2">
+                <button disabled={busy === i.id} onClick={() => onEdit(i)} className={linkBtn}>Editar</button>
+                <button disabled={busy === i.id} onClick={() => onRemove(i)} className={linkBtn}>Excluir</button>
+              </span>
             </div>
           </Card>
         ))}
@@ -96,6 +103,7 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
                 <span className={days > STALE_DAYS ? "font-semibold text-amber-700 dark:text-amber-400" : ""}>{daysText(days)}</span>
               </p>
               <button onClick={() => onBill(i)} className={actionBtn}>Saída com nota</button>
+              <button onClick={() => onEdit(i)} className={`${linkBtn} mt-1.5`}>Editar</button>
             </Card>
           );
         })}

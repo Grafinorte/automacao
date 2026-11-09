@@ -642,6 +642,7 @@ export function PcpStockPage() {
               onBill={(i) => setMoving({ item: i, type: "SAIDA" })}
               onDispatch={markDispatched}
               onRemove={(i) => void remove(i)}
+              onEdit={setEditing}
             />
           ) : tab === "estoque" ? (
             visibleItems.length === 0 ? (
