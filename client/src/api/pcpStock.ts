@@ -8,7 +8,7 @@ export const PCP_COMPANIES = [
 ] as const;
 
 export const PCP_CATEGORIES = [
-  { group: "Embalagens", options: ["Copo", "Pote", "Balde", "Sacola", "Outra embalagem"] },
+  { group: "Embalagens", options: ["Caixa", "Copo", "Pote", "Balde", "Sacola", "Outra embalagem"] },
   { group: "Impressos", options: ["Folder", "Catálogo", "Flyer", "Cartão", "Cartaz", "Outro impresso"] },
 ] as const;
 

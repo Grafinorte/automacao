@@ -406,6 +406,11 @@ export function PcpStockPage() {
     (!category || m.item.category === category) &&
     (!needle || `${m.item.osNumber ?? ""} ${m.invoiceNumber ?? ""} ${m.item.name} ${ownerOf(m.item)} ${m.takenBy ?? ""} ${m.notes ?? ""} ${m.createdByName}`.toLowerCase().includes(needle)));
 
+  // Soma por unidade: mostra a sobra de um mesmo material espalhada em várias OS
+  const listTotal = Object.entries(
+    visibleItems.reduce<Record<string, number>>((acc, i) => ({ ...acc, [i.unit]: (acc[i.unit] ?? 0) + i.quantity }), {}),
+  ).map(([unit, qty]) => `${fmt(qty)} ${unit}`).join(" + ");
+
   const afterSave = () => {
     setEditing(null);
     setMoving(null);
@@ -478,6 +483,7 @@ export function PcpStockPage() {
             visibleItems.length === 0 ? (
               <p className="py-12 text-center text-[13px] text-[#77767b]">{items.length === 0 ? "Nenhuma OS no estoque. Clique em Entrada por OS para começar." : "Nada encontrado com esses filtros."}</p>
             ) : (
+              <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[980px] text-left text-[13px]">
                   <thead className="text-[11px] uppercase tracking-wider text-[#77767b] dark:text-[#a0a0a4]">
@@ -509,6 +515,12 @@ export function PcpStockPage() {
                   </tbody>
                 </table>
               </div>
+              {visibleItems.length > 1 && (
+                <p className="border-t border-[rgba(199,198,202,0.3)] px-4 py-2.5 text-right text-[12.5px] text-[#46464a] dark:border-white/10 dark:text-[#a0a0a4]">
+                  Total da lista: <b className="tabular-nums text-[#1a1c1d] dark:text-white">{listTotal}</b> em {visibleItems.length} linhas
+                </p>
+              )}
+              </>
             )
           ) : visibleMovements.length === 0 ? (
             <p className="py-12 text-center text-[13px] text-[#77767b]">Nenhuma movimentação neste mês.</p>
