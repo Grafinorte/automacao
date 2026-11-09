@@ -43,7 +43,7 @@ type Tools = Awaited<ReturnType<typeof areasFor>>;
  * Pergunta à IA; quando ela pede uma consulta aos dados, executa (só as liberadas ao usuário)
  * e devolve o resultado, até ela responder em texto.
  */
-async function callGemini(systemPrompt: string, contents: GeminiContent[], tools: Tools, usedAreas: Set<string>): Promise<string> {
+async function callGemini(systemPrompt: string, contents: GeminiContent[], tools: Tools, usedAreas: Set<string>, mustCall: string[]): Promise<string> {
   let lastErr = "sem resposta";
   for (const model of GEMINI_MODELS) {
     const convo = [...contents];
@@ -57,6 +57,10 @@ async function callGemini(systemPrompt: string, contents: GeminiContent[], tools
             system_instruction: { parts: [{ text: systemPrompt }] },
             contents: convo,
             ...(tools.declarations.length && round < MAX_TOOL_ROUNDS ? { tools: [{ function_declarations: tools.declarations }] } : {}),
+            // Pergunta sobre dados: na primeira rodada a IA é obrigada a consultar, não pode responder de cabeça
+            ...(round === 0 && mustCall.length
+              ? { tool_config: { function_calling_config: { mode: "ANY", allowed_function_names: mustCall } } }
+              : {}),
           }),
         });
         const data = (await res.json()) as GeminiResponse;
@@ -241,6 +245,8 @@ export async function askQuestion(
     .join("\n\n---\n\n");
 
   const today = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const mustCall = tools.requiredFor(question);
+  const denied = mustCall.length ? [] : tools.deniedFor(question);
   const systemPrompt = [
     "Você é a Luma, assistente da Grafinorte Indústria Gráfica (e da Pluspack Embalagens).",
     `Hoje é ${today}.`,
@@ -250,6 +256,10 @@ export async function askQuestion(
       ? `2) Dados reais da plataforma, pelas consultas disponíveis, das áreas: ${tools.labels.join(", ")}. Para perguntas sobre números, clientes, OS, notas, estoque ou custos, use as consultas antes de responder; nunca invente números. Não cite o nome das consultas; se quiser indicar a origem, diga só a área (ex.: "segundo o Estoque PCP").`
       : "2) O seu usuário não tem acesso a dados da plataforma pela Luma.",
     "Fale diretamente com a pessoa (você). Se a pergunta for sobre uma área que não está na lista acima, explique que o seu perfil não tem acesso a esses dados pela Luma e que um administrador pode liberar.",
+    "Números de OS, notas, saldos, valores e datas só podem vir das consultas. Nunca use exemplos nem números que não vieram de uma consulta.",
+    ...(denied.length
+      ? [`ATENÇÃO: esta pergunta é sobre ${denied.join(" e ")}, que este usuário não pode consultar. Responda apenas que o perfil dele não tem acesso a esses dados pela Luma e que um administrador pode liberar. Não dê nenhum número nem exemplo.`]
+      : []),
     "Se não encontrar a informação, diga claramente que não encontrou.",
     "Responda em português do Brasil, de forma clara, objetiva e organizada. Valores em R$, datas no formato DD/MM/AAAA, números com separador de milhar (10.000).",
     "IMPORTANTE: NÃO use formatação markdown. Não use asteriscos (**), hashtags (#), underlines (_) ou qualquer outro marcador de formatação. Escreva em texto simples; listas podem usar • no começo da linha.",
@@ -267,7 +277,7 @@ export async function askQuestion(
   ];
 
   const usedAreas = new Set<string>();
-  const raw = await callGemini(systemPrompt, contents, tools, usedAreas);
+  const raw = await callGemini(systemPrompt, contents, tools, usedAreas, mustCall);
   const answer = stripMarkdown(raw);
   // Fontes: as áreas de dados consultadas e os documentos carregados
   return { answer, sources: [...[...usedAreas].map((a) => `Dados: ${a}`), ...loaded.map((d) => d.name)] };

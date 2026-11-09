@@ -16,11 +16,18 @@ const days = (d: Date) => Math.max(0, Math.floor((Date.now() - d.getTime()) / DA
 const owner = (i: { company: string; client: string | null }) => i.client ?? `${COMPANY[i.company] ?? i.company} (material próprio)`;
 
 export interface Declaration { name: string; description: string; parameters?: Record<string, unknown> }
-interface Area { label: string; declarations: Declaration[]; run: (name: string, args: Record<string, unknown>) => Promise<unknown> }
+interface Area {
+  label: string;
+  /** Palavras que indicam pergunta sobre esta área: aí a consulta é obrigatória (a IA não pode responder de cabeça) */
+  topics: RegExp;
+  declarations: Declaration[];
+  run: (name: string, args: Record<string, unknown>) => Promise<unknown>;
+}
 
 // ─── Estoque PCP ──────────────────────────────────────────────────────────────
 const STOCK: Area = {
   label: "Estoque PCP",
+  topics: /\b(os|o\.s|ordens? de servi[cç]o|estoque|saldo|parad[ao]s?|sobra|nota|notas|nf|despach|fatur|expedi[cç]|produ[cç][aã]o|material|materiais)\b/i,
   declarations: [
     {
       name: "estoque_resumo",
@@ -95,6 +102,7 @@ const STOCK: Area = {
 // ─── Teste de cor (qualquer usuário logado, como a tela) ─────────────────────
 const COLOR_PROOF: Area = {
   label: "Teste de cor",
+  topics: /\b(provas?( de cor)?|teste de cor|tinta|cartuchos?|canon|pro-2600)\b/i,
   declarations: [{
     name: "teste_cor_mes",
     description: "Custo das provas de cor de um mês: quantidade de provas, papel (m²), tinta (ml) e custo total.",
@@ -113,9 +121,13 @@ const COLOR_PROOF: Area = {
 // e estas consultas trazem os de todos. ───────────────────────────────────────
 const CRM: Area = {
   label: "CRM",
+  topics: /\b(crm|funil|neg[oó]cios?|deals?|leads?|vendas?|vendedor(es)?|propostas?|contatos?|follow.?up|ganhos?|perdidos?)\b/i,
   declarations: CRM_DECLARATIONS,
   run: (name, args) => executeCrmTool(name, args),
 };
+
+const ALL_AREAS = [COLOR_PROOF, STOCK, CRM];
+const asks = (a: Area, question: string) => a.topics.test(question) || a.topics.test(question.normalize("NFD").replace(/[̀-ͯ]/g, ""));
 
 export async function areasFor(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, permissions: true } });
@@ -128,6 +140,14 @@ export async function areasFor(userId: string) {
   return {
     labels: areas.map((a) => a.label),
     declarations: areas.flatMap((a) => a.declarations),
+    /** Consultas que a pergunta obriga a fazer antes de responder (vazio = a IA decide) */
+    requiredFor(question: string) {
+      return areas.filter((a) => asks(a, question)).flatMap((a) => a.declarations.map((d) => d.name));
+    },
+    /** Áreas que a pergunta cita mas este usuário não pode consultar */
+    deniedFor(question: string) {
+      return ALL_AREAS.filter((a) => !areas.includes(a) && asks(a, question)).map((a) => a.label);
+    },
     /** Executa só ferramentas liberadas para este usuário; devolve também a área usada */
     async run(name: string, args: Record<string, unknown>) {
       const area = byTool.get(name);
