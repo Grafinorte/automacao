@@ -4,9 +4,13 @@ import { HttpError } from "../../middleware/errorHandler";
 
 // ─── Tool implementations ──────────────────────────────────────────────────────
 
-async function getPipelineSummary() {
+// ownerId: com valor, só os negócios daquele vendedor (como no funil); sem valor, todos (administrador)
+type Scope = string | undefined;
+const own = (ownerId: Scope) => (ownerId ? { ownerId } : {});
+
+async function getPipelineSummary(ownerId: Scope) {
   const stages = await prisma.crmStage.findMany({
-    include: { deals: { select: { value: true } } },
+    include: { deals: { where: own(ownerId), select: { value: true } } },
     orderBy: { order: "asc" },
   });
   return stages.map((s) => ({
@@ -18,11 +22,12 @@ async function getPipelineSummary() {
   }));
 }
 
-async function getStalledDeals(days: number) {
+async function getStalledDeals(days: number, ownerId: Scope) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - (days || 7));
   const deals = await prisma.deal.findMany({
     where: {
+      ...own(ownerId),
       stage: { isClosed: false },
       OR: [
         { activities: { none: {} } },
@@ -51,17 +56,17 @@ async function getStalledDeals(days: number) {
   }));
 }
 
-async function getMonthlyStats(month: number, year: number) {
+async function getMonthlyStats(month: number, year: number, ownerId: Scope) {
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 1);
   const [created, wonDeals, lostDeals] = await Promise.all([
-    prisma.deal.count({ where: { createdAt: { gte: start, lt: end } } }),
+    prisma.deal.count({ where: { ...own(ownerId), createdAt: { gte: start, lt: end } } }),
     prisma.deal.findMany({
-      where: { createdAt: { gte: start, lt: end }, stage: { isWon: true } },
+      where: { ...own(ownerId), createdAt: { gte: start, lt: end }, stage: { isWon: true } },
       select: { value: true, title: true, contact: { select: { name: true } } },
     }),
     prisma.deal.count({
-      where: { createdAt: { gte: start, lt: end }, stage: { isClosed: true, isWon: false } },
+      where: { ...own(ownerId), createdAt: { gte: start, lt: end }, stage: { isClosed: true, isWon: false } },
     }),
   ]);
   return {
@@ -74,11 +79,12 @@ async function getMonthlyStats(month: number, year: number) {
   };
 }
 
-async function searchContacts(query: string) {
+// Contatos são compartilhados no CRM; os negócios de cada contato seguem o vendedor
+async function searchContacts(query: string, ownerId: Scope) {
   const contacts = await prisma.contact.findMany({
     where: { OR: [{ name: { contains: query } }, { company: { contains: query } }] },
     include: {
-      deals: { include: { stage: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 3 },
+      deals: { where: own(ownerId), include: { stage: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 3 },
     },
     take: 10,
   });
@@ -91,9 +97,9 @@ async function searchContacts(query: string) {
   }));
 }
 
-async function getDealsInStage(stageName: string) {
+async function getDealsInStage(stageName: string, ownerId: Scope) {
   const deals = await prisma.deal.findMany({
-    where: { stage: { name: { contains: stageName } } },
+    where: { ...own(ownerId), stage: { name: { contains: stageName } } },
     include: {
       contact: { select: { name: true, company: true } },
       stage: { select: { name: true } },
@@ -115,8 +121,9 @@ async function getDealsInStage(stageName: string) {
   };
 }
 
-async function getRecentActivities(limit: number) {
+async function getRecentActivities(limit: number, ownerId: Scope) {
   const activities = await prisma.dealActivity.findMany({
+    where: ownerId ? { deal: { ownerId } } : {},
     include: {
       author: { select: { name: true } },
       deal: { include: { contact: { select: { name: true } } } },
@@ -133,14 +140,15 @@ async function getRecentActivities(limit: number) {
   }));
 }
 
-export async function executeTool(name: string, args: Record<string, unknown>) {
+/** ownerId: limita aos negócios do vendedor; o administrador passa undefined para ver todos */
+export async function executeTool(name: string, args: Record<string, unknown>, ownerId?: string) {
   switch (name) {
-    case "get_pipeline_summary":   return getPipelineSummary();
-    case "get_stalled_deals":      return getStalledDeals(Number(args.days) || 7);
-    case "get_monthly_stats":      return getMonthlyStats(Number(args.month), Number(args.year));
-    case "search_contacts":        return searchContacts(String(args.query ?? ""));
-    case "get_deals_in_stage":     return getDealsInStage(String(args.stage_name ?? ""));
-    case "get_recent_activities":  return getRecentActivities(Number(args.limit) || 10);
+    case "get_pipeline_summary":   return getPipelineSummary(ownerId);
+    case "get_stalled_deals":      return getStalledDeals(Number(args.days) || 7, ownerId);
+    case "get_monthly_stats":      return getMonthlyStats(Number(args.month), Number(args.year), ownerId);
+    case "search_contacts":        return searchContacts(String(args.query ?? ""), ownerId);
+    case "get_deals_in_stage":     return getDealsInStage(String(args.stage_name ?? ""), ownerId);
+    case "get_recent_activities":  return getRecentActivities(Number(args.limit) || 10, ownerId);
     default: return { erro: `Ferramenta desconhecida: ${name}` };
   }
 }
@@ -238,10 +246,10 @@ Se não encontrar dados, informe claramente.`;
 const GEMINI_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash"];
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-async function callGemini(model: string, apiKey: string, contents: GeminiContent[]): Promise<GeminiResponse> {
+async function callGemini(model: string, apiKey: string, contents: GeminiContent[], systemPrompt: string): Promise<GeminiResponse> {
   const url = `${GEMINI_BASE}/${model}:generateContent`;
   const body = {
-    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    system_instruction: { parts: [{ text: systemPrompt }] },
     contents,
     tools: [{ function_declarations: FUNCTION_DECLARATIONS }],
   };
@@ -265,8 +273,14 @@ export interface ChatMessage {
   text: string;
 }
 
-export async function runCrmAgent(userMessage: string, history: ChatMessage[]): Promise<string> {
+export async function runCrmAgent(userMessage: string, history: ChatMessage[], user: { id: string; role: string }): Promise<string> {
   if (!env.geminiApiKey) throw new HttpError(503, "Chave do Gemini não configurada no servidor.");
+  // Mesma regra do funil: o vendedor vê só os próprios negócios; o administrador vê todos
+  const ownerId = user.role === "ADMIN" ? undefined : user.id;
+  const systemPrompt = ownerId
+    ? `${SYSTEM_PROMPT}
+Todas as consultas (funil, etapas, parados, mês, atividades) já vêm filtradas: são só os negócios desta pessoa, não do time. Fale sempre como "seus negócios" e nunca diga que está mostrando o funil completo. Se perguntarem de outro vendedor ou do time todo, explique que só um administrador vê os negócios de todos.`
+    : SYSTEM_PROMPT;
 
   const contents: GeminiContent[] = [
     ...history.map((m) => ({ role: m.role, parts: [{ text: m.text }] } as GeminiContent)),
@@ -277,7 +291,7 @@ export async function runCrmAgent(userMessage: string, history: ChatMessage[]): 
 
   for (const model of GEMINI_MODELS) {
     try {
-      let response = await callGemini(model, env.geminiApiKey, contents);
+      let response = await callGemini(model, env.geminiApiKey, contents, systemPrompt);
 
       if (response.error) {
         const { code, message } = response.error;
@@ -308,13 +322,13 @@ export async function runCrmAgent(userMessage: string, history: ChatMessage[]): 
           funcCalls.map(async (p) => ({
             functionResponse: {
               name: p.functionCall.name,
-              response: { output: JSON.stringify(await executeTool(p.functionCall.name, p.functionCall.args)) },
+              response: { output: JSON.stringify(await executeTool(p.functionCall.name, p.functionCall.args, ownerId)) },
             },
           }))
         );
         contents.push({ role: "user", parts: resultParts });
 
-        response = await callGemini(model, env.geminiApiKey, contents);
+        response = await callGemini(model, env.geminiApiKey, contents, systemPrompt);
 
         if (response.error) {
           throw new Error(`[${response.error.code}] ${response.error.message}`);

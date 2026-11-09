@@ -15,6 +15,6 @@ export async function postCrmAgent(req: Request, res: Response) {
         .slice(-20) // keep last 20 turns to avoid huge context
     : [];
 
-  const reply = await runCrmAgent(message.trim(), safeHistory);
+  const reply = await runCrmAgent(message.trim(), safeHistory, { id: req.user!.sub, role: req.user!.role });
   res.json({ reply });
 }
