@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   PCP_CATEGORIES, PCP_COMPANIES, PCP_UNITS, pcpStockApi,
-  type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpSettings, type PcpStockItem,
+  type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpOsData, type PcpSettings, type PcpStockItem,
 } from "../api/pcpStock";
 
 const STALE_DAYS = 30;
@@ -98,6 +98,36 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
   const [notes, setNotes] = useState(item?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [reading, setReading] = useState(false);
+  const [osRead, setOsRead] = useState<PcpOsData | null>(null);
+
+  // O PDF só preenche; a pessoa confere e digita o que foi produzido de fato
+  async function readPdf(file: File) {
+    setReading(true);
+    setError("");
+    try {
+      const pdf = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Não consegui abrir o arquivo."));
+        reader.readAsDataURL(file);
+      });
+      const os = await pcpStockApi.readOs(pdf);
+      if (os.company) setCompany(os.company);
+      if (os.osNumber) setOsNumber(os.osNumber);
+      if (os.client) { setIsClient(true); setClient(os.client); }
+      if (os.name) setName(os.name);
+      if (os.category) setCategory(os.category);
+      setUnit("un");
+      if (os.perPack) setNotes(`${fmt(os.perPack)} por pacote`);
+      setOsRead(os);
+    } catch (e) {
+      setOsRead(null);
+      setError(errorText(e, "Não consegui ler o PDF."));
+    } finally {
+      setReading(false);
+    }
+  }
 
   const qty = parseNum(quantity);
   const qtyOk = !!item || qty > 0;
@@ -120,6 +150,32 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
 
   return (
     <Modal title={item ? "Editar material" : "Entrada por OS"} subtitle={item ? undefined : "Registre o material que a produção concluiu."} onClose={onClose}>
+      {!item && (
+        <div className="mb-4 rounded-lg border border-dashed border-[rgba(199,198,202,0.8)] p-3 dark:border-white/15">
+          <label className={`${ghostBtn} inline-block cursor-pointer ${reading ? "pointer-events-none opacity-50" : ""}`}>
+            {reading ? "Lendo a OS..." : "Ler PDF da OS"}
+            <input type="file" accept="application/pdf,.pdf" className="sr-only"
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void readPdf(f); }} />
+          </label>
+          {osRead ? (
+            <div className="mt-2 text-[12px] text-[#46464a] dark:text-[#a0a0a4]">
+              <p>
+                Lido da OS <b>{osRead.osNumber}</b>
+                {osRead.orderedQty !== null && <> · pedido <b>{fmt(osRead.orderedQty)}</b></>}
+                {osRead.plannedQty !== null && osRead.plannedQty !== osRead.orderedQty && <> · plano <b>{fmt(osRead.plannedQty)}</b></>}
+                . Confira os campos e digite a quantidade produzida.
+              </p>
+              {(!osRead.company || !osRead.client || !osRead.name || !osRead.category) && (
+                <p className="mt-1 font-medium text-amber-700 dark:text-amber-400">
+                  Não achei: {[!osRead.company && "empresa", !osRead.client && "cliente", !osRead.name && "material", !osRead.category && "tipo"].filter(Boolean).join(", ")}. Preencha à mão.
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="mt-1.5 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">Preenche OS, empresa, cliente e material a partir do PDF do Zênite.</p>
+          )}
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className={labelCls}>Empresa</label>

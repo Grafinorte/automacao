@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../../db/prisma";
 import { HttpError } from "../../middleware/errorHandler";
 import { currentPeriod, isPeriod, previousPeriod } from "./pcpStock.period";
+import { readOsPdf } from "./pcpStock.os";
 import { sendReport } from "./pcpStock.report";
 import * as service from "./pcpStock.service";
 
@@ -16,6 +17,11 @@ export async function requireStockAccess(req: Request, res: Response, next: Next
   }
   if (!allowed) { res.status(403).json({ error: "Acesso não permitido" }); return; }
   next();
+}
+
+/** Só lê o PDF e devolve os campos; nada é gravado */
+export async function postReadOs(req: Request, res: Response) {
+  res.json(await readOsPdf(req.body?.pdf));
 }
 
 export async function getItems(_req: Request, res: Response) {

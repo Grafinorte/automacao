@@ -7,6 +7,7 @@ export const pcpStockRouter = Router();
 
 pcpStockRouter.use(requireAuth, asyncHandler(ctrl.requireStockAccess));
 
+pcpStockRouter.post("/ler-os", asyncHandler(ctrl.postReadOs));
 pcpStockRouter.get("/items", asyncHandler(ctrl.getItems));
 pcpStockRouter.post("/items", asyncHandler(ctrl.postItem));
 pcpStockRouter.patch("/items/:id", asyncHandler(ctrl.patchItem));

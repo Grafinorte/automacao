@@ -62,7 +62,20 @@ export interface PcpSettings {
   senders: { id: string; name: string; smtpEmail: string | null }[];
 }
 
+export interface PcpOsData {
+  osNumber: string | null;
+  company: "GRAFINORTE" | "PLUSPACK" | null;
+  client: string | null;
+  clientCode: string | null;
+  name: string | null;
+  category: string | null;
+  orderedQty: number | null;
+  plannedQty: number | null;
+  perPack: number | null;
+}
+
 export const pcpStockApi = {
+  readOs: (pdf: string) => api.post<PcpOsData>("/estoque-pcp/ler-os", { pdf }),
   listItems: () => api.get<PcpStockItem[]>("/estoque-pcp/items"),
   createItem: (data: PcpItemInput & { quantity: number }) => api.post<PcpStockItem>("/estoque-pcp/items", data),
   updateItem: (id: string, data: PcpItemInput) => api.patch<PcpStockItem>(`/estoque-pcp/items/${id}`, data),
