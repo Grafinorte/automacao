@@ -77,11 +77,26 @@ export async function updateItem(id: string, raw: PcpItemInput) {
 }
 
 /** Arquiva em vez de apagar: as movimentações continuam nos relatórios */
-export async function archiveItem(id: string) {
+/**
+ * Sem saída com nota, foi lançamento por engano: apaga de vez, com as entradas.
+ * Com nota, o histórico precisa ficar: só sai da lista, e com o saldo zerado.
+ */
+export async function removeItem(id: string): Promise<"deleted" | "archived"> {
   const item = await prisma.pcpStockItem.findUnique({ where: { id } });
   if (!item?.active) throw new HttpError(404, "Material não encontrado.");
-  if (item.quantity !== 0) throw new HttpError(409, `Este material ainda tem ${item.quantity} ${item.unit} no estoque. Zere o saldo antes de arquivar.`);
+  const exits = await prisma.pcpStockMovement.count({ where: { itemId: id, type: "SAIDA" } });
+  if (exits === 0) {
+    await prisma.$transaction([
+      prisma.pcpStockMovement.deleteMany({ where: { itemId: id } }),
+      prisma.pcpStockItem.delete({ where: { id } }),
+    ]);
+    return "deleted";
+  }
+  if (item.quantity !== 0) {
+    throw new HttpError(409, `Esta OS já teve saída com nota e ainda tem ${item.quantity} ${item.unit}. Zere o saldo com um ajuste antes de excluir.`);
+  }
   await prisma.pcpStockItem.update({ where: { id }, data: { active: false } });
+  return "archived";
 }
 
 export async function addMovement(

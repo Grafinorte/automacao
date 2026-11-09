@@ -79,7 +79,7 @@ export const pcpStockApi = {
   listItems: () => api.get<PcpStockItem[]>("/estoque-pcp/items"),
   createItem: (data: PcpItemInput & { quantity: number }) => api.post<PcpStockItem>("/estoque-pcp/items", data),
   updateItem: (id: string, data: PcpItemInput) => api.patch<PcpStockItem>(`/estoque-pcp/items/${id}`, data),
-  archiveItem: (id: string) => api.delete<void>(`/estoque-pcp/items/${id}`),
+  removeItem: (id: string) => api.delete<{ result: "deleted" | "archived" }>(`/estoque-pcp/items/${id}`),
   addMovement: (id: string, data: { type: PcpMovementType; quantity: number; takenBy?: string; invoiceNumber?: string; notes?: string }) =>
     api.post<{ movement: unknown; item: PcpStockItem }>(`/estoque-pcp/items/${id}/movements`, data),
   listMovements: (month: string) => api.get<PcpMovement[]>(`/estoque-pcp/movements?month=${month}`),

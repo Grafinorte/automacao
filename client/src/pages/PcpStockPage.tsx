@@ -249,18 +249,6 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
           <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="Opcional" />
         </div>
       </div>
-      {item && (
-        <div className="mt-4 border-t border-[rgba(199,198,202,0.3)] pt-3 dark:border-white/10">
-          <button
-            disabled={item.quantity !== 0 || saving}
-            onClick={() => { if (confirm(`Arquivar "${item.name}"? O histórico continua nos relatórios.`)) void run(() => pcpStockApi.archiveItem(item.id)); }}
-            className="text-[12px] font-medium text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-[#a0a0a4] disabled:no-underline dark:text-red-400"
-          >
-            Arquivar material
-          </button>
-          {item.quantity !== 0 && <span className="ml-2 text-[11.5px] text-[#77767b]">Só com saldo zerado.</span>}
-        </div>
-      )}
       <ModalActions
         onClose={onClose} saving={saving} error={error} disabled={!valid} label={item ? "Salvar" : "Registrar entrada"}
         onSubmit={() => void run(() => item ? pcpStockApi.updateItem(item.id, data) : pcpStockApi.createItem({ ...data, quantity: qty }))}
@@ -485,6 +473,17 @@ export function PcpStockPage() {
     void loadAll();
   };
 
+  async function remove(i: PcpStockItem) {
+    const label = `OS ${i.osNumber ?? "sem número"} · ${i.name}`;
+    if (!confirm(`Excluir ${label}?\n\nSe não teve saída com nota, ela é apagada junto com as entradas. Se já teve, sai da lista mas continua no histórico.`)) return;
+    try {
+      await pcpStockApi.removeItem(i.id);
+      void loadAll();
+    } catch (e) {
+      alert(errorText(e, "Não foi possível excluir."));
+    }
+  }
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
@@ -576,6 +575,12 @@ export function PcpStockPage() {
                             <button onClick={() => setMoving({ item: i, type: "SAIDA" })} disabled={i.quantity <= 0} className={rowBtn + " disabled:opacity-40"}>Saída</button>
                             <button onClick={() => setMoving({ item: i, type: "AJUSTE" })} className={rowBtn}>Ajustar</button>
                             <button onClick={() => setEditing(i)} className={rowBtn}>Editar</button>
+                            <button onClick={() => void remove(i)} title="Excluir" aria-label={`Excluir OS ${i.osNumber ?? ""}`}
+                              className="ml-1 rounded-md p-1 align-middle text-[#a0a0a4] hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400">
+                              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                              </svg>
+                            </button>
                           </td>
                         </tr>
                       );

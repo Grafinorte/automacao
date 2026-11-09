@@ -37,8 +37,7 @@ export async function patchItem(req: Request, res: Response) {
 }
 
 export async function deleteItem(req: Request, res: Response) {
-  await service.archiveItem(req.params.id);
-  res.status(204).end();
+  res.json({ result: await service.removeItem(req.params.id) });
 }
 
 export async function postMovement(req: Request, res: Response) {
