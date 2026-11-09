@@ -293,6 +293,7 @@ function MovementModal({ item, type, onClose, onSaved }: {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [takenBy, setTakenBy] = useState(user?.name ?? "");
   const [notes, setNotes] = useState("");
+  const [noDispatch, setNoDispatch] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -307,7 +308,7 @@ function MovementModal({ item, type, onClose, onSaved }: {
     setSaving(true);
     setError("");
     try {
-      await pcpStockApi.addMovement(item.id, { type, quantity: qty, takenBy, invoiceNumber, notes });
+      await pcpStockApi.addMovement(item.id, { type, quantity: qty, takenBy, invoiceNumber, notes, noDispatch: type === "SAIDA" && noDispatch });
       onSaved();
     } catch (e) {
       setError(errorText(e, "Não foi possível registrar."));
@@ -334,6 +335,7 @@ function MovementModal({ item, type, onClose, onSaved }: {
               <label className={labelCls}>Quem tirou do estoque</label>
               <input value={takenBy} onChange={(e) => setTakenBy(e.target.value)} className={inputCls} />
             </div>
+            <NoDispatchCheck checked={noDispatch} onChange={setNoDispatch} />
           </>
         )}
         <div>
@@ -343,6 +345,131 @@ function MovementModal({ item, type, onClose, onSaved }: {
       </div>
       <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!valid} saving={saving} label={text.action} error={error} />
     </Modal>
+  );
+}
+
+function NoDispatchCheck({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-start gap-2 text-[12.5px] text-[#46464a] dark:text-[#d0d0d4]">
+      <input type="checkbox" className="mt-0.5" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span>Cliente retira / não precisa despachar<span className="block text-[11.5px] text-[#77767b] dark:text-[#a0a0a4]">A nota não fica esperando em "A despachar".</span></span>
+    </label>
+  );
+}
+
+// ─── Faturamento: várias OS do mesmo cliente numa nota só ────────────────────
+function InvoiceModal({ items, onClose, onSaved }: { items: PcpStockItem[]; onClose: () => void; onSaved: () => void }) {
+  const { user } = useAuth();
+  const available = items.filter((i) => i.stage === "ESTOQUE" && i.quantity > 0);
+  const ownerKey = (i: PcpStockItem) => `${i.company}|${i.client ?? ""}`;
+  const owners = [...new Map(available.map((i) => [ownerKey(i), `${ownerOf(i)} · ${companyName(i.company)}`])).entries()]
+    .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+  const [owner, setOwner] = useState("");
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [takenBy, setTakenBy] = useState(user?.name ?? "");
+  const [notes, setNotes] = useState("");
+  const [noDispatch, setNoDispatch] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const rows = available.filter((i) => ownerKey(i) === owner);
+  function chooseOwner(key: string) {
+    setOwner(key);
+    // Começa com todas as OS marcadas e o saldo inteiro; desmarca o que não vai
+    const list = available.filter((i) => ownerKey(i) === key);
+    setChecked(Object.fromEntries(list.map((i) => [i.id, true])));
+    setQty(Object.fromEntries(list.map((i) => [i.id, fmt(i.quantity)])));
+  }
+
+  const lines = rows.filter((i) => checked[i.id]).map((i) => ({ item: i, quantity: parseNum(qty[i.id] ?? "") }));
+  const lineError = (i: PcpStockItem, q: number) => !(q > 0) ? "Quantidade inválida" : q > i.quantity ? `Maior que o saldo de ${fmt(i.quantity)}` : "";
+  const valid = lines.length > 0 && lines.every((l) => !lineError(l.item, l.quantity)) && !!invoiceNumber.trim() && !!takenBy.trim();
+  const totals = Object.entries(lines.reduce<Record<string, number>>((acc, l) => ({ ...acc, [l.item.unit]: (acc[l.item.unit] ?? 0) + (l.quantity > 0 ? l.quantity : 0) }), {}))
+    .map(([unit, q]) => `${fmt(q)} ${unit}`).join(" + ");
+
+  async function submit() {
+    setSaving(true);
+    setError("");
+    try {
+      await pcpStockApi.invoice({ invoiceNumber, takenBy, notes, noDispatch, lines: lines.map((l) => ({ itemId: l.item.id, quantity: l.quantity })) });
+      onSaved();
+    } catch (e) {
+      setError(errorText(e, "Não foi possível faturar."));
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>
+      <div className={`${card} max-h-[92vh] w-full max-w-2xl overflow-y-auto p-5 shadow-2xl`} onMouseDown={(e) => e.stopPropagation()}>
+        <h2 className="text-[16px] font-semibold text-[#1a1c1d] dark:text-white">Faturar</h2>
+        <p className="mt-0.5 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">Uma nota com uma ou mais OS do mesmo cliente. Cada OS vira um item da nota.</p>
+
+        <div className="mt-4">
+          <label className={labelCls}>Cliente</label>
+          <select autoFocus value={owner} onChange={(e) => chooseOwner(e.target.value)} className={inputCls}>
+            <option value="">{owners.length ? "Escolha o cliente..." : "Nenhuma OS com saldo no estoque"}</option>
+            {owners.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          </select>
+        </div>
+
+        {owner && (
+          <div className="mt-3 overflow-x-auto rounded-lg border border-[rgba(199,198,202,0.4)] dark:border-white/10">
+            <table className="w-full min-w-[520px] text-left text-[12.5px]">
+              <thead className="bg-[#f7f7f9] text-[11px] uppercase tracking-wider text-[#77767b] dark:bg-white/5 dark:text-[#a0a0a4]">
+                <tr><th className="w-8 px-3 py-2" /><th className="px-3 py-2">OS</th><th className="px-3 py-2">Material</th><th className="px-3 py-2 text-right">Saldo</th><th className="w-36 px-3 py-2 text-right">Faturar</th></tr>
+              </thead>
+              <tbody>
+                {rows.map((i) => {
+                  const q = parseNum(qty[i.id] ?? "");
+                  const err = checked[i.id] ? lineError(i, q) : "";
+                  return (
+                    <tr key={i.id} className={`border-t border-[rgba(199,198,202,0.3)] dark:border-white/5 ${checked[i.id] ? "" : "opacity-50"}`}>
+                      <td className="px-3 py-2"><input type="checkbox" aria-label={`Incluir OS ${i.osNumber ?? ""}`} checked={!!checked[i.id]} onChange={(e) => setChecked((c) => ({ ...c, [i.id]: e.target.checked }))} /></td>
+                      <td className="whitespace-nowrap px-3 py-2 font-semibold tabular-nums text-[#1a1c1d] dark:text-white">{i.osNumber ?? "—"}</td>
+                      <td className="px-3 py-2 text-[#1a1c1d] dark:text-[#e0e0e4]">{i.name}<p className="text-[11px] text-[#77767b]">parada {daysText(daysSince(i.stockedAt ?? i.createdAt))}</p></td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-[#46464a] dark:text-[#a0a0a4]">{fmt(i.quantity)} {i.unit}</td>
+                      <td className="px-3 py-2 text-right">
+                        <input inputMode="decimal" aria-label={`Quantidade da OS ${i.osNumber ?? ""}`} disabled={!checked[i.id]} value={qty[i.id] ?? ""}
+                          onChange={(e) => setQty((x) => ({ ...x, [i.id]: e.target.value }))} className={inputCls + " !py-1.5 text-right"} />
+                        {err && <p className="mt-0.5 text-[11px] text-red-600 dark:text-red-400">{err}</p>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {owner && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelCls}>Número da nota fiscal</label>
+              <input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Quem tirou do estoque</label>
+              <input value={takenBy} onChange={(e) => setTakenBy(e.target.value)} className={inputCls} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Observação</label>
+              <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="Opcional" />
+            </div>
+            <div className="sm:col-span-2"><NoDispatchCheck checked={noDispatch} onChange={setNoDispatch} /></div>
+          </div>
+        )}
+
+        {lines.length > 0 && (
+          <p className="mt-3 text-[12.5px] text-[#46464a] dark:text-[#a0a0a4]">
+            Nota com <b>{lines.length}</b> {lines.length === 1 ? "OS" : "OS"} · total <b className="tabular-nums">{totals}</b>
+          </p>
+        )}
+        <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!valid} saving={saving} label="Registrar nota" error={error} />
+      </div>
+    </div>
   );
 }
 
@@ -473,6 +600,7 @@ export function PcpStockPage() {
   const [movements, setMovements] = useState<PcpMovement[]>([]);
   const [dispatch, setDispatch] = useState<{ pending: PcpMovement[]; done: PcpMovement[] }>({ pending: [], done: [] });
   const [receiving, setReceiving] = useState<PcpStockItem | null>(null);
+  const [invoicing, setInvoicing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [settings, setSettings] = useState<PcpSettings | null>(null);
   const [month, setMonth] = useState(currentMonth);
@@ -553,6 +681,7 @@ export function PcpStockPage() {
     setEditing(null);
     setMoving(null);
     setReceiving(null);
+    setInvoicing(false);
     void loadAll();
   };
 
@@ -577,6 +706,7 @@ export function PcpStockPage() {
           </div>
           <div className="flex gap-2">
             <button onClick={() => setShowReport(true)} disabled={!settings} className={ghostBtn}>Relatório mensal</button>
+            <button onClick={() => setInvoicing(true)} className={ghostBtn}>Faturar</button>
             <button onClick={() => setEditing("new")} className={primaryBtn}>Nova OS</button>
           </div>
         </div>
@@ -734,6 +864,7 @@ export function PcpStockPage() {
 
       {editing && <ItemModal item={editing === "new" ? null : editing} items={items} clients={clients} onClose={() => setEditing(null)} onSaved={afterSave} />}
       {moving && <MovementModal item={moving.item} type={moving.type} onClose={() => setMoving(null)} onSaved={afterSave} />}
+      {invoicing && <InvoiceModal items={items} onClose={() => setInvoicing(false)} onSaved={afterSave} />}
       {receiving && <ReceiveModal item={receiving} onClose={() => setReceiving(null)} onSaved={afterSave} />}
       {showReport && settings && <ReportModal settings={settings} isAdmin={isAdmin} onClose={() => setShowReport(false)} onChange={setSettings} />}
     </div>

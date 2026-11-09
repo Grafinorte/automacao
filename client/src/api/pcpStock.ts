@@ -95,7 +95,9 @@ export const pcpStockApi = {
   dispatch: (movementId: string) => api.post<unknown>(`/estoque-pcp/movements/${movementId}/dispatch`, {}),
   updateItem: (id: string, data: PcpItemInput) => api.patch<PcpStockItem>(`/estoque-pcp/items/${id}`, data),
   removeItem: (id: string) => api.delete<{ result: "deleted" | "archived" }>(`/estoque-pcp/items/${id}`),
-  addMovement: (id: string, data: { type: PcpMovementType; quantity: number; takenBy?: string; invoiceNumber?: string; notes?: string }) =>
+  invoice: (data: { invoiceNumber: string; takenBy: string; notes: string; noDispatch: boolean; lines: { itemId: string; quantity: number }[] }) =>
+    api.post<{ invoiceNumber: string; movements: number }>("/estoque-pcp/faturar", data),
+  addMovement: (id: string, data: { type: PcpMovementType; quantity: number; takenBy?: string; invoiceNumber?: string; notes?: string; noDispatch?: boolean }) =>
     api.post<{ movement: unknown; item: PcpStockItem }>(`/estoque-pcp/items/${id}/movements`, data),
   listMovements: (month: string) => api.get<PcpMovement[]>(`/estoque-pcp/movements?month=${month}`),
   getSettings: () => api.get<PcpSettings>("/estoque-pcp/settings"),

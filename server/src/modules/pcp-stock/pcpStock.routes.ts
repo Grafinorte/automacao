@@ -18,6 +18,7 @@ pcpStockRouter.get("/movements", asyncHandler(ctrl.getMovements));
 // Fluxo: produção concluída, conferência da expedição e despacho
 pcpStockRouter.post("/items/:id/stage", asyncHandler(ctrl.postStage));
 pcpStockRouter.post("/items/:id/receive", asyncHandler(ctrl.postReceive));
+pcpStockRouter.post("/faturar", asyncHandler(ctrl.postInvoice));
 pcpStockRouter.get("/dispatch", asyncHandler(ctrl.getDispatch));
 pcpStockRouter.post("/movements/:id/dispatch", asyncHandler(ctrl.postDispatch));
 

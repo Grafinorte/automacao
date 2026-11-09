@@ -52,6 +52,10 @@ export async function postReceive(req: Request, res: Response) {
   res.json(await service.receiveItem(req.params.id, req.user!.sub, req.body ?? {}));
 }
 
+export async function postInvoice(req: Request, res: Response) {
+  res.status(201).json(await service.invoiceItems(req.user!.sub, req.body ?? {}));
+}
+
 export async function getDispatch(_req: Request, res: Response) {
   res.json(await service.listDispatch());
 }

@@ -118,7 +118,7 @@ export async function removeItem(id: string): Promise<"deleted" | "archived"> {
 export async function addMovement(
   itemId: string,
   userId: string,
-  raw: { type?: unknown; quantity?: unknown; takenBy?: unknown; reference?: unknown; invoiceNumber?: unknown; notes?: unknown },
+  raw: { type?: unknown; quantity?: unknown; takenBy?: unknown; reference?: unknown; invoiceNumber?: unknown; notes?: unknown; noDispatch?: unknown },
 ) {
   const type = raw.type as PcpMovementType;
   if (!["ENTRADA", "SAIDA", "AJUSTE"].includes(type)) throw new HttpError(400, "Tipo de movimentação inválido.");
@@ -147,7 +147,12 @@ export async function addMovement(
     if (delta === 0) throw new HttpError(400, "O saldo contado é igual ao saldo atual.");
 
     const movement = await tx.pcpStockMovement.create({
-      data: { itemId, type, quantity: delta, balanceAfter, takenBy: type === "SAIDA" ? takenBy : null, invoiceNumber: type === "SAIDA" ? invoiceNumber : null, reference, notes, createdById: userId, createdByName },
+      data: {
+        itemId, type, quantity: delta, balanceAfter,
+        takenBy: type === "SAIDA" ? takenBy : null, invoiceNumber: type === "SAIDA" ? invoiceNumber : null,
+        ...(type === "SAIDA" && raw.noDispatch === true ? noDispatchMark(createdByName) : {}),
+        reference, notes, createdById: userId, createdByName,
+      },
     });
     const updated = await tx.pcpStockItem.update({ where: { id: itemId }, data: { quantity: balanceAfter } });
     return { movement, item: updated };
@@ -194,6 +199,66 @@ export async function receiveItem(id: string, userId: string, raw: { quantity?: 
       where: { id },
       data: { quantity: balanceAfter, stage: "ESTOQUE", stageAt: now, stageBy: createdByName, stockedAt: now },
     });
+  });
+}
+
+/** Cliente retira ou não há entrega: a nota não fica parada em "A despachar" */
+const NO_DISPATCH = "sem despacho";
+function noDispatchMark(userName: string) {
+  return { dispatchedAt: new Date(), dispatchedBy: `${userName} (${NO_DISPATCH})` };
+}
+
+const MAX_INVOICE_LINES = 100;
+
+/**
+ * Uma nota com várias OS do mesmo cliente: uma saída por OS, com o mesmo número de nota.
+ * Tudo numa transação: se uma OS falhar, nenhuma saída é gravada.
+ */
+export async function invoiceItems(userId: string, raw: {
+  invoiceNumber?: unknown; takenBy?: unknown; notes?: unknown; noDispatch?: unknown; lines?: unknown;
+}) {
+  const invoiceNumber = clean(raw.invoiceNumber);
+  const takenBy = clean(raw.takenBy);
+  const notes = clean(raw.notes);
+  if (!invoiceNumber) throw new HttpError(400, "Informe o número da nota fiscal.");
+  if (!takenBy) throw new HttpError(400, "Informe quem tirou do estoque.");
+  if (!Array.isArray(raw.lines) || raw.lines.length === 0) throw new HttpError(400, "Escolha pelo menos uma OS.");
+  if (raw.lines.length > MAX_INVOICE_LINES) throw new HttpError(400, `No máximo ${MAX_INVOICE_LINES} OS por nota.`);
+
+  const lines = raw.lines.map((l) => {
+    const line = l as { itemId?: unknown; quantity?: unknown };
+    const quantity = round3(Number(line.quantity));
+    if (typeof line.itemId !== "string" || !Number.isFinite(quantity) || quantity <= 0) throw new HttpError(400, "Quantidade inválida em uma das OS.");
+    return { itemId: line.itemId, quantity };
+  });
+  if (new Set(lines.map((l) => l.itemId)).size !== lines.length) throw new HttpError(400, "A mesma OS apareceu duas vezes.");
+
+  const createdByName = await userName(userId);
+  const dispatch = raw.noDispatch === true ? noDispatchMark(createdByName) : {};
+
+  return prisma.$transaction(async (tx) => {
+    const items = await tx.pcpStockItem.findMany({ where: { id: { in: lines.map((l) => l.itemId) } } });
+    if (items.length !== lines.length || items.some((i) => !i.active)) throw new HttpError(404, "Uma das OS não foi encontrada.");
+    // Uma nota é de uma empresa para um cliente
+    const owners = new Set(items.map((i) => `${i.company}|${i.client ?? ""}`));
+    if (owners.size > 1) throw new HttpError(400, "Uma nota não pode misturar clientes ou empresas diferentes.");
+
+    const created = [];
+    for (const line of lines) {
+      const item = items.find((i) => i.id === line.itemId)!;
+      const label = `OS ${item.osNumber ?? "sem número"}`;
+      if (item.stage !== "ESTOQUE") throw new HttpError(409, `${label} ainda não entrou no estoque.`);
+      if (line.quantity > item.quantity) throw new HttpError(400, `${label}: estoque insuficiente. Disponível: ${item.quantity} ${item.unit}.`);
+      const balanceAfter = round3(item.quantity - line.quantity);
+      created.push(await tx.pcpStockMovement.create({
+        data: {
+          itemId: item.id, type: "SAIDA", quantity: -line.quantity, balanceAfter,
+          invoiceNumber, takenBy, notes, createdById: userId, createdByName, ...dispatch,
+        },
+      }));
+      await tx.pcpStockItem.update({ where: { id: item.id }, data: { quantity: balanceAfter } });
+    }
+    return { invoiceNumber, movements: created.length };
   });
 }
 
