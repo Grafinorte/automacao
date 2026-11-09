@@ -6,6 +6,7 @@ import type { Campaign, CampaignStatus, MarketingChannel, TaskUserRef } from "..
 import { CAMPAIGN_STATUS_LABELS, MARKETING_CHANNEL_LABELS } from "../types";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
+import { confirmAction, notify } from "../components/feedback/feedback";
 
 const CHANNEL_OPTIONS = Object.entries(MARKETING_CHANNEL_LABELS) as [MarketingChannel, string][];
 const STATUS_OPTIONS = Object.entries(CAMPAIGN_STATUS_LABELS) as [CampaignStatus, string][];
@@ -103,12 +104,12 @@ export function MarketingCampaignsPage() {
   }
 
   async function handleDelete(c: Campaign) {
-    if (!confirm(`Excluir a campanha "${c.name}"?`)) return;
+    if (!(await confirmAction(`Excluir a campanha "${c.name}"?`))) return;
     try {
       await marketingApi.deleteCampaign(c.id);
       reload();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Não foi possível excluir a campanha");
+      notify.error(err instanceof ApiError ? err.message : "Não foi possível excluir a campanha");
     }
   }
 

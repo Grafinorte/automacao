@@ -6,6 +6,7 @@ import { crmApi } from "../api/crm";
 import { ApiError } from "../api/client";
 import { CrmSubNav } from "../components/crm/CrmSubNav";
 import type { ProspectLead, ProspectSearchSummary } from "../types";
+import { confirmAction, notify } from "../components/feedback/feedback";
 
 const inputCls =
   "w-full rounded-xl border border-[rgba(199,198,202,0.3)] bg-white px-3 py-2 text-sm text-[#1a1c1d] outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/10 disabled:opacity-60";
@@ -71,7 +72,7 @@ function LeadCard({ lead }: { lead: ProspectLead }) {
     try {
       await fn();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Não foi possível concluir a ação");
+      notify.error(err instanceof ApiError ? err.message : "Não foi possível concluir a ação");
     } finally {
       setBusy(false);
     }
@@ -138,8 +139,8 @@ function LeadCard({ lead }: { lead: ProspectLead }) {
         ) : (
           <button
             disabled={busy || discarded}
-            onClick={() => {
-              if (lead.inCrm && !confirm(`"${lead.name}" já tem um contato com este telefone no CRM. Criar outro negócio mesmo assim?`)) return;
+            onClick={async () => {
+              if (lead.inCrm && !(await confirmAction(`"${lead.name}" já tem um contato com este telefone no CRM. Criar outro negócio mesmo assim?`))) return;
               void act(() => addToCrm(lead));
             }}
             className={`rounded-xl px-3.5 py-1.5 text-[12px] font-semibold transition-all active:scale-95 disabled:opacity-50 ${

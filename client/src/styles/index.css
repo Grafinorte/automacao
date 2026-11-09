@@ -268,3 +268,23 @@ html.dark input.mkt-hero-input:not([type="checkbox"]):not([type="radio"]):not([t
   100% { transform: translateX(250%); }
 }
 .cp-bar { animation: cp-bar 1.4s ease-in-out infinite; }
+
+/* Acabamento: entrada suave de avisos, confirmações e de todas as janelas (modais) */
+@keyframes fb-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fb-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: none; } }
+.fb-fade { animation: fb-fade 0.14s ease-out; }
+.fb-pop { animation: fb-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* As janelas das telas seguem o padrão "fixed inset-0 ... bg-black/40": anima sem mexer em cada tela */
+[class*="fixed inset-0"][class*="bg-black/"] { animation: fb-fade 0.14s ease-out; }
+[class*="fixed inset-0"][class*="bg-black/"] > div { animation: fb-pop 0.16s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Blocos de carregamento no formato do conteúdo */
+@keyframes skeleton-shine { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton { border-radius: 8px; background: linear-gradient(90deg, #ececef 25%, #f6f6f8 50%, #ececef 75%); background-size: 200% 100%; animation: skeleton-shine 1.4s ease-in-out infinite; }
+html.dark .skeleton { background: linear-gradient(90deg, #26282d 25%, #2f3137 50%, #26282d 75%); background-size: 200% 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fb-fade, .fb-pop, .skeleton,
+  [class*="fixed inset-0"][class*="bg-black/"],
+  [class*="fixed inset-0"][class*="bg-black/"] > div { animation: none; }
+}

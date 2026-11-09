@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { productionApi, type ProductionOrder, type ProdStatus, type ProdPriority } from "../api/production";
 import { useAuth } from "../context/AuthContext";
+import { confirmAction } from "../components/feedback/feedback";
 
 const STAGES: { key: ProdStatus; label: string; color: string; bg: string }[] = [
   { key: "ARTE",      label: "Arte",      color: "text-purple-700 dark:text-purple-300", bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800" },
@@ -84,7 +85,7 @@ export function ProductionPage() {
   }
 
   async function handleCancel(id: string) {
-    if (!confirm("Cancelar esta ordem?")) return;
+    if (!(await confirmAction("Cancelar esta ordem?"))) return;
     try {
       const updated = await productionApi.cancel(id);
       setOrders((prev) => prev.filter((o) => o.id !== id));
@@ -94,7 +95,7 @@ export function ProductionPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Excluir esta ordem permanentemente?")) return;
+    if (!(await confirmAction("Excluir esta ordem permanentemente?"))) return;
     try {
       await productionApi.remove(id);
       setOrders((prev) => prev.filter((o) => o.id !== id));

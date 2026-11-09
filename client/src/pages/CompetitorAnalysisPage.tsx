@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { competitorApi, type CompetitorProfile, type CompetitorReport, type CompetitorInsight } from "../api/competitor";
+import { confirmAction } from "../components/feedback/feedback";
 
 // ─── Add competitor modal ─────────────────────────────────────────────────────
 
@@ -240,7 +241,7 @@ export function CompetitorAnalysisPage() {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Remover @${name} da lista de concorrentes?`)) return;
+    if (!(await confirmAction(`Remover @${name} da lista de concorrentes?`))) return;
     await competitorApi.deleteProfile(id);
     if (selected === id) setSelected(null);
     setRefreshKey(k => k + 1);

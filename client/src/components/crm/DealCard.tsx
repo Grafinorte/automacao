@@ -72,7 +72,9 @@ export function DealCard({
           </p>
 
           <div className="mt-2 flex items-center justify-between">
-            <span className="text-sm font-semibold text-brand">{formatCurrency(deal.value)}</span>
+            {deal.value > 0
+              ? <span className="text-sm font-semibold text-brand">{formatCurrency(deal.value)}</span>
+              : <span className="text-xs text-[#a0a0a4]">sem valor</span>}
             <Avatar name={deal.owner.name} avatarUrl={deal.owner.avatarUrl} />
           </div>
 

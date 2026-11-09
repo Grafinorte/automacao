@@ -46,6 +46,7 @@ import { WhatsAppPage } from "./pages/WhatsAppPage";
 import { PreflightPage } from "./pages/PreflightPage";
 import { ColorProofPage } from "./pages/ColorProofPage";
 import { PcpStockPage } from "./pages/PcpStockPage";
+import { FeedbackHost } from "./components/feedback/feedback";
 import {
   FactoryIcon,
   FinanceIcon,
@@ -58,6 +59,7 @@ export function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
+      <FeedbackHost />
       <AuthProvider>
         <NotificationProvider>
         <ProspectingProvider>

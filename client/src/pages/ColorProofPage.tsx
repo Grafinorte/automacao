@@ -4,6 +4,7 @@ import {
   colorProofApi, computeCost, coverageBand, INK_COLORS, INK_INFO, STANDARD_WIDTH_MM,
   type ColorProof, type ColorProofInput, type ColorProofSettings, type InkColor, type PanelJob,
 } from "../api/colorProof";
+import { confirmAction, notify } from "../components/feedback/feedback";
 
 // ─── Formatação (padrão BR) ───────────────────────────────────────────────────
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -430,13 +431,13 @@ export function ColorProofPage() {
   }
 
   async function remove(p: ColorProof) {
-    if (!confirm(`Excluir a prova "${p.label}" de ${fmtDate(p.date)}?`)) return;
+    if (!(await confirmAction(`Excluir a prova "${p.label}" de ${fmtDate(p.date)}?`))) return;
     try {
       await colorProofApi.remove(p.id);
       if (editing?.id === p.id) { setEditing(null); setForm(emptyForm()); }
       setProofs((ps) => ps.filter((x) => x.id !== p.id));
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Erro ao excluir.");
+      notify.error(e instanceof Error ? e.message : "Erro ao excluir.");
     }
   }
 
@@ -454,7 +455,7 @@ export function ColorProofPage() {
       setCopied(key);
       setTimeout(() => setCopied((k) => (k === key ? null : k)), 1800);
     } catch {
-      alert("Não foi possível copiar. Selecione e copie manualmente.");
+      notify.error("Não foi possível copiar. Selecione e copie manualmente.");
     }
   }
 

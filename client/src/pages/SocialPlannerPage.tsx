@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { metaApi, type SocialPost } from "../api/meta";
+import { confirmAction } from "../components/feedback/feedback";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ function PostDetailModal({ post, onClose, onDelete }: {
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
-    if (!confirm("Remover este post do calendário?")) return;
+    if (!(await confirmAction("Remover este post do calendário?"))) return;
     setDeleting(true);
     try { await metaApi.deleteScheduledPost(post.id); onDelete(); onClose(); }
     catch { setDeleting(false); }

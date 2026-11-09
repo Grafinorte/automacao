@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import type { Contact, CrmStageBase, DealActivity, DealDetail, LeadSource, TaskUserRef } from "../types";
 import { LEAD_SOURCE_LABELS } from "../types";
 import { parseMoney } from "../components/crm/parseMoney";
+import { confirmAction, notify } from "../components/feedback/feedback";
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
@@ -187,12 +188,12 @@ export function DealPage() {
 
   async function handleDelete() {
     if (!deal) return;
-    if (!confirm(`Excluir o negócio "${deal.title}"?\n\nO card e todo o histórico de anotações serão apagados. Essa ação não pode ser desfeita.`)) return;
+    if (!(await confirmAction(`Excluir o negócio "${deal.title}"?\n\nO card e todo o histórico de anotações serão apagados. Essa ação não pode ser desfeita.`))) return;
     try {
       await crmApi.deleteDeal(deal.id);
       navigate("/comercial/funil");
     } catch {
-      alert("Não foi possível excluir o negócio.");
+      notify.error("Não foi possível excluir o negócio.");
     }
   }
 

@@ -5,6 +5,7 @@ import {
   type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpOsData, type PcpSettings, type PcpStockItem,
 } from "../api/pcpStock";
 import { PcpFlowBoard } from "../components/pcp-stock/PcpFlowBoard";
+import { confirmAction, notify } from "../components/feedback/feedback";
 
 const STALE_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -394,6 +395,7 @@ function InvoiceModal({ items, onClose, onSaved }: { items: PcpStockItem[]; onCl
     setError("");
     try {
       await pcpStockApi.invoice({ invoiceNumber, takenBy, notes, noDispatch, lines: lines.map((l) => ({ itemId: l.item.id, quantity: l.quantity })) });
+      notify.success(`Nota ${invoiceNumber} registrada com ${lines.length} OS.`);
       onSaved();
     } catch (e) {
       setError(errorText(e, "Não foi possível faturar."));
@@ -489,7 +491,11 @@ function DispatchModal({ movement, onClose, onSaved }: { movement: PcpMovement; 
   async function submit() {
     setSaving(true);
     setError("");
-    try { await pcpStockApi.dispatch(movement.id, qty, notes); onSaved(); }
+    try {
+      const r = await pcpStockApi.dispatch(movement.id, qty, notes);
+      notify.success(r.complete ? `NF ${movement.invoiceNumber ?? ""} despachada.` : `Despacho parcial registrado. Faltam ${fmt(r.remaining)} ${movement.item.unit}.`);
+      onSaved();
+    }
     catch (e) { setError(errorText(e, "Não foi possível despachar.")); setSaving(false); }
   }
 
@@ -528,7 +534,7 @@ function ReceiveModal({ item, onClose, onSaved }: { item: PcpStockItem; onClose:
   async function submit() {
     setSaving(true);
     setError("");
-    try { await pcpStockApi.receive(item.id, qty, notes); onSaved(); }
+    try { await pcpStockApi.receive(item.id, qty, notes); notify.success(`OS ${item.osNumber ?? ""} guardada no estoque.`); onSaved(); }
     catch (e) { setError(errorText(e, "Não foi possível guardar.")); setSaving(false); }
   }
 
@@ -615,7 +621,7 @@ function ReportModal({ settings, isAdmin, onClose, onChange }: {
         <button onClick={onClose} className="rounded-lg px-4 py-2 text-[13px] font-medium text-[#46464a] hover:bg-[#f3f3f5] dark:text-[#a0a0a4] dark:hover:bg-white/5">Fechar</button>
         {isAdmin && (
           <>
-            <button disabled={busy || dirty || !configured} onClick={() => { if (confirm("Enviar agora o relatório do mês passado para todos os destinatários?")) void run(() => pcpStockApi.sendReport(), () => setSent(true)); }} className={ghostBtn + " disabled:opacity-40"}>
+            <button disabled={busy || dirty || !configured} onClick={async () => { if (await confirmAction("Enviar agora o relatório do mês passado para todos os destinatários?")) void run(() => pcpStockApi.sendReport(), () => setSent(true)); }} className={ghostBtn + " disabled:opacity-40"}>
               Enviar agora
             </button>
             <button disabled={busy || !dirty} onClick={() => void run(() => pcpStockApi.saveSettings({ recipients, senderUserId: senderUserId || null }))} className={primaryBtn}>
@@ -705,11 +711,11 @@ export function PcpStockPage() {
   async function step(id: string, action: () => Promise<unknown>) {
     setBusy(id);
     try { await action(); await loadAll(); }
-    catch (e) { alert(errorText(e, "Não foi possível concluir.")); }
+    catch (e) { notify.error(errorText(e, "Não foi possível concluir.")); }
     finally { setBusy(null); }
   }
-  const conclude = (i: PcpStockItem) => {
-    if (confirm(`Produção concluída da OS ${i.osNumber ?? ""}? Ela vai para a expedição conferir.`)) void step(i.id, () => pcpStockApi.moveStage(i.id, "EXPEDICAO"));
+  const conclude = async (i: PcpStockItem) => {
+    if (await confirmAction(`Produção concluída da OS ${i.osNumber ?? ""}? Ela vai para a expedição conferir.`)) void step(i.id, () => pcpStockApi.moveStage(i.id, "EXPEDICAO"));
   };
   const backToProduction = (i: PcpStockItem) => void step(i.id, () => pcpStockApi.moveStage(i.id, "PRODUCAO"));
   const markDispatched = (m: PcpMovement) => setDispatching(m);
@@ -730,12 +736,12 @@ export function PcpStockPage() {
 
   async function remove(i: PcpStockItem) {
     const label = `OS ${i.osNumber ?? "sem número"} · ${i.name}`;
-    if (!confirm(`Excluir ${label}?\n\nSe não teve saída com nota, ela é apagada junto com as entradas. Se já teve, sai da lista mas continua no histórico.`)) return;
+    if (!(await confirmAction(`Excluir ${label}?\n\nSe não teve saída com nota, ela é apagada junto com as entradas. Se já teve, sai da lista mas continua no histórico.`))) return;
     try {
       await pcpStockApi.removeItem(i.id);
       void loadAll();
     } catch (e) {
-      alert(errorText(e, "Não foi possível excluir."));
+      notify.error(errorText(e, "Não foi possível excluir."));
     }
   }
 
@@ -801,7 +807,14 @@ export function PcpStockPage() {
           </div>
 
           {loading ? (
-            <p className="py-12 text-center text-[13px] text-[#77767b]">Carregando...</p>
+            <div className="flex gap-3 p-3" aria-label="Carregando">
+              {[0, 1, 2, 3, 4].map((c) => (
+                <div key={c} className="flex flex-1 flex-col gap-2 rounded-2xl bg-[#f3f3f5] p-2.5 dark:bg-[#202227]">
+                  <div className="skeleton h-4 w-24" />
+                  {[0, 1, 2].map((r) => <div key={r} className="skeleton h-24" />)}
+                </div>
+              ))}
+            </div>
           ) : tab === "fluxo" ? (
             <PcpFlowBoard
               items={boardItems}

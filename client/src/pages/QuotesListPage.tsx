@@ -4,6 +4,7 @@ import { quotesApi } from "../api/quotes";
 import type { QuoteListItem } from "../types";
 import { ISSUING_COMPANY_LABELS } from "../types";
 import { useAuth } from "../context/AuthContext";
+import { confirmAction } from "../components/feedback/feedback";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("pt-BR");
@@ -28,7 +29,7 @@ export function QuotesListPage() {
   useEffect(reload, []);
 
   async function handleDelete(id: string) {
-    if (!confirm("Excluir este orçamento?")) return;
+    if (!(await confirmAction("Excluir este orçamento?"))) return;
     await quotesApi.remove(id);
     reload();
   }

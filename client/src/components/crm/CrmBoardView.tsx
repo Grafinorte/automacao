@@ -195,8 +195,20 @@ export function CrmBoardView() {
 
   if (!stages) {
     return (
-      <div className="flex h-[calc(100vh-80px)] items-center justify-center">
-        <p className="text-[15px] text-[#46464a]">Carregando funil de vendas...</p>
+      // Colunas e cards em formato de "esqueleto" enquanto o funil carrega
+      <div className="flex h-[calc(100vh-80px)] flex-col overflow-hidden" aria-label="Carregando funil de vendas">
+        <div className="flex items-center gap-4 border-b border-[rgba(199,198,202,0.3)] bg-white px-6 py-3.5 dark:border-white/10 dark:bg-[#1c1e22]">
+          <div className="skeleton h-6 w-16" />
+          <div className="skeleton h-8 w-56" />
+        </div>
+        <div className="flex flex-1 gap-4 overflow-hidden px-6 py-4">
+          {[0, 1, 2, 3, 4].map((c) => (
+            <div key={c} className="flex w-72 flex-shrink-0 flex-col gap-2.5">
+              <div className="skeleton h-5 w-32" />
+              {Array.from({ length: 3 - (c % 2) }).map((_, r) => <div key={r} className="skeleton h-24" />)}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

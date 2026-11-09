@@ -12,7 +12,7 @@ type Owner = (i: { company: string; client: string | null }) => string;
 
 function Column({ title, hint, count, accent, children }: { title: string; hint: string; count: number; accent: string; children: React.ReactNode }) {
   return (
-    <section className="flex w-[260px] flex-shrink-0 flex-col rounded-2xl bg-[#f3f3f5] p-2.5 dark:bg-white/[0.04] md:w-auto md:min-w-0 md:flex-1">
+    <section className="flex w-[260px] flex-shrink-0 flex-col rounded-2xl bg-[#f3f3f5] p-2.5 dark:bg-[#202227] dark:ring-1 dark:ring-white/10 md:w-auto md:min-w-0 md:flex-1">
       <header className="mb-2 px-1">
         <div className="flex items-center gap-2">
           <span className={`h-2 w-2 rounded-full ${accent}`} />

@@ -5,6 +5,7 @@ import type { Contact } from "../types";
 import { parseCsv, mapCsvRowToContact } from "../lib/csv";
 import { Button } from "../components/common/Button";
 import { CrmSubNav } from "../components/crm/CrmSubNav";
+import { confirmAction, notify } from "../components/feedback/feedback";
 
 function initials(name: string) {
   return name
@@ -135,12 +136,12 @@ export function ContactsPage() {
   }
 
   async function handleDelete(c: Contact) {
-    if (!confirm(`Excluir o contato "${c.name}"?`)) return;
+    if (!(await confirmAction(`Excluir o contato "${c.name}"?`))) return;
     try {
       await crmApi.deleteContact(c.id);
       reload();
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Não foi possível excluir o contato");
+      notify.error(err instanceof ApiError ? err.message : "Não foi possível excluir o contato");
     }
   }
 

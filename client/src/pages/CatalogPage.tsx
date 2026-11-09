@@ -4,6 +4,7 @@ import { ApiError } from "../api/client";
 import type { Product } from "../types";
 import { Button } from "../components/common/Button";
 import { Card } from "../components/common/Card";
+import { confirmAction } from "../components/feedback/feedback";
 
 export function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -64,7 +65,7 @@ export function CatalogPage() {
   }
 
   async function handleDelete(p: Product) {
-    if (!confirm(`Excluir "${p.name}" do catálogo?`)) return;
+    if (!(await confirmAction(`Excluir "${p.name}" do catálogo?`))) return;
     await productsApi.remove(p.id);
     reload();
   }

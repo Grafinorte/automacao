@@ -11,6 +11,7 @@ import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import { startVoiceRecording, MicError, type VoiceRecording } from "../lib/voiceRecorder";
 import { TemplateSendForm, prettyTemplateName } from "../components/whatsapp/TemplateSendForm";
+import { confirmAction, notify, showMessage } from "../components/feedback/feedback";
 
 // ─── Desktop (OS) notification ────────────────────────────────────────────────
 
@@ -739,7 +740,7 @@ function AutomationsPanel({ phoneNumbers, defaultPhoneNumberId }: {
       setShowForm(false);
       load();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Não foi possível salvar a automação.");
+      notify.error(e instanceof Error ? e.message : "Não foi possível salvar a automação.");
     } finally { setSaving(false); }
   }
 
@@ -749,7 +750,7 @@ function AutomationsPanel({ phoneNumbers, defaultPhoneNumberId }: {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Excluir esta automação?")) return;
+    if (!(await confirmAction("Excluir esta automação?"))) return;
     await whatsappApi.deleteAutomation(id);
     load();
   }
@@ -906,7 +907,7 @@ function MetaTemplatesPanel({ onSend, phoneNumberId }: {
       setShowForm(false);
       load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao criar template");
+      notify.error(err instanceof Error ? err.message : "Erro ao criar template");
     } finally { setSaving(false); }
   }
 
@@ -1208,7 +1209,7 @@ function LabelManager({
   }
 
   async function handleDelete(label: WaLabel) {
-    if (!confirm(`Excluir a etiqueta "${label.name}"? Ela sai de todas as conversas.`)) return;
+    if (!(await confirmAction(`Excluir a etiqueta "${label.name}"? Ela sai de todas as conversas.`))) return;
     setDeletingId(label.id); setError(null);
     try {
       await whatsappApi.deleteLabel(label.id);
@@ -1378,7 +1379,7 @@ function ContactPanel({
       const data = await crmApi.getContact(crm.id);
       setCrmContact(data);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Erro ao criar no CRM. Verifique permissão (ADMIN ou COMERCIAL).");
+      notify.error(e instanceof Error ? e.message : "Erro ao criar no CRM. Verifique permissão (ADMIN ou COMERCIAL).");
     } finally {
       setSavingCrm(false);
     }
@@ -1588,7 +1589,7 @@ function ContactPanel({
                 onClick={async () => {
                   const stages = await crmApi.listStages().catch(() => []);
                   const firstStage = [...stages].sort((a, b) => a.order - b.order)[0];
-                  if (!firstStage) return alert("Configure as etapas do CRM primeiro.");
+                  if (!firstStage) return notify.error("Configure as etapas do CRM primeiro.");
                   await crmApi.createDeal({ title: name.trim() || contact.name, contactId: crmContact.id, stageId: firstStage.id });
                   const data = await crmApi.getContact(crmContact.id);
                   setCrmContact(data);
@@ -1691,7 +1692,7 @@ function ForwardModal({ msgs, conversations, onClose }: {
       const title = msgs.length === 1
         ? "A mensagem NÃO foi encaminhada."
         : `${errors.length} de ${msgs.length} mensagens NÃO foram encaminhadas.`;
-      alert(`${title}\n\n${errors.join("\n")}`.trim());
+      void showMessage(`${title}\n\n${errors.join("\n")}`.trim());
       // Se alguma já foi, fecha: tentar de novo reenviaria essas ao cliente
       if (errors.length === msgs.length) return;
     }
@@ -1918,7 +1919,7 @@ function PhoneNumbersPanel({ phoneNumbers, onRefresh }: {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remover este número?")) return;
+    if (!(await confirmAction("Remover este número?"))) return;
     await whatsappApi.deletePhoneNumber(id);
     onRefresh();
   }
@@ -2373,14 +2374,14 @@ export function WhatsAppPage() {
 
   async function markAllRead() {
     if (unreadInView === 0 || markingAllRead) return;
-    if (!confirm(`Marcar ${unreadInView} conversa${unreadInView > 1 ? "s" : ""} como lida${unreadInView > 1 ? "s" : ""}?`)) return;
+    if (!(await confirmAction(`Marcar ${unreadInView} conversa${unreadInView > 1 ? "s" : ""} como lida${unreadInView > 1 ? "s" : ""}?`, { confirmLabel: "Marcar como lidas" }))) return;
     setMarkingAllRead(true);
     try {
       await whatsappApi.markAllRead(phoneFilter);
       setConversations((cs) => cs.map((c) => (inPhoneView(c) ? { ...c, unreadCount: 0 } : c)));
       loadConversations();
     } catch {
-      alert("Não foi possível marcar as conversas como lidas.");
+      notify.error("Não foi possível marcar as conversas como lidas.");
     } finally {
       setMarkingAllRead(false);
     }
@@ -2407,10 +2408,11 @@ export function WhatsAppPage() {
   async function handleSend() {
     if (!activeConvId || uploadingMedia) return;
     // Janela fechada: a Meta recusa mensagem comum (nota interna pode)
-    if (!isNoteMode && windowClosed && !confirm(
+    if (!isNoteMode && windowClosed && !(await confirmAction(
       "A janela de 24h desta conversa está fechada — a Meta não deve entregar esta mensagem.\n\n" +
-      "Chame o cliente pelo celular ou envie um template. Enviar mesmo assim?"
-    )) return;
+      "Chame o cliente pelo celular ou envie um template. Enviar mesmo assim?",
+      { confirmLabel: "Enviar mesmo assim" },
+    ))) return;
     if (stagedFiles.length > 0) { await sendStagedFile(); return; }
     const text = replyText.trim();
     if (!text) return;
@@ -2521,7 +2523,7 @@ export function WhatsAppPage() {
       loadConversations();
     } catch (err) {
       console.error("Erro ao enviar arquivo:", err);
-      alert(`O arquivo NÃO foi enviado ao cliente.\n\n${err instanceof Error ? err.message : ""}`.trim());
+      notify.error(`O arquivo NÃO foi enviado ao cliente.\n\n${err instanceof Error ? err.message : ""}`.trim());
     } finally { setUploadingMedia(false); }
   }
 
@@ -2585,7 +2587,7 @@ export function WhatsAppPage() {
   }
 
   async function handleDeleteMsg(id: string) {
-    if (!confirm("Excluir esta mensagem?")) return;
+    if (!(await confirmAction("Excluir esta mensagem?"))) return;
     await whatsappApi.deleteMessage(id).catch(() => {});
     setMessages(ms => ms.filter(m => m.id !== id));
     setSelectedMsgIds(s => { const n = new Set(s); n.delete(id); return n; });
@@ -2623,7 +2625,7 @@ export function WhatsAppPage() {
 
   async function handleBulkDelete() {
     if (selectedMsgIds.size === 0) return;
-    if (!confirm(`Excluir ${selectedMsgIds.size} mensagem(ns)?`)) return;
+    if (!(await confirmAction(`Excluir ${selectedMsgIds.size} mensagem(ns)?`))) return;
     await Promise.allSettled([...selectedMsgIds].map(id => whatsappApi.deleteMessage(id)));
     setMessages(ms => ms.filter(m => !selectedMsgIds.has(m.id)));
     exitSelectionMode();
@@ -2662,7 +2664,7 @@ export function WhatsAppPage() {
       setIsRecording(true);
     } catch (err) {
       const kind = err instanceof MicError ? err.kind : "unknown";
-      alert(
+      notify.error(
         kind === "insecure" ? "O microfone só funciona quando a plataforma é aberta por https (endereço seguro). Fale com o T.I."
         : kind === "denied" ? "O navegador bloqueou o microfone. Clique no cadeado ao lado do endereço do site e permita o Microfone."
         : kind === "notfound" ? "Nenhum microfone encontrado. Conecte um fone com microfone e tente de novo."
@@ -2680,11 +2682,11 @@ export function WhatsAppPage() {
     try {
       const file = await rec.stop();
       if (file.type.includes("webm")) {
-        alert("Este navegador gravou em WebM, formato que o WhatsApp pode recusar. Prefira Chrome, Edge ou Firefox atualizados.");
+        notify.info("Este navegador gravou em WebM, formato que o WhatsApp pode recusar. Prefira Chrome, Edge ou Firefox atualizados.");
       }
       stageFile(file);
     } catch {
-      alert("Erro ao finalizar a gravação do áudio.");
+      notify.error("Erro ao finalizar a gravação do áudio.");
     }
   }
 
@@ -2913,11 +2915,11 @@ export function WhatsAppPage() {
               <button
                 onClick={async () => {
                   if (!("Notification" in window)) {
-                    alert("Seu navegador não suporta notificações.");
+                    notify.info("Seu navegador não suporta notificações.");
                     return;
                   }
                   if (Notification.permission === "denied") {
-                    alert('Notificações bloqueadas.\n\nPara ativar:\n1. Clique no cadeado/ícone na barra de endereços\n2. Vá em "Permissões do site"\n3. Mude "Notificações" para "Permitir"\n4. Recarregue a página');
+                    void showMessage('Notificações bloqueadas.\n\nPara ativar:\n1. Clique no cadeado/ícone na barra de endereços\n2. Vá em "Permissões do site"\n3. Mude "Notificações" para "Permitir"\n4. Recarregue a página');
                     return;
                   }
                   const result = await Notification.requestPermission();

@@ -6,6 +6,7 @@ import { Card } from "../components/common/Card";
 import { Button } from "../components/common/Button";
 import type { StockItem, StockMovement, StockMovementType } from "../types";
 import { STOCK_CATEGORIES, STOCK_UNITS } from "../types";
+import { confirmAction, notify } from "../components/feedback/feedback";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -378,12 +379,12 @@ export function StockPage() {
   }
 
   async function handleDelete(item: StockItem) {
-    if (!confirm(`Desativar "${item.name}"? O histórico será mantido.`)) return;
+    if (!(await confirmAction(`Desativar "${item.name}"? O histórico será mantido.`))) return;
     try {
       await stockApi.deleteItem(item.id);
       setItems((prev) => prev.filter((i) => i.id !== item.id));
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Erro ao excluir");
+      notify.error(err instanceof ApiError ? err.message : "Erro ao excluir");
     }
   }
 

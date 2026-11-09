@@ -6,6 +6,7 @@ import type { ServiceOrder, ServiceLog } from "../api/services";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { notify } from "../components/feedback/feedback";
 
 // ─── Permission helpers ───────────────────────────────────────────────────────
 const WRITE_ROLES = ["ADMIN", "GERENTE", "SUPERVISOR", "ORCAMENTISTA", "COMERCIAL", "MEMBER"];
@@ -1394,7 +1395,7 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
       await servicesApi.changeStatus(svc.id, { newStatus: "development", developerUserId: userId });
       onReload();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível iniciar o desenvolvimento");
+      notify.error(err instanceof Error ? err.message : "Não foi possível iniciar o desenvolvimento");
     } finally {
       setStartingId(null);
     }
@@ -1435,7 +1436,7 @@ function ServicesSection({ services, logs, role, userId, users, onReload, autoOp
       if (modal?.type === "detail") setModal(null);
       onReload();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Não foi possível reabrir o serviço");
+      notify.error(err instanceof Error ? err.message : "Não foi possível reabrir o serviço");
     }
   }
 
