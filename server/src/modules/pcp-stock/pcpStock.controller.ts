@@ -61,7 +61,7 @@ export async function getDispatch(_req: Request, res: Response) {
 }
 
 export async function postDispatch(req: Request, res: Response) {
-  res.json(await service.dispatchMovement(req.params.id, req.user!.sub));
+  res.json(await service.dispatchMovement(req.params.id, req.user!.sub, req.body ?? {}));
 }
 
 export async function getMovements(req: Request, res: Response) {

@@ -56,6 +56,8 @@ export interface PcpMovement {
   invoiceNumber: string | null;
   dispatchedAt: string | null;
   dispatchedBy: string | null;
+  dispatchedQty?: number;   // quanto desta nota já saiu (despacho em partes)
+  billedQty?: number;       // nos cartões "Despachado": o total da nota daquela viagem
   reference: string | null;
   notes: string | null;
   createdByName: string;
@@ -92,7 +94,8 @@ export const pcpStockApi = {
   moveStage: (id: string, to: "PRODUCAO" | "EXPEDICAO") => api.post<PcpStockItem>(`/estoque-pcp/items/${id}/stage`, { to }),
   receive: (id: string, quantity: number, notes: string) => api.post<PcpStockItem>(`/estoque-pcp/items/${id}/receive`, { quantity, notes }),
   listDispatch: () => api.get<{ pending: PcpMovement[]; done: PcpMovement[] }>("/estoque-pcp/dispatch"),
-  dispatch: (movementId: string) => api.post<unknown>(`/estoque-pcp/movements/${movementId}/dispatch`, {}),
+  dispatch: (movementId: string, quantity: number, notes: string) =>
+    api.post<{ remaining: number; complete: boolean }>(`/estoque-pcp/movements/${movementId}/dispatch`, { quantity, notes }),
   updateItem: (id: string, data: PcpItemInput) => api.patch<PcpStockItem>(`/estoque-pcp/items/${id}`, data),
   removeItem: (id: string) => api.delete<{ result: "deleted" | "archived" }>(`/estoque-pcp/items/${id}`),
   invoice: (data: { invoiceNumber: string; takenBy: string; notes: string; noDispatch: boolean; lines: { itemId: string; quantity: number }[] }) =>

@@ -1168,9 +1168,28 @@ model PcpStockMovement {
   itemId String
   item   PcpStockItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
 
+  dispatches PcpStockDispatch[]
+
   @@index([createdAt(sort: Desc)])
   @@index([itemId, createdAt])
   @@map("pcp_stock_movements")
+}
+
+// Cada viagem de uma saída com nota; a nota pode sair em partes
+model PcpStockDispatch {
+  id           String   @id @default(cuid())
+  quantity     Float
+  notes        String?  // motorista, placa, "sem despacho"...
+  dispatchedBy String
+  createdById  String
+  dispatchedAt DateTime @default(now())
+
+  movementId String
+  movement   PcpStockMovement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+
+  @@index([dispatchedAt(sort: Desc)])
+  @@index([movementId])
+  @@map("pcp_stock_dispatches")
 }
 
 // Relatório mensal (uma linha só, id "default"), configurado pelo admin

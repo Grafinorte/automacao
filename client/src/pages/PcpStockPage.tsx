@@ -473,6 +473,49 @@ function InvoiceModal({ items, onClose, onSaved }: { items: PcpStockItem[]; onCl
   );
 }
 
+// ─── Despacho: confere e pode sair só parte da nota ───────────────────────────
+function DispatchModal({ movement, onClose, onSaved }: { movement: PcpMovement; onClose: () => void; onSaved: () => void }) {
+  const billed = -movement.quantity;
+  const sent = movement.dispatchedQty ?? 0;
+  const remaining = billed - sent;
+  const [quantity, setQuantity] = useState(fmt(remaining));
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const qty = parseNum(quantity);
+  const tooMuch = qty > remaining;
+  const left = qty > 0 && !tooMuch ? remaining - qty : null;
+
+  async function submit() {
+    setSaving(true);
+    setError("");
+    try { await pcpStockApi.dispatch(movement.id, qty, notes); onSaved(); }
+    catch (e) { setError(errorText(e, "Não foi possível despachar.")); setSaving(false); }
+  }
+
+  return (
+    <Modal title="Despachar" subtitle={`NF ${movement.invoiceNumber ?? "—"} · OS ${movement.item.osNumber ?? "—"} · ${movement.item.name} · ${ownerOf(movement.item)}`} onClose={onClose}>
+      <div className="grid gap-3">
+        <p className="rounded-lg bg-[#f7f7f9] px-3 py-2 text-[12.5px] text-[#46464a] dark:bg-white/5 dark:text-[#a0a0a4]">
+          Faturado <b>{fmt(billed)} {movement.item.unit}</b>
+          {sent > 0 && <> · já saiu <b>{fmt(sent)}</b> · falta <b>{fmt(remaining)}</b></>}
+        </p>
+        <div>
+          <label className={labelCls}>Quantidade despachada ({movement.item.unit})</label>
+          <input autoFocus inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} />
+          {tooMuch && <p className="mt-1 text-[12px] text-red-600 dark:text-red-400">Maior do que falta despachar ({fmt(remaining)}).</p>}
+          {left !== null && <p className="mt-1 text-[12px] text-[#77767b] dark:text-[#a0a0a4]">{left > 0 ? `Ficam ${fmt(left)} ${movement.item.unit} para outra viagem; a nota continua em "A despachar".` : "Despacha o restante da nota."}</p>}
+        </div>
+        <div>
+          <label className={labelCls}>Observação</label>
+          <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="Motorista, placa, transportadora... (opcional)" />
+        </div>
+      </div>
+      <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!(qty > 0) || tooMuch} saving={saving} label="Confirmar despacho" error={error} />
+    </Modal>
+  );
+}
+
 // ─── Conferência da expedição: a OS entra no estoque ─────────────────────────
 function ReceiveModal({ item, onClose, onSaved }: { item: PcpStockItem; onClose: () => void; onSaved: () => void }) {
   const [quantity, setQuantity] = useState(item.orderedQty ? fmt(item.orderedQty) : "");
@@ -601,6 +644,7 @@ export function PcpStockPage() {
   const [dispatch, setDispatch] = useState<{ pending: PcpMovement[]; done: PcpMovement[] }>({ pending: [], done: [] });
   const [receiving, setReceiving] = useState<PcpStockItem | null>(null);
   const [invoicing, setInvoicing] = useState(false);
+  const [dispatching, setDispatching] = useState<PcpMovement | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [settings, setSettings] = useState<PcpSettings | null>(null);
   const [month, setMonth] = useState(currentMonth);
@@ -668,9 +712,7 @@ export function PcpStockPage() {
     if (confirm(`Produção concluída da OS ${i.osNumber ?? ""}? Ela vai para a expedição conferir.`)) void step(i.id, () => pcpStockApi.moveStage(i.id, "EXPEDICAO"));
   };
   const backToProduction = (i: PcpStockItem) => void step(i.id, () => pcpStockApi.moveStage(i.id, "PRODUCAO"));
-  const markDispatched = (m: PcpMovement) => {
-    if (confirm(`Despachado: OS ${m.item.osNumber ?? ""}, NF ${m.invoiceNumber ?? ""}?`)) void step(m.id, () => pcpStockApi.dispatch(m.id));
-  };
+  const markDispatched = (m: PcpMovement) => setDispatching(m);
 
   // Soma por unidade: mostra a sobra de um mesmo material espalhada em várias OS
   const listTotal = Object.entries(
@@ -682,6 +724,7 @@ export function PcpStockPage() {
     setMoving(null);
     setReceiving(null);
     setInvoicing(false);
+    setDispatching(null);
     void loadAll();
   };
 
@@ -847,7 +890,9 @@ export function PcpStockPage() {
                       <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{m.invoiceNumber ?? "—"}</td>
                       <td className="px-4 py-2.5">{m.takenBy ?? "—"}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-[12px]">
-                        {m.type !== "SAIDA" ? "—" : m.dispatchedAt
+                        {m.type !== "SAIDA" ? "—" : !m.dispatchedAt && (m.dispatchedQty ?? 0) > 0
+                          ? <span className="font-medium text-amber-700 dark:text-amber-400">parcial: {fmt(m.dispatchedQty!)} de {fmt(-m.quantity)}</span>
+                          : m.dispatchedAt
                           ? `${new Date(m.dispatchedAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} · ${m.dispatchedBy ?? ""}`
                           : <span className="font-medium text-red-600 dark:text-red-400">pendente</span>}
                       </td>
@@ -864,6 +909,7 @@ export function PcpStockPage() {
 
       {editing && <ItemModal item={editing === "new" ? null : editing} items={items} clients={clients} onClose={() => setEditing(null)} onSaved={afterSave} />}
       {moving && <MovementModal item={moving.item} type={moving.type} onClose={() => setMoving(null)} onSaved={afterSave} />}
+      {dispatching && <DispatchModal movement={dispatching} onClose={() => setDispatching(null)} onSaved={afterSave} />}
       {invoicing && <InvoiceModal items={items} onClose={() => setInvoicing(false)} onSaved={afterSave} />}
       {receiving && <ReceiveModal item={receiving} onClose={() => setReceiving(null)} onSaved={afterSave} />}
       {showReport && settings && <ReportModal settings={settings} isAdmin={isAdmin} onClose={() => setShowReport(false)} onChange={setSettings} />}

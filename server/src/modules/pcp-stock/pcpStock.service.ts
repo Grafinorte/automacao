@@ -1,4 +1,5 @@
 import { prisma } from "../../db/prisma";
+import type { Prisma } from "../../generated/prisma/client";
 import { HttpError } from "../../middleware/errorHandler";
 import { monthRange, previousPeriod } from "./pcpStock.period";
 
@@ -146,27 +147,31 @@ export async function addMovement(
     if (balanceAfter < 0) throw new HttpError(400, `Estoque insuficiente. Disponível: ${item.quantity} ${item.unit}.`);
     if (delta === 0) throw new HttpError(400, "O saldo contado é igual ao saldo atual.");
 
-    const movement = await tx.pcpStockMovement.create({
+    let movement = await tx.pcpStockMovement.create({
       data: {
         itemId, type, quantity: delta, balanceAfter,
         takenBy: type === "SAIDA" ? takenBy : null, invoiceNumber: type === "SAIDA" ? invoiceNumber : null,
-        ...(type === "SAIDA" && raw.noDispatch === true ? noDispatchMark(createdByName) : {}),
         reference, notes, createdById: userId, createdByName,
       },
     });
+    if (type === "SAIDA" && raw.noDispatch === true) movement = await closeWithoutDispatch(tx, movement.id, -delta, userId, createdByName);
     const updated = await tx.pcpStockItem.update({ where: { id: itemId }, data: { quantity: balanceAfter } });
     return { movement, item: updated };
   });
 }
 
-export function listMovements(period: string) {
+export async function listMovements(period: string) {
   const { start, end } = monthRange(period);
-  return prisma.pcpStockMovement.findMany({
+  const rows = await prisma.pcpStockMovement.findMany({
     where: { createdAt: { gte: start, lt: end } },
-    include: { item: { select: { id: true, company: true, osNumber: true, client: true, name: true, unit: true, category: true } } },
+    include: {
+      item: { select: { id: true, company: true, osNumber: true, client: true, name: true, unit: true, category: true } },
+      dispatches: { select: { quantity: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 5000,
   });
+  return rows.map(({ dispatches, ...m }) => ({ ...m, dispatchedQty: dispatchedSum(dispatches) }));
 }
 
 // ─── Fluxo do desenho do PCP: Produção → Expedição → Estoque → NF → Despacho ──
@@ -204,8 +209,12 @@ export async function receiveItem(id: string, userId: string, raw: { quantity?: 
 
 /** Cliente retira ou não há entrega: a nota não fica parada em "A despachar" */
 const NO_DISPATCH = "sem despacho";
-function noDispatchMark(userName: string) {
-  return { dispatchedAt: new Date(), dispatchedBy: `${userName} (${NO_DISPATCH})` };
+async function closeWithoutDispatch(tx: Prisma.TransactionClient, movementId: string, quantity: number, userId: string, userName: string) {
+  const now = new Date();
+  await tx.pcpStockDispatch.create({
+    data: { movementId, quantity, notes: `Cliente retira / ${NO_DISPATCH}`, dispatchedBy: userName, createdById: userId, dispatchedAt: now },
+  });
+  return tx.pcpStockMovement.update({ where: { id: movementId }, data: { dispatchedAt: now, dispatchedBy: `${userName} (${NO_DISPATCH})` } });
 }
 
 const MAX_INVOICE_LINES = 100;
@@ -234,7 +243,6 @@ export async function invoiceItems(userId: string, raw: {
   if (new Set(lines.map((l) => l.itemId)).size !== lines.length) throw new HttpError(400, "A mesma OS apareceu duas vezes.");
 
   const createdByName = await userName(userId);
-  const dispatch = raw.noDispatch === true ? noDispatchMark(createdByName) : {};
 
   return prisma.$transaction(async (tx) => {
     const items = await tx.pcpStockItem.findMany({ where: { id: { in: lines.map((l) => l.itemId) } } });
@@ -250,12 +258,14 @@ export async function invoiceItems(userId: string, raw: {
       if (item.stage !== "ESTOQUE") throw new HttpError(409, `${label} ainda não entrou no estoque.`);
       if (line.quantity > item.quantity) throw new HttpError(400, `${label}: estoque insuficiente. Disponível: ${item.quantity} ${item.unit}.`);
       const balanceAfter = round3(item.quantity - line.quantity);
-      created.push(await tx.pcpStockMovement.create({
+      const movement = await tx.pcpStockMovement.create({
         data: {
           itemId: item.id, type: "SAIDA", quantity: -line.quantity, balanceAfter,
-          invoiceNumber, takenBy, notes, createdById: userId, createdByName, ...dispatch,
+          invoiceNumber, takenBy, notes, createdById: userId, createdByName,
         },
-      }));
+      });
+      if (raw.noDispatch === true) await closeWithoutDispatch(tx, movement.id, line.quantity, userId, createdByName);
+      created.push(movement);
       await tx.pcpStockItem.update({ where: { id: item.id }, data: { quantity: balanceAfter } });
     }
     return { invoiceNumber, movements: created.length };
@@ -265,21 +275,58 @@ export async function invoiceItems(userId: string, raw: {
 const DISPATCHED_DAYS = 7;
 const movementItem = { item: { select: { id: true, company: true, osNumber: true, client: true, name: true, unit: true, category: true } } } as const;
 
-/** Faturado esperando despacho e o que foi despachado nos últimos dias */
+const dispatchedSum = (d: { quantity: number }[]) => round3(d.reduce((s, x) => s + x.quantity, 0));
+
+/**
+ * "A despachar": notas com algo ainda por sair (mostra quanto já saiu).
+ * "Despachado": cada viagem dos últimos dias, com a nota e a OS.
+ */
 export async function listDispatch() {
   const since = new Date(Date.now() - DISPATCHED_DAYS * 24 * 60 * 60 * 1000);
-  const [pending, done] = await Promise.all([
-    prisma.pcpStockMovement.findMany({ where: { type: "SAIDA", dispatchedAt: null }, include: movementItem, orderBy: { createdAt: "asc" }, take: 500 }),
-    prisma.pcpStockMovement.findMany({ where: { type: "SAIDA", dispatchedAt: { gte: since } }, include: movementItem, orderBy: { dispatchedAt: "desc" }, take: 200 }),
+  const [pending, trips] = await Promise.all([
+    prisma.pcpStockMovement.findMany({
+      where: { type: "SAIDA", dispatchedAt: null },
+      include: { ...movementItem, dispatches: { select: { quantity: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 500,
+    }),
+    prisma.pcpStockDispatch.findMany({
+      where: { dispatchedAt: { gte: since } },
+      include: { movement: { select: { invoiceNumber: true, quantity: true, ...movementItem } } },
+      orderBy: { dispatchedAt: "desc" },
+      take: 200,
+    }),
   ]);
-  return { pending, done };
+  return {
+    pending: pending.map(({ dispatches, ...m }) => ({ ...m, dispatchedQty: dispatchedSum(dispatches) })),
+    // Mesmo formato de uma saída, para a tela tratar igual; a quantidade é a da viagem
+    done: trips.map((t) => ({
+      id: t.id, movementId: t.movementId, type: "SAIDA" as const, invoiceNumber: t.movement.invoiceNumber, quantity: -t.quantity,
+      billedQty: -t.movement.quantity, dispatchedAt: t.dispatchedAt, dispatchedBy: t.dispatchedBy, notes: t.notes, item: t.movement.item,
+    })),
+  };
 }
 
-export async function dispatchMovement(id: string, userId: string) {
-  const movement = await prisma.pcpStockMovement.findUnique({ where: { id } });
-  if (!movement || movement.type !== "SAIDA") throw new HttpError(404, "Saída não encontrada.");
-  if (movement.dispatchedAt) throw new HttpError(409, "Esta nota já foi despachada.");
-  return prisma.pcpStockMovement.update({ where: { id }, data: { dispatchedAt: new Date(), dispatchedBy: await userName(userId) } });
+/** Uma viagem: pode ser só parte da nota; quando completa, a nota sai de "A despachar" */
+export async function dispatchMovement(id: string, userId: string, raw: { quantity?: unknown; notes?: unknown } = {}) {
+  const name = await userName(userId);
+  return prisma.$transaction(async (tx) => {
+    const movement = await tx.pcpStockMovement.findUnique({ where: { id }, include: { dispatches: { select: { quantity: true } } } });
+    if (!movement || movement.type !== "SAIDA") throw new HttpError(404, "Saída não encontrada.");
+    if (movement.dispatchedAt) throw new HttpError(409, "Esta nota já foi despachada.");
+    const remaining = round3(-movement.quantity - dispatchedSum(movement.dispatches));
+    const quantity = raw.quantity === undefined || raw.quantity === null || raw.quantity === "" ? remaining : round3(Number(raw.quantity));
+    if (!Number.isFinite(quantity) || quantity <= 0) throw new HttpError(400, "Informe a quantidade despachada.");
+    if (quantity > remaining) throw new HttpError(400, `Maior do que falta despachar desta nota: ${remaining}.`);
+
+    const now = new Date();
+    await tx.pcpStockDispatch.create({ data: { movementId: id, quantity, notes: clean(raw.notes), dispatchedBy: name, createdById: userId, dispatchedAt: now } });
+    const complete = quantity === remaining;
+    const updated = complete
+      ? await tx.pcpStockMovement.update({ where: { id }, data: { dispatchedAt: now, dispatchedBy: name } })
+      : movement;
+    return { movement: updated, dispatched: quantity, remaining: round3(remaining - quantity), complete };
+  });
 }
 
 const EMAIL_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;

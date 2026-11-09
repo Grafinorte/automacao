@@ -110,14 +110,22 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
       </Column>
 
       <Column title="A despachar" hint="Nota emitida, material ainda aqui" count={pending.length} accent="bg-red-500">
-        {pending.map((m) => (
-          <Card key={m.id} os={m.item.osNumber} title={m.item.name} owner={ownerOf(m.item)}>
-            <p className="mt-1 text-[11.5px] text-[#46464a] dark:text-[#a0a0a4]">
-              NF <b>{m.invoiceNumber ?? "—"}</b> · <b className="tabular-nums">{fmt(-m.quantity)} {m.item.unit}</b> · {daysText(daysSince(m.createdAt))}
-            </p>
-            <button disabled={busy === m.id} onClick={() => onDispatch(m)} className={actionBtn}>Despachado</button>
-          </Card>
-        ))}
+        {pending.map((m) => {
+          const sent = m.dispatchedQty ?? 0;
+          return (
+            <Card key={m.id} os={m.item.osNumber} title={m.item.name} owner={ownerOf(m.item)}>
+              <p className="mt-1 text-[11.5px] text-[#46464a] dark:text-[#a0a0a4]">
+                NF <b>{m.invoiceNumber ?? "—"}</b> · <b className="tabular-nums">{fmt(-m.quantity)} {m.item.unit}</b> · {daysText(daysSince(m.createdAt))}
+              </p>
+              {sent > 0 && (
+                <p className="text-[11.5px] font-semibold text-amber-700 dark:text-amber-400">
+                  Saiu {fmt(sent)} · falta {fmt(-m.quantity - sent)}
+                </p>
+              )}
+              <button disabled={busy === m.id} onClick={() => onDispatch(m)} className={actionBtn}>Despachar</button>
+            </Card>
+          );
+        })}
       </Column>
 
       <Column title="Despachado" hint="Últimos 7 dias" count={done.length} accent="bg-green-500">
@@ -125,7 +133,9 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
           <Card key={m.id} os={m.item.osNumber} title={m.item.name} owner={ownerOf(m.item)}>
             <p className="mt-1 text-[11.5px] text-[#46464a] dark:text-[#a0a0a4]">
               NF <b>{m.invoiceNumber ?? "—"}</b> · <b className="tabular-nums">{fmt(-m.quantity)} {m.item.unit}</b>
+              {m.billedQty !== undefined && m.billedQty > -m.quantity && <> de {fmt(m.billedQty)}</>}
             </p>
+            {m.notes && <p className="truncate text-[11px] text-[#46464a] dark:text-[#a0a0a4]" title={m.notes}>{m.notes}</p>}
             <p className="text-[11px] text-[#77767b] dark:text-[#a0a0a4]">
               {m.dispatchedAt ? new Date(m.dispatchedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""} · {m.dispatchedBy}
             </p>
