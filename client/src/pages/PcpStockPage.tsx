@@ -120,6 +120,7 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
       if (os.category) setCategory(os.category);
       setUnit("un");
       if (os.perPack) setNotes(`${fmt(os.perPack)} por pacote`);
+      if (os.orderedQty) setQuantity(fmt(os.orderedQty));
       setOsRead(os);
     } catch (e) {
       setOsRead(null);
@@ -163,7 +164,18 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
                 Lido da OS <b>{osRead.osNumber}</b>
                 {osRead.orderedQty !== null && <> · pedido <b>{fmt(osRead.orderedQty)}</b></>}
                 {osRead.plannedQty !== null && osRead.plannedQty !== osRead.orderedQty && <> · plano <b>{fmt(osRead.plannedQty)}</b></>}
-                . Confira os campos e digite a quantidade produzida.
+                . Confira os campos.
+              </p>
+              <p className="mt-1">
+                {osRead.orderedQty !== null
+                  ? "A quantidade veio do pedido. Se a produção foi diferente, corrija."
+                  : "Não achei a quantidade. Digite a que foi produzida."}
+                {osRead.plannedQty !== null && osRead.plannedQty !== osRead.orderedQty && (
+                  <button type="button" onClick={() => setQuantity(fmt(osRead.plannedQty!))}
+                    className="ml-1 font-semibold text-[#005cba] hover:underline dark:text-[#4d9fff]">
+                    Usar o plano ({fmt(osRead.plannedQty)})
+                  </button>
+                )}
               </p>
               {(!osRead.company || !osRead.client || !osRead.name || !osRead.category) && (
                 <p className="mt-1 font-medium text-amber-700 dark:text-amber-400">
