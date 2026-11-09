@@ -7,7 +7,7 @@ import { boardApi } from "../api/board";
 import type { Board } from "../types";
 import { hasModuleAccess } from "../config/modules";
 import {
-  TasksIcon, CrmIcon, QuoteIcon, FactoryIcon, HrIcon, FinanceIcon,
+  TasksIcon, CrmIcon, QuoteIcon, HrIcon, FinanceIcon,
   MarketingIcon, ChatIcon, StockIcon, ProposalIcon, WhatsAppIcon,
 } from "../components/icons/Icons";
 
@@ -152,7 +152,6 @@ export function HomePage() {
     { to: "/marketing",   label: "Marketing",    icon: MarketingIcon,bg: "bg-pink-50",    color: "text-pink-600",    show: canSeeMarketing },
     { to: "/rh",          label: "RH",           icon: HrIcon,       bg: "bg-indigo-50",  color: "text-indigo-600",  show: canSeeHr },
     { to: "/almoxarifado",label: "Almoxarifado", icon: StockIcon,    bg: "bg-teal-50",    color: "text-teal-600",    show: canSeeStock },
-    { to: "/producao",    label: "Produção",     icon: FactoryIcon,  bg: "bg-orange-50",  color: "text-orange-600",  show: can("producao") },
     { to: "/financeiro",  label: "Financeiro",   icon: FinanceIcon,  bg: "bg-green-50",   color: "text-green-600",   show: can("financeiro") },
   ].filter((m) => m.show);
 
@@ -165,7 +164,6 @@ export function HomePage() {
     canSeeHr      && { label: "Funcionários",     icon: "👥", to: "/rh" },
     canSeeMarketing && { label: "Campanhas",      icon: "📣", to: "/marketing" },
     canSeeStock   && { label: "Almoxarifado",     icon: "📦", to: "/almoxarifado" },
-    !canSeeCrm && !canSeeHr && !canSeeMarketing && !canSeeStock && { label: "Produção", icon: "🏭", to: "/producao" },
   ].filter(Boolean).slice(0, 4) as { label: string; icon: string; to: string }[];
 
   const userInitials = user?.name

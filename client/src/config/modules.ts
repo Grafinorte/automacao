@@ -11,7 +11,6 @@ export const ALL_MODULES: ModuleDef[] = [
   { id: "tarefas",      label: "Tarefas",        desc: "Quadro kanban e gerenciamento de tarefas",         icon: "✅", group: "Geral" },
   { id: "chat",         label: "Chat Interno",    desc: "Mensagens e comunicação interna",                  icon: "💬", group: "Geral" },
   { id: "documentos",   label: "Agente Luma (IA)",desc: "Assistente IA e base de conhecimento",            icon: "🤖", group: "Geral" },
-  { id: "producao",     label: "Produção",        desc: "Acompanhamento do processo produtivo",             icon: "🏭", group: "Geral" },
   { id: "financeiro",   label: "Financeiro",      desc: "Relatórios e controle financeiro",                 icon: "💰", group: "Geral" },
   // Comercial
   { id: "comercial",    label: "CRM / Comercial", desc: "Funil de vendas, contatos e negociações",         icon: "📊", group: "Comercial" },
