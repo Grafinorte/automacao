@@ -8,7 +8,7 @@ import type { Board } from "../types";
 import { hasModuleAccess } from "../config/modules";
 import {
   TasksIcon, CrmIcon, QuoteIcon, HrIcon, FinanceIcon,
-  MarketingIcon, ChatIcon, StockIcon, ProposalIcon, WhatsAppIcon,
+  MarketingIcon, ChatIcon, StockIcon, WhatsAppIcon,
 } from "../components/icons/Icons";
 
 // ── Weather ──────────────────────────────────────────────────────────────────
@@ -130,7 +130,6 @@ export function HomePage() {
   const canSeeCrm       = can("comercial");
   const canSeeMarketing = can("marketing");
   const canSeeHr        = can("rh");
-  const canSeeProposal  = can("proposta");
   const canSeeStock     = can("almoxarifado");
 
   // Pending tasks: pick up to 5 from non-done columns
@@ -148,7 +147,6 @@ export function HomePage() {
     { to: "/chat",        label: "Chat",         icon: ChatIcon,     bg: "bg-blue-50",    color: "text-blue-600",    show: can("chat"), badge: unreadCount },
     { to: "/comercial",   label: "Comercial",    icon: CrmIcon,      bg: "bg-emerald-50", color: "text-emerald-600", show: canSeeCrm },
     { to: "/orcamentos",  label: "Orçamentos",   icon: QuoteIcon,    bg: "bg-amber-50",   color: "text-amber-600",   show: canSeeQuotes },
-    { to: "/proposta",    label: "Propostas",    icon: ProposalIcon, bg: "bg-sky-50",     color: "text-sky-600",     show: canSeeProposal },
     { to: "/marketing",   label: "Marketing",    icon: MarketingIcon,bg: "bg-pink-50",    color: "text-pink-600",    show: canSeeMarketing },
     { to: "/rh",          label: "RH",           icon: HrIcon,       bg: "bg-indigo-50",  color: "text-indigo-600",  show: canSeeHr },
     { to: "/almoxarifado",label: "Almoxarifado", icon: StockIcon,    bg: "bg-teal-50",    color: "text-teal-600",    show: canSeeStock },

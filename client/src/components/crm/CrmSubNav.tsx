@@ -5,7 +5,6 @@ const TABS = [
   { to: "/comercial/funil", label: "Funil de vendas", end: false },
   { to: "/comercial/contatos", label: "Contatos", end: false },
   { to: "/comercial/prospeccao", label: "Prospecção", end: false },
-  { to: "/proposta", label: "Propostas", end: false },
   { to: "/comercial/assistente", label: "✦ Assistente IA", end: false },
 ];
 

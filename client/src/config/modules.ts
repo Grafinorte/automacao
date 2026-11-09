@@ -16,7 +16,6 @@ export const ALL_MODULES: ModuleDef[] = [
   { id: "comercial",    label: "CRM / Comercial", desc: "Funil de vendas, contatos e negociações",         icon: "📊", group: "Comercial" },
   { id: "whatsapp",     label: "WhatsApp Inbox",  desc: "Inbox WhatsApp, conversas e automações",          icon: "💬", group: "Comercial" },
   { id: "orcamentos",   label: "Orçamentos",      desc: "Criação e consulta de orçamentos",                 icon: "📄", group: "Comercial" },
-  { id: "proposta",     label: "Propostas",       desc: "Gerador de propostas comerciais",                  icon: "📋", group: "Comercial" },
   // Departamentos
   { id: "marketing",    label: "Marketing",       desc: "Campanhas e conteúdo de marketing",                icon: "📣", group: "Departamentos" },
   { id: "rh",           label: "RH",              desc: "Funcionários, férias e documentos",                icon: "👥", group: "Departamentos" },

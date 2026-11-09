@@ -130,7 +130,6 @@ export function Sidebar({ open = true, compact = false }: { open?: boolean; comp
             <SubNavLink to="/comercial/funil" label="CRM" />
             <SubNavLink to="/comercial/contatos" label="Contatos" />
             <SubNavLink to="/comercial/prospeccao" label="Prospecção" />
-            <SubNavLink to="/proposta" label="Propostas" />
             <SubNavLink to="/comercial/assistente" label="✦ Assistente IA" />
           </NavGroup>
         )}
