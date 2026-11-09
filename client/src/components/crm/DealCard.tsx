@@ -19,11 +19,13 @@ export function DealCard({
   deal,
   index,
   isClosedStage,
+  dragDisabled,
   onClick,
 }: {
   deal: Deal;
   index: number;
   isClosedStage?: boolean;
+  dragDisabled?: boolean;
   onClick: () => void;
 }) {
   const today = new Date(new Date().toDateString());
@@ -39,7 +41,7 @@ export function DealCard({
     new Date(deal.nextFollowUp) <= today;
 
   return (
-    <Draggable draggableId={deal.id} index={index}>
+    <Draggable draggableId={deal.id} index={index} isDragDisabled={dragDisabled}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}

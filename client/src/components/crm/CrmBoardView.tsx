@@ -13,6 +13,8 @@ import { CrmSubNav } from "./CrmSubNav";
 import { CrmOwnerFilterSelect } from "./CrmOwnerFilterSelect";
 import { Button } from "../common/Button";
 
+const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
 interface PendingLostMove {
   dealId: string;
   toStageId: string;
@@ -56,6 +58,7 @@ export function CrmBoardView() {
   const [newStageName, setNewStageName] = useState("");
   const [pendingLostMove, setPendingLostMove] = useState<PendingLostMove | null>(null);
   const [lossReason, setLossReason] = useState("");
+  const [search, setSearch] = useState("");
 
   const reload = useCallback(async () => {
     const data = await crmApi.getBoard(owner);
@@ -198,6 +201,19 @@ export function CrmBoardView() {
     );
   }
 
+  // Busca por cliente, empresa, título, telefone ou e-mail, sem diferenciar acentos e maiúsculas
+  const needle = normalize(search.trim());
+  const digits = search.replace(/\D/g, "");
+  // O card só traz nome e empresa; telefone e e-mail vêm da lista de contatos
+  const contactById = new Map(contacts.map((c) => [c.id, c]));
+  const matches = (d: Deal) => {
+    const c = contactById.get(d.contact.id);
+    return normalize([d.title, d.contact.name, d.contact.company, c?.email].filter(Boolean).join(" ")).includes(needle) ||
+      (digits.length >= 4 && (c?.phone ?? "").replace(/\D/g, "").includes(digits));
+  };
+  const searching = needle.length > 0;
+  const found = searching ? stages.reduce((n, s) => n + s.deals.filter(matches).length, 0) : 0;
+
   return (
     <div className="flex h-[calc(100vh-80px)] flex-col overflow-hidden">
       {/* Header */}
@@ -206,6 +222,26 @@ export function CrmBoardView() {
           <div>
             <h1 className="text-[20px] font-semibold leading-tight tracking-tight text-[#030304] dark:text-[#e0e0e2]">CRM</h1>
           </div>
+          <div className="relative">
+            <svg className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a0a0a4]" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+            </svg>
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Escape") setSearch(""); }}
+              placeholder="Buscar cliente..."
+              aria-label="Buscar cliente no funil"
+              className="w-56 rounded-lg border border-[rgba(199,198,202,0.6)] bg-white py-1.5 pl-8 pr-3 text-[13px] text-[#1a1c1d] placeholder-[#a0a0a4] focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 dark:border-white/10 dark:bg-[#222426] dark:text-[#e0e0e2]"
+            />
+          </div>
+          {searching && (
+            <span className="whitespace-nowrap text-[12px] text-[#77767b] dark:text-[#a0a0a4]" title="Enquanto busca, arrastar os cards fica desativado">
+              {found === 0 ? "Nada encontrado" : `${found} ${found === 1 ? "negócio" : "negócios"}`}
+              <button onClick={() => setSearch("")} className="ml-2 font-medium text-brand hover:underline">Limpar</button>
+            </span>
+          )}
           {isAdmin && user && (
             <CrmOwnerFilterSelect
               owner={owner}
@@ -285,7 +321,8 @@ export function CrmBoardView() {
             .map((stage, idx) => (
               <div key={stage.id} className="flex flex-col">
                 <StageColumn
-                  stage={stage}
+                  stage={searching ? { ...stage, deals: stage.deals.filter(matches) } : stage}
+                  dragDisabled={searching}
                   canMoveLeft={idx > 0}
                   canMoveRight={idx < stages.length - 1}
                   onRename={(name) => handleRenameStage(stage.id, name)}

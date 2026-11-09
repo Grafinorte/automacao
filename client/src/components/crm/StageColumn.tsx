@@ -11,7 +11,9 @@ export function StageColumn({
   onMoveLeft,
   onMoveRight,
   onDealClick,
+  dragDisabled,
 }: {
+  dragDisabled?: boolean;
   stage: CrmStage;
   canMoveLeft: boolean;
   canMoveRight: boolean;
@@ -55,6 +57,7 @@ export function StageColumn({
                 deal={deal}
                 index={index}
                 isClosedStage={stage.isClosed}
+                dragDisabled={dragDisabled}
                 onClick={() => onDealClick(deal)}
               />
             ))}
