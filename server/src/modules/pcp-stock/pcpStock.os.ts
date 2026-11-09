@@ -4,6 +4,7 @@ import { HttpError } from "../../middleware/errorHandler";
 const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
+const PARSE_ATTEMPTS = 2;
 
 // O nome do produto vem do Zênite em maiúsculas; a ordem importa ("CAIXA" antes de "CARTÃO")
 const CATEGORY_RULES: [RegExp, string][] = [
@@ -62,11 +63,16 @@ export async function readOsPdf(raw: unknown): Promise<OsData> {
   if (buffer.length > MAX_PDF_BYTES) throw new HttpError(400, "PDF muito grande. O limite é 10 MB.");
   if (buffer.subarray(0, 5).toString("latin1") !== "%PDF-") throw new HttpError(400, "Esse arquivo não é um PDF.");
 
-  let text: string;
-  try {
-    text = (await pdfParse(buffer)).text;
-  } catch {
-    throw new HttpError(400, "Não consegui ler esse PDF.");
+  // A biblioteca de PDF é antiga e às vezes falha de forma intermitente; uma segunda tentativa é barata
+  let text = "";
+  for (let attempt = 1; ; attempt++) {
+    try {
+      text = (await pdfParse(buffer)).text;
+      break;
+    } catch (err) {
+      console.error(`[Estoque PCP] PDF da OS ilegível (tentativa ${attempt}):`, err instanceof Error ? err.message : err);
+      if (attempt >= PARSE_ATTEMPTS) throw new HttpError(400, "Não consegui ler esse PDF.");
+    }
   }
   const data = parseOsText(text);
   if (!data.osNumber) throw new HttpError(422, "Esse PDF não parece uma OS do Zênite: não achei o número da OS.");
