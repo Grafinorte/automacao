@@ -319,6 +319,7 @@ function MovementModal({ item, type, onClose, onSaved }: {
   const [takenBy, setTakenBy] = useState(user?.name ?? "");
   const [notes, setNotes] = useState("");
   const [noDispatch, setNoDispatch] = useState(false);
+  const [pdf, setPdf] = useState<PdfPick | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -327,13 +328,16 @@ function MovementModal({ item, type, onClose, onSaved }: {
   const qtyOk = type === "AJUSTE" ? qty >= 0 : qty > 0;
   const tooMuch = type === "SAIDA" && qty > item.quantity;
   const remaining = type === "SAIDA" && qtyOk && !tooMuch ? item.quantity - qty : null;
-  const valid = qtyOk && !tooMuch && (type !== "SAIDA" || (!!takenBy.trim() && !!invoiceNumber.trim())) && (type !== "AJUSTE" || !!notes.trim());
+  const valid = qtyOk && !tooMuch && (type !== "SAIDA" || (!!takenBy.trim() && !!invoiceNumber.trim() && (!noDispatch || !!pdf))) && (type !== "AJUSTE" || !!notes.trim());
 
   async function submit() {
     setSaving(true);
     setError("");
     try {
-      await pcpStockApi.addMovement(item.id, { type, quantity: qty, takenBy, invoiceNumber, notes, noDispatch: type === "SAIDA" && noDispatch });
+      await pcpStockApi.addMovement(item.id, {
+        type, quantity: qty, takenBy, invoiceNumber, notes, noDispatch: type === "SAIDA" && noDispatch,
+        ...(type === "SAIDA" && pdf ? { invoicePdf: pdf.data, invoicePdfName: pdf.name } : {}),
+      });
       onSaved();
     } catch (e) {
       setError(errorText(e, "Não foi possível registrar."));
@@ -360,6 +364,7 @@ function MovementModal({ item, type, onClose, onSaved }: {
               <label className={labelCls}>Quem tirou do estoque</label>
               <input value={takenBy} onChange={(e) => setTakenBy(e.target.value)} className={inputCls} />
             </div>
+            <InvoicePdfField value={pdf} onChange={setPdf} required={noDispatch} hint={noDispatch ? "Para o cliente retirar, a nota precisa estar anexada." : "Sem o PDF, a nota fica em A despachar até alguém anexar."} />
             <NoDispatchCheck checked={noDispatch} onChange={setNoDispatch} />
           </>
         )}
@@ -370,6 +375,71 @@ function MovementModal({ item, type, onClose, onSaved }: {
       </div>
       <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!valid} saving={saving} label={text.action} error={error} />
     </Modal>
+  );
+}
+
+interface PdfPick { name: string; data: string }
+
+function readAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error("Não consegui abrir o arquivo."));
+    r.readAsDataURL(file);
+  });
+}
+
+/** PDF da nota (DANFE): arrastar ou escolher. "required" deixa a borda vermelha enquanto falta. */
+function InvoicePdfField({ value, onChange, required, hint }: { value: PdfPick | null; onChange: (v: PdfPick | null) => void; required?: boolean; hint?: string }) {
+  const [over, setOver] = useState(false);
+  const [err, setErr] = useState("");
+  async function take(files: FileList | null | undefined) {
+    const f = files?.[0];
+    if (!f) return;
+    if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name)) { setErr("Escolha um arquivo PDF."); return; }
+    if (f.size > 15 * 1024 * 1024) { setErr("PDF muito grande. O limite é 15 MB."); return; }
+    setErr("");
+    onChange({ name: f.name, data: await readAsDataUrl(f) });
+  }
+  return (
+    <div>
+      <label className={labelCls}>PDF da nota fiscal {required ? "(obrigatório)" : "(opcional)"}</label>
+      <div
+        onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); e.stopPropagation(); setOver(true); } }}
+        onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setOver(false); void take(e.dataTransfer.files); }}
+        className={`flex flex-wrap items-center gap-2 rounded-lg border-2 border-dashed px-3 py-2 text-[12.5px] transition-colors ${
+          over ? "border-[#005cba] bg-[#005cba]/10" : value ? "border-green-400 bg-green-50 dark:border-green-500/50 dark:bg-green-500/10" : required ? "border-red-300 dark:border-red-500/50" : "border-[rgba(199,198,202,0.8)] dark:border-white/15"
+        }`}>
+        {value ? (
+          <>
+            <span className="text-green-700 dark:text-green-400">📄</span>
+            <span className="flex-1 truncate font-medium text-[#1a1c1d] dark:text-white" title={value.name}>{value.name}</span>
+            <button type="button" onClick={() => onChange(null)} className="text-[12px] font-medium text-red-600 hover:underline dark:text-red-400">Remover</button>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 text-[#46464a] dark:text-[#d0d0d4]">{over ? <b>Solte o PDF aqui</b> : <>Arraste o <b>PDF da nota</b> para cá, ou</>}</span>
+            <label className={`${ghostBtn} !py-1 cursor-pointer`}>
+              Escolher PDF
+              <input type="file" accept="application/pdf,.pdf" className="sr-only" onChange={(e) => { void take(e.target.files); e.target.value = ""; }} />
+            </label>
+          </>
+        )}
+      </div>
+      {(err || hint) && <p className={`mt-1 text-[11.5px] ${err ? "text-red-600 dark:text-red-400" : "text-[#77767b] dark:text-[#a0a0a4]"}`}>{err || hint}</p>}
+    </div>
+  );
+}
+
+/** Abre o PDF da nota numa aba nova */
+function InvoiceLink({ movementId, name, className }: { movementId: string; name?: string | null; className?: string }) {
+  if (!name) return null;
+  return (
+    <a href={pcpStockApi.invoiceUrl(movementId)} target="_blank" rel="noreferrer" title={name} onClick={(e) => e.stopPropagation()}
+      className={className ?? "inline-flex items-center gap-1 text-[11.5px] font-medium text-[#005cba] hover:underline dark:text-[#4d9fff]"}>
+      📄 PDF da nota
+    </a>
   );
 }
 
@@ -396,6 +466,7 @@ function InvoiceModal({ items, onClose, onSaved }: { items: PcpStockItem[]; onCl
   const [takenBy, setTakenBy] = useState(user?.name ?? "");
   const [notes, setNotes] = useState("");
   const [noDispatch, setNoDispatch] = useState(false);
+  const [pdf, setPdf] = useState<PdfPick | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -410,7 +481,7 @@ function InvoiceModal({ items, onClose, onSaved }: { items: PcpStockItem[]; onCl
 
   const lines = rows.filter((i) => checked[i.id]).map((i) => ({ item: i, quantity: parseNum(qty[i.id] ?? "") }));
   const lineError = (i: PcpStockItem, q: number) => !(q > 0) ? "Quantidade inválida" : q > i.quantity ? `Maior que o saldo de ${fmt(i.quantity)}` : "";
-  const valid = lines.length > 0 && lines.every((l) => !lineError(l.item, l.quantity)) && !!invoiceNumber.trim() && !!takenBy.trim();
+  const valid = lines.length > 0 && lines.every((l) => !lineError(l.item, l.quantity)) && !!invoiceNumber.trim() && !!takenBy.trim() && (!noDispatch || !!pdf);
   const totals = Object.entries(lines.reduce<Record<string, number>>((acc, l) => ({ ...acc, [l.item.unit]: (acc[l.item.unit] ?? 0) + (l.quantity > 0 ? l.quantity : 0) }), {}))
     .map(([unit, q]) => `${fmt(q)} ${unit}`).join(" + ");
 
@@ -418,7 +489,10 @@ function InvoiceModal({ items, onClose, onSaved }: { items: PcpStockItem[]; onCl
     setSaving(true);
     setError("");
     try {
-      await pcpStockApi.invoice({ invoiceNumber, takenBy, notes, noDispatch, lines: lines.map((l) => ({ itemId: l.item.id, quantity: l.quantity })) });
+      await pcpStockApi.invoice({
+        invoiceNumber, takenBy, notes, noDispatch, lines: lines.map((l) => ({ itemId: l.item.id, quantity: l.quantity })),
+        ...(pdf ? { invoicePdf: pdf.data, invoicePdfName: pdf.name } : {}),
+      });
       notify.success(`Nota ${invoiceNumber} registrada com ${lines.length} OS.`);
       onSaved();
     } catch (e) {
@@ -484,6 +558,10 @@ function InvoiceModal({ items, onClose, onSaved }: { items: PcpStockItem[]; onCl
               <label className={labelCls}>Observação</label>
               <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="Opcional" />
             </div>
+            <div className="sm:col-span-2">
+              <InvoicePdfField value={pdf} onChange={setPdf} required={noDispatch}
+                hint={noDispatch ? "Para o cliente retirar, a nota precisa estar anexada." : "Sem o PDF, as OS ficam em A despachar até alguém anexar."} />
+            </div>
             <div className="sm:col-span-2"><NoDispatchCheck checked={noDispatch} onChange={setNoDispatch} /></div>
           </div>
         )}
@@ -506,6 +584,8 @@ function DispatchModal({ movement, onClose, onSaved }: { movement: PcpMovement; 
   const remaining = billed - sent;
   const [quantity, setQuantity] = useState(fmt(remaining));
   const [notes, setNotes] = useState("");
+  const [pdf, setPdf] = useState<PdfPick | null>(null);
+  const hasFile = !!movement.invoiceFileName;
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const qty = parseNum(quantity);
@@ -516,6 +596,8 @@ function DispatchModal({ movement, onClose, onSaved }: { movement: PcpMovement; 
     setSaving(true);
     setError("");
     try {
+      // Sem o PDF da nota não despacha: anexa primeiro (vale para as outras OS da mesma nota)
+      if (!hasFile && pdf) await pcpStockApi.attachInvoice(movement.id, pdf.data, pdf.name);
       const r = await pcpStockApi.dispatch(movement.id, qty, notes);
       notify.success(r.complete ? `NF ${movement.invoiceNumber ?? ""} despachada.` : `Despacho parcial registrado. Faltam ${fmt(r.remaining)} ${movement.item.unit}.`);
       onSaved();
@@ -529,7 +611,12 @@ function DispatchModal({ movement, onClose, onSaved }: { movement: PcpMovement; 
         <p className="rounded-lg bg-[#f7f7f9] px-3 py-2 text-[12.5px] text-[#46464a] dark:bg-white/5 dark:text-[#a0a0a4]">
           Faturado <b>{fmt(billed)} {movement.item.unit}</b>
           {sent > 0 && <> · já saiu <b>{fmt(sent)}</b> · falta <b>{fmt(remaining)}</b></>}
+          {hasFile && <> · <InvoiceLink movementId={movement.id} name={movement.invoiceFileName} /></>}
         </p>
+        {!hasFile && (
+          <InvoicePdfField value={pdf} onChange={setPdf} required
+            hint="Esta nota ainda não tem o PDF anexado. Só despacha com a nota anexada." />
+        )}
         <div>
           <label className={labelCls}>Quantidade despachada ({movement.item.unit})</label>
           <input autoFocus inputMode="decimal" value={quantity} onChange={(e) => setQuantity(e.target.value)} className={inputCls} />
@@ -541,7 +628,7 @@ function DispatchModal({ movement, onClose, onSaved }: { movement: PcpMovement; 
           <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="Motorista, placa, transportadora... (opcional)" />
         </div>
       </div>
-      <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!(qty > 0) || tooMuch} saving={saving} label="Confirmar despacho" error={error} />
+      <ModalActions onClose={onClose} onSubmit={() => void submit()} disabled={!(qty > 0) || tooMuch || (!hasFile && !pdf)} saving={saving} label="Confirmar despacho" error={error} />
     </Modal>
   );
 }
@@ -602,6 +689,9 @@ function OsDetailModal({ itemId, onClose, onEdit }: { itemId: string; onClose: (
                       {MOVE_LABEL[m.type]} · <span className="tabular-nums">{m.quantity > 0 ? "+" : ""}{fmt(m.quantity)} {os.unit}</span>
                       {m.invoiceNumber && <> · NF {m.invoiceNumber}</>}
                     </p>
+                    {m.type === "SAIDA" && (m.invoiceFileName
+                      ? <InvoiceLink movementId={m.id} name={m.invoiceFileName} />
+                      : <p className="text-[11.5px] font-medium text-amber-700 dark:text-amber-400">Sem PDF da nota</p>)}
                     <p className="text-[11.5px] text-[#77767b] dark:text-[#a0a0a4]">
                       {when(m.createdAt)} · {m.createdByName}{m.takenBy ? ` · tirou: ${m.takenBy}` : ""} · saldo depois: {fmt(m.balanceAfter)}{m.notes ? ` · ${m.notes}` : ""}
                     </p>
@@ -1042,7 +1132,10 @@ export function PcpStockPage() {
                       <td className="px-4 py-2.5"><span className={`rounded px-1.5 py-0.5 text-[11px] font-semibold ${TYPE_STYLE[m.type].cls}`}>{TYPE_STYLE[m.type].label}</span></td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right font-semibold tabular-nums">{m.quantity > 0 ? "+" : ""}{fmt(m.quantity)} {m.item.unit}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums">{fmt(m.balanceAfter)}</td>
-                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">{m.invoiceNumber ?? "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 tabular-nums">
+                        {m.invoiceNumber ?? "—"}
+                        {m.type === "SAIDA" && <div><InvoiceLink movementId={m.id} name={m.invoiceFileName} /></div>}
+                      </td>
                       <td className="px-4 py-2.5">{m.takenBy ?? "—"}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-[12px]">
                         {m.type !== "SAIDA" ? "—" : !m.dispatchedAt && (m.dispatchedQty ?? 0) > 0

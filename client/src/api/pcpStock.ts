@@ -56,6 +56,8 @@ export interface PcpMovement {
   invoiceNumber: string | null;
   dispatchedAt: string | null;
   dispatchedBy: string | null;
+  invoiceFileName?: string | null; // PDF da nota anexado
+  movementId?: string;              // nos cartões "Despachado": a saída da viagem
   dispatchedQty?: number;   // quanto desta nota já saiu (despacho em partes)
   billedQty?: number;       // nos cartões "Despachado": o total da nota daquela viagem
   reference: string | null;
@@ -106,9 +108,12 @@ export const pcpStockApi = {
     api.post<{ remaining: number; complete: boolean }>(`/estoque-pcp/movements/${movementId}/dispatch`, { quantity, notes }),
   updateItem: (id: string, data: PcpItemInput) => api.patch<PcpStockItem>(`/estoque-pcp/items/${id}`, data),
   removeItem: (id: string) => api.delete<{ result: "deleted" | "archived" }>(`/estoque-pcp/items/${id}`),
-  invoice: (data: { invoiceNumber: string; takenBy: string; notes: string; noDispatch: boolean; lines: { itemId: string; quantity: number }[] }) =>
+  invoice: (data: { invoiceNumber: string; takenBy: string; notes: string; noDispatch: boolean; lines: { itemId: string; quantity: number }[]; invoicePdf?: string; invoicePdfName?: string }) =>
     api.post<{ invoiceNumber: string; movements: number }>("/estoque-pcp/faturar", data),
-  addMovement: (id: string, data: { type: PcpMovementType; quantity: number; takenBy?: string; invoiceNumber?: string; notes?: string; noDispatch?: boolean }) =>
+  attachInvoice: (movementId: string, pdf: string, name: string) => api.post<{ invoiceFileName: string; movements: number }>(`/estoque-pcp/movements/${movementId}/nota`, { pdf, name }),
+  /** Endereço para abrir o PDF da nota numa aba nova */
+  invoiceUrl: (movementId: string) => `/api/estoque-pcp/movements/${movementId}/nota`,
+  addMovement: (id: string, data: { type: PcpMovementType; quantity: number; takenBy?: string; invoiceNumber?: string; notes?: string; noDispatch?: boolean; invoicePdf?: string; invoicePdfName?: string }) =>
     api.post<{ movement: unknown; item: PcpStockItem }>(`/estoque-pcp/items/${id}/movements`, data),
   listMovements: (month: string) => api.get<PcpMovement[]>(`/estoque-pcp/movements?month=${month}`),
   getSettings: () => api.get<PcpSettings>("/estoque-pcp/settings"),

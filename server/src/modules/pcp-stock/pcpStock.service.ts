@@ -2,6 +2,7 @@ import { prisma } from "../../db/prisma";
 import type { Prisma } from "../../generated/prisma/client";
 import { HttpError } from "../../middleware/errorHandler";
 import { monthRange, previousPeriod } from "./pcpStock.period";
+import { discardInvoicePdf, saveInvoicePdf, type InvoiceFile } from "./pcpStock.files";
 
 type PcpMovementType = "ENTRADA" | "SAIDA" | "AJUSTE";
 
@@ -119,7 +120,10 @@ export async function removeItem(id: string): Promise<"deleted" | "archived"> {
 export async function addMovement(
   itemId: string,
   userId: string,
-  raw: { type?: unknown; quantity?: unknown; takenBy?: unknown; reference?: unknown; invoiceNumber?: unknown; notes?: unknown; noDispatch?: unknown },
+  raw: {
+    type?: unknown; quantity?: unknown; takenBy?: unknown; reference?: unknown; invoiceNumber?: unknown; notes?: unknown; noDispatch?: unknown;
+    invoicePdf?: unknown; invoicePdfName?: unknown;
+  },
 ) {
   const type = raw.type as PcpMovementType;
   if (!["ENTRADA", "SAIDA", "AJUSTE"].includes(type)) throw new HttpError(400, "Tipo de movimentação inválido.");
@@ -133,8 +137,10 @@ export async function addMovement(
   if (type === "SAIDA" && !invoiceNumber) throw new HttpError(400, "Informe o número da nota fiscal.");
   if (type === "SAIDA" && !takenBy) throw new HttpError(400, "Informe quem tirou do estoque.");
   if (type === "AJUSTE" && !notes) throw new HttpError(400, "Informe o motivo do ajuste.");
+  if (type === "SAIDA" && raw.noDispatch === true && !raw.invoicePdf) throw new HttpError(400, "Para o cliente retirar, anexe o PDF da nota.");
 
   const createdByName = await userName(userId);
+  const file = type === "SAIDA" && raw.invoicePdf ? await saveInvoicePdf(raw.invoicePdf, raw.invoicePdfName) : null;
 
   return prisma.$transaction(async (tx) => {
     const item = await tx.pcpStockItem.findUnique({ where: { id: itemId } });
@@ -151,13 +157,14 @@ export async function addMovement(
       data: {
         itemId, type, quantity: delta, balanceAfter,
         takenBy: type === "SAIDA" ? takenBy : null, invoiceNumber: type === "SAIDA" ? invoiceNumber : null,
+        invoiceFile: file?.stored ?? null, invoiceFileName: file?.name ?? null,
         reference, notes, createdById: userId, createdByName,
       },
     });
     if (type === "SAIDA" && raw.noDispatch === true) movement = await closeWithoutDispatch(tx, movement.id, -delta, userId, createdByName);
     const updated = await tx.pcpStockItem.update({ where: { id: itemId }, data: { quantity: balanceAfter } });
     return { movement, item: updated };
-  });
+  }).catch(async (err) => { await discardInvoicePdf(file); throw err; });
 }
 
 /** Tudo de uma OS para o "Ver mais": dados, entradas, saídas com nota, ajustes e cada despacho */
@@ -235,6 +242,7 @@ const MAX_INVOICE_LINES = 100;
  */
 export async function invoiceItems(userId: string, raw: {
   invoiceNumber?: unknown; takenBy?: unknown; notes?: unknown; noDispatch?: unknown; lines?: unknown;
+  invoicePdf?: unknown; invoicePdfName?: unknown;
 }) {
   const invoiceNumber = clean(raw.invoiceNumber);
   const takenBy = clean(raw.takenBy);
@@ -251,8 +259,10 @@ export async function invoiceItems(userId: string, raw: {
     return { itemId: line.itemId, quantity };
   });
   if (new Set(lines.map((l) => l.itemId)).size !== lines.length) throw new HttpError(400, "A mesma OS apareceu duas vezes.");
+  if (raw.noDispatch === true && !raw.invoicePdf) throw new HttpError(400, "Para o cliente retirar, anexe o PDF da nota.");
 
   const createdByName = await userName(userId);
+  const file: InvoiceFile | null = raw.invoicePdf ? await saveInvoicePdf(raw.invoicePdf, raw.invoicePdfName) : null;
 
   return prisma.$transaction(async (tx) => {
     const items = await tx.pcpStockItem.findMany({ where: { id: { in: lines.map((l) => l.itemId) } } });
@@ -272,6 +282,7 @@ export async function invoiceItems(userId: string, raw: {
         data: {
           itemId: item.id, type: "SAIDA", quantity: -line.quantity, balanceAfter,
           invoiceNumber, takenBy, notes, createdById: userId, createdByName,
+          invoiceFile: file?.stored ?? null, invoiceFileName: file?.name ?? null,
         },
       });
       if (raw.noDispatch === true) await closeWithoutDispatch(tx, movement.id, line.quantity, userId, createdByName);
@@ -279,7 +290,35 @@ export async function invoiceItems(userId: string, raw: {
       await tx.pcpStockItem.update({ where: { id: item.id }, data: { quantity: balanceAfter } });
     }
     return { invoiceNumber, movements: created.length };
+  }).catch(async (err) => { await discardInvoicePdf(file); throw err; });
+}
+
+/**
+ * Anexa o PDF a uma nota já registrada. Vale para todas as saídas com o mesmo número de nota
+ * do mesmo cliente e empresa que ainda estão sem arquivo.
+ */
+export async function attachInvoice(movementId: string, raw: { pdf?: unknown; name?: unknown }) {
+  const movement = await prisma.pcpStockMovement.findUnique({ where: { id: movementId }, include: { item: true } });
+  if (!movement || movement.type !== "SAIDA" || !movement.invoiceNumber) throw new HttpError(404, "Saída com nota não encontrada.");
+  const file = await saveInvoicePdf(raw.pdf, raw.name);
+  const result = await prisma.pcpStockMovement.updateMany({
+    where: {
+      type: "SAIDA", invoiceNumber: movement.invoiceNumber, invoiceFile: null,
+      item: { company: movement.item.company, client: movement.item.client },
+    },
+    data: { invoiceFile: file.stored, invoiceFileName: file.name },
   });
+  // Já tinha arquivo: substitui só nesta saída
+  if (result.count === 0) {
+    await prisma.pcpStockMovement.update({ where: { id: movementId }, data: { invoiceFile: file.stored, invoiceFileName: file.name } });
+  }
+  return { invoiceFileName: file.name, movements: Math.max(result.count, 1) };
+}
+
+export async function getInvoiceFile(movementId: string) {
+  const movement = await prisma.pcpStockMovement.findUnique({ where: { id: movementId } });
+  if (!movement?.invoiceFile) throw new HttpError(404, "Esta saída não tem PDF da nota.");
+  return { stored: movement.invoiceFile, name: movement.invoiceFileName ?? `nota-${movement.invoiceNumber ?? ""}.pdf` };
 }
 
 const DISPATCHED_DAYS = 7;
@@ -302,7 +341,7 @@ export async function listDispatch() {
     }),
     prisma.pcpStockDispatch.findMany({
       where: { dispatchedAt: { gte: since } },
-      include: { movement: { select: { invoiceNumber: true, quantity: true, ...movementItem } } },
+      include: { movement: { select: { invoiceNumber: true, invoiceFileName: true, quantity: true, ...movementItem } } },
       orderBy: { dispatchedAt: "desc" },
       take: 200,
     }),
@@ -311,7 +350,7 @@ export async function listDispatch() {
     pending: pending.map(({ dispatches, ...m }) => ({ ...m, dispatchedQty: dispatchedSum(dispatches) })),
     // Mesmo formato de uma saída, para a tela tratar igual; a quantidade é a da viagem
     done: trips.map((t) => ({
-      id: t.id, movementId: t.movementId, type: "SAIDA" as const, invoiceNumber: t.movement.invoiceNumber, quantity: -t.quantity,
+      id: t.id, movementId: t.movementId, type: "SAIDA" as const, invoiceNumber: t.movement.invoiceNumber, invoiceFileName: t.movement.invoiceFileName, quantity: -t.quantity,
       billedQty: -t.movement.quantity, dispatchedAt: t.dispatchedAt, dispatchedBy: t.dispatchedBy, notes: t.notes, item: t.movement.item,
     })),
   };
@@ -324,6 +363,7 @@ export async function dispatchMovement(id: string, userId: string, raw: { quanti
     const movement = await tx.pcpStockMovement.findUnique({ where: { id }, include: { dispatches: { select: { quantity: true } } } });
     if (!movement || movement.type !== "SAIDA") throw new HttpError(404, "Saída não encontrada.");
     if (movement.dispatchedAt) throw new HttpError(409, "Esta nota já foi despachada.");
+    if (!movement.invoiceFile) throw new HttpError(409, "Anexe o PDF da nota antes de despachar.");
     const remaining = round3(-movement.quantity - dispatchedSum(movement.dispatches));
     const quantity = raw.quantity === undefined || raw.quantity === null || raw.quantity === "" ? remaining : round3(Number(raw.quantity));
     if (!Number.isFinite(quantity) || quantity <= 0) throw new HttpError(400, "Informe a quantidade despachada.");

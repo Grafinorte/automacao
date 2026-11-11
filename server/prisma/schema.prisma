@@ -1158,6 +1158,8 @@ model PcpStockMovement {
   takenBy       String?           // quem tirou fisicamente do estoque
   reference     String?           // OS / destino
   invoiceNumber String?           // nota fiscal da saída
+  invoiceFile   String?           // PDF da nota guardado em data/pcp-notas (mesmo arquivo para as OS da mesma nota)
+  invoiceFileName String?         // nome original do PDF
   dispatchedAt  DateTime?         // despacho do que saiu com a nota
   dispatchedBy  String?
   notes         String?

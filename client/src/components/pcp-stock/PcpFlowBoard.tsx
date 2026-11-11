@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { PcpMovement, PcpStockItem } from "../../api/pcpStock";
+import { pcpStockApi, type PcpMovement, type PcpStockItem } from "../../api/pcpStock";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const STALE_DAYS = 30;
@@ -197,6 +197,9 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
                   Saiu {fmt(sent)} · falta {fmt(-m.quantity - sent)}
                 </p>
               )}
+              {m.invoiceFileName
+                ? <a href={pcpStockApi.invoiceUrl(m.id)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="mt-1 inline-flex text-[11.5px] font-medium text-[#005cba] hover:underline dark:text-[#4d9fff]">📄 PDF da nota</a>
+                : <p className="mt-1 text-[11.5px] font-semibold text-red-600 dark:text-red-400">⚠ Falta o PDF da nota</p>}
               <button disabled={busy === m.id} onClick={() => onDispatch(m)} className={actionBtn}>Despachar</button>
             </Card>
           );
@@ -211,6 +214,9 @@ export function PcpFlowBoard({ items, pending, done, ownerOf, busy, onConclude, 
               {m.billedQty !== undefined && m.billedQty > -m.quantity && <> de {fmt(m.billedQty)}</>}
             </p>
             {m.notes && <p className="truncate text-[11px] text-[#46464a] dark:text-[#a0a0a4]" title={m.notes}>{m.notes}</p>}
+            {m.invoiceFileName && m.movementId && (
+              <a href={pcpStockApi.invoiceUrl(m.movementId)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex text-[11.5px] font-medium text-[#005cba] hover:underline dark:text-[#4d9fff]">📄 PDF da nota</a>
+            )}
             <p className="text-[11px] text-[#77767b] dark:text-[#a0a0a4]">
               {m.dispatchedAt ? new Date(m.dispatchedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""} · {m.dispatchedBy}
             </p>

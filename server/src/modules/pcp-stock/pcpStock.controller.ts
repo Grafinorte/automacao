@@ -3,6 +3,7 @@ import { prisma } from "../../db/prisma";
 import { HttpError } from "../../middleware/errorHandler";
 import { currentPeriod, isPeriod, previousPeriod } from "./pcpStock.period";
 import { readOsPdf } from "./pcpStock.os";
+import { invoicePdfPath } from "./pcpStock.files";
 import { sendReport } from "./pcpStock.report";
 import * as service from "./pcpStock.service";
 
@@ -61,6 +62,18 @@ export async function postReceive(req: Request, res: Response) {
 
 export async function postInvoice(req: Request, res: Response) {
   res.status(201).json(await service.invoiceItems(req.user!.sub, req.body ?? {}));
+}
+
+export async function postInvoiceFile(req: Request, res: Response) {
+  res.json(await service.attachInvoice(req.params.id, req.body ?? {}));
+}
+
+/** Abre o PDF da nota no navegador */
+export async function getInvoiceFile(req: Request, res: Response) {
+  const file = await service.getInvoiceFile(req.params.id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(file.name)}`);
+  res.sendFile(invoicePdfPath(file.stored));
 }
 
 export async function getDispatch(_req: Request, res: Response) {

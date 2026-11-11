@@ -9,6 +9,7 @@ server/data/attachments/
 server/data/media/
 server/data/wa-media/
 server/data/social-media/
+server/data/pcp-notas/
 server/scripts/railway-import/
 server/src/generated/
 .env

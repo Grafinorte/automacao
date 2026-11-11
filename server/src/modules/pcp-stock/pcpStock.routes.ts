@@ -22,6 +22,8 @@ pcpStockRouter.post("/items/:id/receive", asyncHandler(ctrl.postReceive));
 pcpStockRouter.post("/faturar", asyncHandler(ctrl.postInvoice));
 pcpStockRouter.get("/dispatch", asyncHandler(ctrl.getDispatch));
 pcpStockRouter.post("/movements/:id/dispatch", asyncHandler(ctrl.postDispatch));
+pcpStockRouter.post("/movements/:id/nota", asyncHandler(ctrl.postInvoiceFile));
+pcpStockRouter.get("/movements/:id/nota", asyncHandler(ctrl.getInvoiceFile));
 
 pcpStockRouter.get("/settings", asyncHandler(ctrl.getSettings));
 // Quem recebe, quem envia e o envio manual ficam com o admin
