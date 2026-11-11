@@ -160,6 +160,16 @@ export async function addMovement(
   });
 }
 
+/** Tudo de uma OS para o "Ver mais": dados, entradas, saídas com nota, ajustes e cada despacho */
+export async function getItemHistory(id: string) {
+  const item = await prisma.pcpStockItem.findUnique({
+    where: { id },
+    include: { movements: { include: { dispatches: { orderBy: { dispatchedAt: "asc" } } }, orderBy: { createdAt: "asc" } } },
+  });
+  if (!item) throw new HttpError(404, "OS não encontrada.");
+  return item;
+}
+
 export async function listMovements(period: string) {
   const { start, end } = monthRange(period);
   const rows = await prisma.pcpStockMovement.findMany({

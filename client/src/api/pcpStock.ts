@@ -86,7 +86,15 @@ export interface PcpOsData {
   perPack: number | null;
 }
 
+export interface PcpItemHistory extends PcpStockItem {
+  active: boolean;
+  movements: (Omit<PcpMovement, "item" | "dispatchedQty" | "billedQty"> & {
+    dispatches: { id: string; quantity: number; notes: string | null; dispatchedBy: string; dispatchedAt: string }[];
+  })[];
+}
+
 export const pcpStockApi = {
+  history: (id: string) => api.get<PcpItemHistory>(`/estoque-pcp/items/${id}/history`),
   readOs: (pdf: string) => api.post<PcpOsData>("/estoque-pcp/ler-os", { pdf }),
   listItems: () => api.get<PcpStockItem[]>("/estoque-pcp/items"),
   createItem: (data: PcpItemInput & { quantity: number; stage: "PRODUCAO" | "ESTOQUE"; orderedQty: number | null; plannedQty: number | null }) =>

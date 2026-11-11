@@ -47,6 +47,10 @@ export async function postMovement(req: Request, res: Response) {
   res.status(201).json(await service.addMovement(req.params.id, req.user!.sub, req.body ?? {}));
 }
 
+export async function getHistory(req: Request, res: Response) {
+  res.json(await service.getItemHistory(req.params.id));
+}
+
 export async function postStage(req: Request, res: Response) {
   res.json(await service.moveStage(req.params.id, req.user!.sub, req.body?.to));
 }

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   PCP_CATEGORIES, PCP_COMPANIES, PCP_UNITS, pcpStockApi,
-  type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpOsData, type PcpSettings, type PcpStockItem,
+  type PcpItemHistory, type PcpItemInput, type PcpMovement, type PcpMovementType, type PcpOsData, type PcpSettings, type PcpStockItem,
 } from "../api/pcpStock";
-import { PcpFlowBoard } from "../components/pcp-stock/PcpFlowBoard";
+import { PcpFlowBoard, type DragPayload, type FlowColumn } from "../components/pcp-stock/PcpFlowBoard";
 import { confirmAction, notify } from "../components/feedback/feedback";
 
 const STALE_DAYS = 30;
@@ -86,8 +86,8 @@ function Toggle<T extends string | boolean>({ options, value, onChange }: { opti
 }
 
 // ─── Entrada por OS e edição ──────────────────────────────────────────────────
-function ItemModal({ item, items, clients, onClose, onSaved }: {
-  item: PcpStockItem | null; items: PcpStockItem[]; clients: string[]; onClose: () => void; onSaved: () => void;
+function ItemModal({ item, items, clients, initialFile, onClose, onSaved }: {
+  item: PcpStockItem | null; items: PcpStockItem[]; clients: string[]; initialFile?: File | null; onClose: () => void; onSaved: () => void;
 }) {
   const [company, setCompany] = useState(item?.company ?? "GRAFINORTE");
   const [osNumber, setOsNumber] = useState(item?.osNumber ?? "");
@@ -106,6 +106,18 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
   // Onde a OS começa: em produção (fluxo normal) ou já no estoque (o que já estava pronto)
   const [where, setWhere] = useState<"PRODUCAO" | "ESTOQUE">("PRODUCAO");
   const inProduction = !item && where === "PRODUCAO";
+  const [dropping, setDropping] = useState(false);
+
+  // PDF solto em qualquer lugar da tela do estoque abre esta janela já lendo o arquivo
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (initialFile) void readPdf(initialFile); }, [initialFile]);
+
+  function pickPdf(files: FileList | null | undefined) {
+    const f = files?.[0];
+    if (!f) return;
+    if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name)) { setError("Esse arquivo não é um PDF."); return; }
+    void readPdf(f);
+  }
 
   // O PDF só preenche; a pessoa confere e digita o que foi produzido de fato
   async function readPdf(file: File) {
@@ -165,12 +177,24 @@ function ItemModal({ item, items, clients, onClose, onSaved }: {
         </div>
       )}
       {!item && (
-        <div className="mb-4 rounded-lg border border-dashed border-[rgba(199,198,202,0.8)] p-3 dark:border-white/15">
-          <label className={`${ghostBtn} inline-block cursor-pointer ${reading ? "pointer-events-none opacity-50" : ""}`}>
-            {reading ? "Lendo a OS..." : "Ler PDF da OS"}
-            <input type="file" accept="application/pdf,.pdf" className="sr-only"
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void readPdf(f); }} />
-          </label>
+        <div
+          onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDropping(true); } }}
+          onDragLeave={() => setDropping(false)}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDropping(false); pickPdf(e.dataTransfer.files); }}
+          className={`mb-4 rounded-lg border-2 border-dashed p-3 transition-colors ${dropping ? "border-[#005cba] bg-[#005cba]/10" : "border-[rgba(199,198,202,0.8)] dark:border-white/15"}`}>
+          <div className="flex flex-wrap items-center gap-3">
+            <svg className={`h-8 w-8 flex-shrink-0 ${dropping ? "text-[#005cba]" : "text-[#a0a0a4]"}`} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+            </svg>
+            <p className="flex-1 text-[12.5px] text-[#46464a] dark:text-[#d0d0d4]">
+              {reading ? <b>Lendo a OS...</b> : dropping ? <b>Solte o PDF aqui</b> : <>Arraste o <b>PDF da OS</b> para cá, ou</>}
+            </p>
+            <label className={`${ghostBtn} inline-block cursor-pointer ${reading ? "pointer-events-none opacity-50" : ""}`}>
+              Ler PDF da OS
+              <input type="file" accept="application/pdf,.pdf" className="sr-only"
+                onChange={(e) => { pickPdf(e.target.files); e.target.value = ""; }} />
+            </label>
+          </div>
           {osRead ? (
             <div className="mt-2 text-[12px] text-[#46464a] dark:text-[#a0a0a4]">
               <p>
@@ -523,6 +547,89 @@ function DispatchModal({ movement, onClose, onSaved }: { movement: PcpMovement; 
 }
 
 // ─── Conferência da expedição: a OS entra no estoque ─────────────────────────
+const STAGE_LABEL: Record<string, string> = { PRODUCAO: "Em produção", EXPEDICAO: "Na expedição", ESTOQUE: "No estoque" };
+const MOVE_LABEL: Record<PcpMovementType, string> = { ENTRADA: "Entrada no estoque", SAIDA: "Saída com nota", AJUSTE: "Ajuste de contagem" };
+const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+
+function OsDetailModal({ itemId, onClose, onEdit }: { itemId: string; onClose: () => void; onEdit: (i: PcpStockItem) => void }) {
+  const [os, setOs] = useState<PcpItemHistory | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => { pcpStockApi.history(itemId).then(setOs).catch((e) => setError(errorText(e, "Não foi possível abrir a OS."))); }, [itemId]);
+
+  const field = (label: string, value: React.ReactNode) => (
+    <div><p className={labelCls}>{label}</p><p className="text-[13px] text-[#1a1c1d] dark:text-[#e0e0e4]">{value ?? "—"}</p></div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>
+      <div className={`${card} max-h-[90vh] w-full max-w-2xl overflow-y-auto p-5 shadow-2xl`} onMouseDown={(e) => e.stopPropagation()}>
+        {!os ? (
+          <p className="py-10 text-center text-[13px] text-[#77767b]">{error || "Carregando..."}</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-[12px] font-semibold text-[#005cba] dark:text-[#4d9fff]">OS {os.osNumber ?? "—"} · {companyName(os.company)}</p>
+                <h2 className="text-[17px] font-semibold text-[#1a1c1d] dark:text-white">{os.name}</h2>
+                <p className="text-[12.5px] text-[#77767b] dark:text-[#a0a0a4]">{ownerOf(os)}</p>
+              </div>
+              <span className="rounded-full bg-[#005cba]/10 px-2.5 py-1 text-[12px] font-semibold text-[#005cba] dark:text-[#4d9fff]">
+                {os.active ? STAGE_LABEL[os.stage] ?? os.stage : "Arquivada"}
+              </span>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {field("Saldo", <b>{fmt(os.quantity)} {os.unit}</b>)}
+              {field("Pedido", os.orderedQty !== null ? `${fmt(os.orderedQty)} ${os.unit}` : null)}
+              {field("Plano", os.plannedQty !== null ? `${fmt(os.plannedQty)} ${os.unit}` : null)}
+              {field("Tipo", os.category)}
+              {field("Local", os.location)}
+              {field("No estoque desde", os.stockedAt ? when(os.stockedAt) : null)}
+              {field("Etapa atual desde", os.stageAt ? `${when(os.stageAt)}${os.stageBy ? ` · ${os.stageBy}` : ""}` : null)}
+              {field("Cadastrada em", when(os.createdAt))}
+            </div>
+            {os.notes && <div className="mt-3">{field("Observação", os.notes)}</div>}
+
+            <h3 className="mt-5 text-[13px] font-semibold text-[#1a1c1d] dark:text-white">Histórico</h3>
+            {os.movements.length === 0 ? (
+              <p className="mt-1 text-[12.5px] text-[#77767b]">Nenhuma movimentação ainda.</p>
+            ) : (
+              <ol className="mt-2 flex flex-col gap-2 border-l-2 border-[rgba(199,198,202,0.5)] pl-4 dark:border-white/10">
+                {os.movements.map((m) => (
+                  <li key={m.id} className="relative text-[12.5px]">
+                    <span className={`absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full ${m.type === "ENTRADA" ? "bg-green-500" : m.type === "SAIDA" ? "bg-red-500" : "bg-amber-500"}`} />
+                    <p className="font-medium text-[#1a1c1d] dark:text-[#e0e0e4]">
+                      {MOVE_LABEL[m.type]} · <span className="tabular-nums">{m.quantity > 0 ? "+" : ""}{fmt(m.quantity)} {os.unit}</span>
+                      {m.invoiceNumber && <> · NF {m.invoiceNumber}</>}
+                    </p>
+                    <p className="text-[11.5px] text-[#77767b] dark:text-[#a0a0a4]">
+                      {when(m.createdAt)} · {m.createdByName}{m.takenBy ? ` · tirou: ${m.takenBy}` : ""} · saldo depois: {fmt(m.balanceAfter)}{m.notes ? ` · ${m.notes}` : ""}
+                    </p>
+                    {m.type === "SAIDA" && (
+                      <div className="mt-1 flex flex-col gap-0.5">
+                        {m.dispatches.length === 0 && <p className="text-[11.5px] font-medium text-red-600 dark:text-red-400">Despacho pendente</p>}
+                        {m.dispatches.map((d) => (
+                          <p key={d.id} className="text-[11.5px] text-[#46464a] dark:text-[#a0a0a4]">
+                            🚚 Despachado {fmt(d.quantity)} {os.unit} · {when(d.dispatchedAt)} · {d.dispatchedBy}{d.notes ? ` · ${d.notes}` : ""}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </>
+        )}
+        <div className="mt-5 flex justify-end gap-2">
+          {os?.active && <button onClick={() => { onEdit(os); onClose(); }} className={ghostBtn}>Editar</button>}
+          <button onClick={onClose} className={primaryBtn}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReceiveModal({ item, onClose, onSaved }: { item: PcpStockItem; onClose: () => void; onSaved: () => void }) {
   const [quantity, setQuantity] = useState(item.orderedQty ? fmt(item.orderedQty) : "");
   const [notes, setNotes] = useState("");
@@ -662,6 +769,8 @@ export function PcpStockPage() {
   const [category, setCategory] = useState("");
   const [showZero, setShowZero] = useState(false);
   const [editing, setEditing] = useState<PcpStockItem | "new" | null>(null);
+  const [droppedPdf, setDroppedPdf] = useState<File | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [moving, setMoving] = useState<{ item: PcpStockItem; type: PcpMovementType } | null>(null);
   const [showReport, setShowReport] = useState(false);
 
@@ -720,6 +829,37 @@ export function PcpStockPage() {
   const backToProduction = (i: PcpStockItem) => void step(i.id, () => pcpStockApi.moveStage(i.id, "PRODUCAO"));
   const markDispatched = (m: PcpMovement) => setDispatching(m);
 
+  // Arrastar entre colunas: a mudança simples é direta; o que pede dados abre a janela certa
+  function moveCard(p: DragPayload, to: FlowColumn) {
+    const item = p.kind === "item" ? items.find((i) => i.id === p.id) : undefined;
+    const mov = p.kind === "mov" ? dispatch.pending.find((m) => m.id === p.id) : undefined;
+    const os = item?.osNumber ?? mov?.item.osNumber ?? "";
+    if (item && p.from === "PRODUCAO" && to === "EXPEDICAO") {
+      void step(item.id, async () => { await pcpStockApi.moveStage(item.id, "EXPEDICAO"); notify.success(`OS ${os}: produção concluída.`); });
+    } else if (item && p.from === "EXPEDICAO" && to === "PRODUCAO") {
+      void step(item.id, async () => { await pcpStockApi.moveStage(item.id, "PRODUCAO"); notify.info(`OS ${os} voltou para a produção.`); });
+    } else if (item && p.from === "EXPEDICAO" && to === "ESTOQUE") {
+      setReceiving(item);
+    } else if (item && p.from === "ESTOQUE" && to === "PENDENTE") {
+      setMoving({ item, type: "SAIDA" });
+    } else if (mov && p.from === "PENDENTE" && to === "DESPACHADO") {
+      setDispatching(mov);
+    }
+  }
+
+  // PDF solto em qualquer lugar da tela abre a Nova OS lendo o arquivo (e o navegador não sai da página)
+  function onPageDragOver(e: React.DragEvent) { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); }
+  function onPageDrop(e: React.DragEvent) {
+    if (!e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    const f = e.dataTransfer.files?.[0];
+    if (!f) return;
+    if (f.type !== "application/pdf" && !/\.pdf$/i.test(f.name)) { notify.error("Solte um PDF de OS para cadastrar."); return; }
+    if (editing) return;
+    setDroppedPdf(f);
+    setEditing("new");
+  }
+
   // Soma por unidade: mostra a sobra de um mesmo material espalhada em várias OS
   const listTotal = Object.entries(
     visibleItems.reduce<Record<string, number>>((acc, i) => ({ ...acc, [i.unit]: (acc[i.unit] ?? 0) + i.quantity }), {}),
@@ -746,7 +886,7 @@ export function PcpStockPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto" onDragOver={onPageDragOver} onDrop={onPageDrop}>
       <div className="mx-auto max-w-[1400px] px-4 py-6 md:px-8">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -829,6 +969,8 @@ export function PcpStockPage() {
               onDispatch={markDispatched}
               onRemove={(i) => void remove(i)}
               onEdit={setEditing}
+              onOpen={setDetailId}
+              onMove={moveCard}
             />
           ) : tab === "estoque" ? (
             visibleItems.length === 0 ? (
@@ -920,7 +1062,9 @@ export function PcpStockPage() {
         </div>
       </div>
 
-      {editing && <ItemModal item={editing === "new" ? null : editing} items={items} clients={clients} onClose={() => setEditing(null)} onSaved={afterSave} />}
+      {editing && <ItemModal item={editing === "new" ? null : editing} items={items} clients={clients} initialFile={editing === "new" ? droppedPdf : null}
+        onClose={() => { setEditing(null); setDroppedPdf(null); }} onSaved={() => { setDroppedPdf(null); afterSave(); }} />}
+      {detailId && <OsDetailModal itemId={detailId} onClose={() => setDetailId(null)} onEdit={setEditing} />}
       {moving && <MovementModal item={moving.item} type={moving.type} onClose={() => setMoving(null)} onSaved={afterSave} />}
       {dispatching && <DispatchModal movement={dispatching} onClose={() => setDispatching(null)} onSaved={afterSave} />}
       {invoicing && <InvoiceModal items={items} onClose={() => setInvoicing(false)} onSaved={afterSave} />}
